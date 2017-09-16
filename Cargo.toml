@@ -1,0 +1,14 @@
+[package]
+name = "WSBot"
+version = "0.2.0"
+authors = ["Sladko"]
+
+[dependencies]
+discord = { git = "https://github.com/SpaceManiac/discord-rs" }
+regex = "0.2"
+reqwest = "*"
+lazy_static = "0.2.8"
+mysql = "11.1.2"
+serde = "1.0.8"
+serde_json = "1.0.2"
+serde_derive = "1.0.8"
