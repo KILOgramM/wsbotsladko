@@ -153,7 +153,7 @@ fn build_opts() -> mysql::Opts //Конструктор для БД
 fn load_overwatch_rating(btag: String, reg: String, plat: String) -> u16 //Проверка существование профил и подгрузка рейтинга при наличее
 {
     lazy_static! {
-        static ref RE: Regex = Regex::new("<div class=\"u-align-center h6\">(\\d+)</div>").unwrap();
+        static ref RE: Regex = Regex::new("<div class=\"u-align-center h5\">(\\d+)</div>").unwrap();
     }
 
     let url = &format!("https://playoverwatch.com/en-us/career/{}/{}/{}", plat.to_lowercase(), reg.to_lowercase(), btag.replace("#", "-"));
@@ -174,10 +174,35 @@ fn load_overwatch_rating(btag: String, reg: String, plat: String) -> u16 //Пр�
     return result.unwrap().get(1).unwrap().as_str().parse::<u16>().unwrap();
     //println!("нашли б таг в строке");
 }
+fn load_overwatch_comphero_played(btag: String, reg: String, plat: String) -> u16 //Проверка существование профил и подгрузка рейтинга при наличее
+{
+    lazy_static! {
+        static ref RE: Regex = Regex::new("<div id=\"competitive\"(.*)</div></div></div></div>").unwrap();
+        static ref HERO: Regex = Regex::new("0x02E0000000000(.*)\">").unwrap();
+    }
+
+    let url = &format!("https://playoverwatch.com/en-us/career/{}/{}/{}", plat.to_lowercase(), reg.to_lowercase(), btag.replace("#", "-"));
+    //println!("сам урл есть - {}", &url);
+    let mut resp = reqwest::get(url).expect("Wrong url");
+    //println!("Запрос УРЛ успешен");
+    let mut content = String::new();
+    //println!("новая строка?");
+    resp.read_to_string(&mut content).expect("OW player page downloading error");
+    //println!("весь контент страницы в строке?");
+    if content.contains("<h1 class=\"u-align-center\">Page Not Found</h1>") {
+        return 6000;
+    }
+    let result = HERO.captures(&content);
+    if result.is_none() {
+        return 0;
+    }
+    return result.unwrap().get(1).unwrap().as_str().parse::<u16>().unwrap();
+    //println!("нашли героя в строке);
+}
 
 fn add_to_db(user: User) //Добавление Нового профиля в БД
 {
-    let call = format!("INSERT INTO ows.users (did, name, disc, btag, rtg, reg, plat, scrim_preset, rtg_preset) VALUES ({}, '{}', '{}', '{}', {}, '{}', '{}', '{}', '{}');",
+    let call = format!("INSERT INTO users (did, name, disc, btag, rtg, reg, plat, scrim_preset, rtg_preset) VALUES ({}, '{}', '{}', '{}', {}, '{}', '{}', '{}', '{}');",
                        &user.did, &user.name, &user.disc, &user.btag, &user.rtg, &user.reg, &user.plat, serde_json::to_string(&user.scrim_preset).unwrap(), serde_json::to_string(&user.rtg_preset).unwrap());
     let mut conn = POOL.get_conn().unwrap();
     println!("[MySQL request INSERT INTO users] {}", call);
@@ -249,28 +274,19 @@ fn delete_user(id: discord::model::UserId) //Удаление рпофиля (п
     let _ = stmt.execute(());
 }
 
-fn reg_check(id: discord::model::UserId) -> (bool, bool) //Проверка наличия профиля и BattleTag у профиля в БД
+fn reg_check(id: discord::model::UserId) -> bool //Проверка наличия профиля и BattleTag у профиля в БД
 {
     let mut conn = POOL.get_conn().unwrap();
     let command = format!("SELECT EXISTS (SELECT * FROM users WHERE did = {})", &id);
     let mut stmt = conn.prepare(command).unwrap();
     let mut exist: bool = false;
-    let mut have_btag: bool = false;
 
 
     for row in stmt.execute(()).unwrap() {
         exist = mysql::from_row::<bool>(row.unwrap());
     }
-    if exist {
-        let mut conn = POOL.get_conn().unwrap();
-        let command = format!("SELECT btag FROM users WHERE did = {}", &id);
-        let mut stmt = conn.prepare(command).unwrap();
-        for row in stmt.execute(()).unwrap() {
-            if !mysql::from_row::<String>(row.unwrap()).is_empty() { have_btag = true }
-        }
-    }
 
-    return (exist, have_btag);
+    return exist;
 }
 
 fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User) //Диалог создания профиля
@@ -584,7 +600,7 @@ fn scrim_starter(mut mes: &str, autor: discord::model::User) //Отправна�
     let mut hide: bool = false;
     let mut show_btag: bool = false;
     let mut help_str = "\n```markdown\n!wsscrim {Время поиска: m|H} {Платформа: PC|P4|XB} {Рейтинг группы (по умолчанию будет взят ваш рейтинг)} {Сохранить шаблон: save}\n```";
-    let (is_reg, _) = reg_check(autor.id);
+    let is_reg = reg_check(autor.id);
     let user: User = match is_reg {
         true => { load_by_id(autor.id.0) }
         _ => { User::empty() }
@@ -918,6 +934,31 @@ fn event_eater(ev: String){
 }
 */
 
+fn get_arg_from_mes(mut reg_str: Vec<&str>) -> User{
+    let mut u = User::empty();
+    if reg_str.capacity() > 1 {
+        reg_str.remove(0);
+        for s in reg_str {
+            match s.to_uppercase().as_str() {
+                "KR" | "EU" | "US" => {
+                    u.reg = s.to_uppercase();
+                }
+                "PC" | "P4" | "XB" => {
+                    u.plat = s.to_uppercase();
+                }
+                _ => {
+                    if REG_BTAG.is_match(s) {
+                        u.btag = s.to_string();
+                    } else {  }
+                }
+            }
+        }
+
+
+    }
+    return u;
+}
+
 fn main() {
     let (mut connection, ready) = DIS.connect().expect("connect failed");
 
@@ -973,15 +1014,91 @@ fn main() {
                         match mes_split[0].to_lowercase().as_str() {
                             "!wsreg" => {
                                 match reg_check(mes.author.id) {
-                                    (false, _) => {
+                                    false => {
                                         reg_user(mes_split, mes.author);
                                     }
-                                    (true, false) => { edit_user(mes_split, mes.author); }
-                                    (true, true) => { edit_user(mes_split, mes.author); }
-                                    _ => {}
+                                    true => { edit_user(mes_split, mes.author); }
                                 }
                             }
+                            "!wsstats" => {
+                                let mut err_end = false;
+                                let mut u = User::empty();
+                                let mut m = User::empty();
+                                let mut update = false;
+                                if mes_split.capacity() > 1 {
+                                    m = get_arg_from_mes(mes_split);
+                                    u = load_by_id(mes.author.id.0);
+                                    if u.btag.is_empty() && m.btag.is_empty() {
+                                        let botmess = "Ошибка: Вы не указали BTag при регистрации и в сообщении.";
+                                        let _ = DIS.send_message(message.channel_id, botmess, "", false);
+                                        err_end = true;
+                                    }
+                                    else if u.btag == m.btag {
+                                        if u.plat == m.plat && u.reg == m.reg{ update = true;}
+                                        else { u = m;}
 
+                                    } else {
+
+                                        if m.btag.is_empty() && m.plat.is_empty() && m.reg.is_empty(){
+                                            let botmess = "Ошибка: Параметры не распознаны.";
+                                            let _ = DIS.send_message(message.channel_id, botmess, "", false);
+                                            err_end = true;
+                                        }
+                                        else {
+                                            if !m.btag.is_empty() { u.btag = m.btag;}
+                                            if !m.plat.is_empty() { u.plat = m.plat;}
+                                            if !m.reg.is_empty() { u.reg = m.reg;}
+                                        }
+
+                                    }
+
+                                }
+                                else {
+                                    match reg_check(mes.author.id) {
+                                        false => {
+                                            let botmess = "Ошибка: Вы не зарегестрированы и не указали BTag в сообщении.";
+                                            let _ = DIS.send_message(message.channel_id, botmess, "", false);
+                                            err_end = true;
+                                        }
+                                        true => {
+                                            u = load_by_id(mes.author.id.0);
+                                            if u.btag.is_empty() {
+                                                let botmess = "Ошибка: Вы не указали BTag при регистрации и в сообщении.";
+                                                let _ = DIS.send_message(message.channel_id, botmess, "", false);
+                                                err_end = true;
+                                            }
+                                            else { update = true; }
+                                        }
+                                    }
+                                }
+                                if !err_end {
+                                    if u.plat.is_empty() { u.plat = "PC".to_string(); }
+                                    if u.reg.is_empty() { u.reg = "EU".to_string(); }
+
+                                    u.rtg = match load_overwatch_rating(u.btag.to_string(), u.reg.to_string(), u.plat.to_string()) {
+                                        6000 => {
+                                            6000
+                                        }
+                                        x => { x }
+                                        _ => { 0 }
+                                    };
+                                    if update { update_in_db(u.clone()); }
+                                    if u.rtg == 6000 {
+                                        let botmess = "Ошибка: Такой игрок не найден.";
+                                        let _ = DIS.send_message(message.channel_id, botmess, "", false);
+                                    } else if u.rtg == 0 {
+                                        let botmess = format!("Рейтинг - Отсутствует, регион - {}, платформа {}", u.reg, u.plat);
+                                        let _ = DIS.send_message(message.channel_id, botmess.as_str(), "", false);
+                                    } else {
+                                        let botmess = format!("Рейтинг акаунта {} - {}, регион - {}, платформа {}", u.btag, u.rtg, u.reg, u.plat);
+                                        let _ = DIS.send_message(message.channel_id, botmess.as_str(), "", false);
+                                    }
+
+                                    let hero = load_overwatch_comphero_played(u.btag.to_string(), u.reg.to_string(), u.plat.to_string());
+                                    let botmess = format!("Основные герои: {}", hero);
+                                    let _ = DIS.send_message(message.channel_id, botmess.as_str(), "", false);
+                                }
+                                    }
                             "!wsscrim" => {
                                 scrim_starter(mes.content.as_str(), mes.author);
                             }
@@ -1009,7 +1126,10 @@ fn main() {
                                 test_user.disc = mes.author.discriminator.to_string();
                                 add_to_db(test_user);
                             }
-                            "!test2" => { delete_user(mes.author.id); }
+                            "!test2" => {
+                                let botmess = ("Ваш рейтинг - {}, регион - {}, платформа {}");
+                                let _ = DIS.send_message(message.channel_id, botmess, "", false);
+                                delete_user(mes.author.id); }
 
                             _ => {}
                         }
