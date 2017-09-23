@@ -148,7 +148,7 @@ impl User {
 fn build_opts() -> mysql::Opts //Конструктор для БД
 {
     let mut builder = mysql::OptsBuilder::new();
-    builder.user(Some("bot")).pass(Some("1234")).db_name(Some("wsowbot"));
+    builder.user(Some("bot")).pass(Some("1234")).db_name(Some("ows"));
     return mysql::Opts::from(builder);
 }
 
@@ -1406,7 +1406,6 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
         }
         else {
             u.rtg = answer.clone().unwrap().rating;
-            //println!("Rating: {}", u.rtg);
         }
         if update { update_in_db(u.clone()); }
         let aun:BtagData = answer.unwrap();
@@ -1427,7 +1426,6 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
         } else {
 
             let botmess = format!("{} {} {} Рейтинг {}", u.btag, u.reg, u.plat, aun.rating);
-            //println!("{}",botmess);
             let des = format!("[Ссылка на профиль]({})", aun.url);
 
             let _ = DIS.send_embed(chanel, "",|e| return embed_builder(e, botmess.as_str(), des.as_str(),color,aun, hero_list_titles));
@@ -1441,33 +1439,26 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
 
 
 fn embed_builder(e: EmbedBuilder,botmess: &str, des: &str, col: u64, answer: BtagData, hero_list_titles: Vec<&str>) -> EmbedBuilder{
-    //println!("embed_builder");
 
     let mut b = e.title(botmess).description(des).color(col);
     b = b.thumbnail("http://winspirit.org/sites/default/files/head-logo-www-150.jpg");
     if hero_list_titles.len() == 0{return b;}
 
-    //b = b.fields(|z|return embed_field_builder(z,answer,hero_list_titles));
+    b.fields(|z| embed_field_builder(z,answer,hero_list_titles))
 
-    b = b.fields(|z| embed_field_builder(z,answer,hero_list_titles));
-    b
 }
 
 fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagData, hero_list_titles: Vec<&str>) -> discord::builders::EmbedFieldsBuilder{
-    //println!("embed_field_builder");
     let mut zz = z;
-    //println!("embed: {}",hero_list_titles.len());
-    //println!("embed: {}",answer.heroes.len());
-    //println!("embed: {:?}",answer.heroes);
+
     if hero_list_titles.len()>answer.heroes.len(){ return zz;}
 
     for (enumerat,l) in hero_list_titles.iter().enumerate(){
 
-        //println!("embed_field_builder: {}",enumerat);
         let ref an = answer.heroes[enumerat];
         let mut itre = an.clone().hero.name_rus();
         let name = format!("{} {}",l,itre);
-       // println!("{}",name);
+
         let mut value = String::new();
         let mut f = true;
         if let Some(ref x) = answer.heroes[enumerat].time_played{
@@ -1475,23 +1466,22 @@ fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagDat
                 &Time::Hours(t) => {
                     if !f{value = format!("{},",value)}
                     else{f=false}
-                    value = format!("{}ч",t);}
+                    value = format!("{}ч.",t);}
                 &Time::Min(t) => {
                     if !f{value = format!("{},",value)}
                     else{f=false}
-                    value = format!("{}м",t);}
+                    value = format!("{}мин.",t);}
                 &Time::Sec(t) => {
                     if !f{value = format!("{},",value)}
                     else{f=false}
-                    value = format!("{}с",t);}
+                    value = format!("{}сек.",t);}
                 &Time::None => {}
             }
         }
         if let Some(x)= answer.heroes[enumerat].win_perc{if !f{value = format!("{},",value)}else{f=false} value = format!("{} {}% побед",value,x);}
-        if let Some(x)= answer.heroes[enumerat].games_won{if !f{value = format!("{},",value)}else{f=false} value = format!("{} {} игр выйграно",value,x);}
+        if let Some(x)= answer.heroes[enumerat].games_won{if !f{value = format!("{},",value)}else{f=false} value = format!("{} {} побед(а)",value,x);}
         zz = zz.field(name.as_str(), value.as_str(), false);
     }
-    //println!("FINAL");
     return zz;
 }
 
