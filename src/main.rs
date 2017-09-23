@@ -453,11 +453,13 @@ fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> O
         if i == 5 && !req.kills_per_live{continue;}
         if i == 6 && !req.best_multiple_kills{continue;}
         if i == 7 && !req.obj_kills{continue;}
-        i2 +=1;
+
         let mut sly_copy = sly;
         let str = "data-hero-guid=\"0x02E0000000000";
         let num = sly_copy.find(str).unwrap()+str.len();
         let (_,mut sly_cut) = sly_copy.split_at(num);
+
+
         let mut h:u16 = 0;
         let mut count = 0;
         loop{
@@ -477,51 +479,55 @@ fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> O
             if HERO_DATA.find(temp_next).is_none(){println!("HERO_DATA is none:\n{}",temp_next);}
                 else {
                     let hdat:&str = HERO_DATA.captures(temp_next).unwrap().name("data").unwrap().as_str();
+
                     let mut n = -1;
 
+                    if b_data.heroes.is_empty() {i2=i}
 
-                    for (enumerat, her) in b_data.heroes.iter().enumerate(){
-                        if hero_enum == her.hero{
-                            if count == req.num{break;}
+                    if i2==i {
+                        if count == req.num{break;}
                             else {count+=1;}
-                            n = enumerat as i32;
-                            //println!("Find");
-                            break;
+                        b_data.heroes.push(HeroStats::new(hero_enum));
+                        n=(b_data.heroes.len()as i32)-1;
+
+                    }
+                    else {
+                        for (enumerat, her) in b_data.heroes.iter().enumerate(){
+                            if hero_enum == her.hero{
+                                n = enumerat as i32;
+                                //println!("Find");
+                                break;
+                            }
                         }
                     }
+                    if n!=-1{
+                        match i {
+                            1 => {
+                                let mut time = Time::None;
+                                if hdat != "--"{
+                                    let num = hdat.find(" ").unwrap();
+                                    let (hdat_split1,hdat_split2) = hdat.split_at(num);
+                                    match hdat_split2{
+                                        " hour"|" hours" => {
+                                            time = Time::Hours(hdat_split1.parse::<u32>().unwrap());
 
-                    if n == -1 || i2==1{b_data.heroes.push(HeroStats::new(hero_enum)); n=(b_data.heroes.len()as i32)-1;}
-                    else { break; }
+                                        }
+                                        " minute"|" minutes" => {time = Time::Min(hdat_split1.parse::<u32>().unwrap());}
+                                        " second"|" seconds" => {time = Time::Sec(hdat_split1.parse::<u32>().unwrap());}
+                                        _ =>{}
+                                    }}
 
-
-                    //println!("h={}", h);
-                    match i {
-                        1 => {
-                            let mut time = Time::None;
-                            if hdat != "--"{
-                                let num = hdat.find(" ").unwrap();
-                                let (hdat_split1,hdat_split2) = hdat.split_at(num);
-                                match hdat_split2{
-                                    " hour"|" hours" => {
-                                        time = Time::Hours(hdat_split1.parse::<u32>().unwrap());
-
-                                    }
-                                    " minute"|" minutes" => {time = Time::Min(hdat_split1.parse::<u32>().unwrap());}
-                                    " second"|" seconds" => {time = Time::Sec(hdat_split1.parse::<u32>().unwrap());}
-                                    _ =>{}
-                                }}
-
-                            b_data.heroes[n as usize].time_played = Some(time);
+                                b_data.heroes[n as usize].time_played = Some(time);
+                            }
+                            2 => {b_data.heroes[n as usize].games_won = Some(hdat.parse::<u32>().unwrap());}
+                            3 => {b_data.heroes[n as usize].win_perc = Some(hdat.trim_matches('%').parse::<u16>().unwrap());}
+                            4 => {b_data.heroes[n as usize].aim = Some(hdat.trim_matches('%').parse::<u16>().unwrap());}
+                            5 => {b_data.heroes[n as usize].kills_per_live = Some(hdat.parse::<f32>().unwrap());}
+                            6 => {b_data.heroes[n as usize].best_multiple_kills = Some(hdat.parse::<u32>().unwrap());}
+                            7 => {b_data.heroes[n as usize].obj_kills = Some(hdat.parse::<u32>().unwrap());}
+                            _ => {}
                         }
-                        2 => {b_data.heroes[n as usize].games_won = Some(hdat.parse::<u32>().unwrap());}
-                        3 => {b_data.heroes[n as usize].win_perc = Some(hdat.trim_matches('%').parse::<u16>().unwrap());}
-                        4 => {b_data.heroes[n as usize].aim = Some(hdat.trim_matches('%').parse::<u16>().unwrap());}
-                        5 => {b_data.heroes[n as usize].kills_per_live = Some(hdat.parse::<f32>().unwrap());}
-                        6 => {b_data.heroes[n as usize].best_multiple_kills = Some(hdat.parse::<u32>().unwrap());}
-                        7 => {b_data.heroes[n as usize].obj_kills = Some(hdat.parse::<u32>().unwrap());}
-                        _ => {}
                     }
-
 
 //                    match i {
 //                        1 => {
@@ -1400,7 +1406,7 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
         }
         else {
             u.rtg = answer.clone().unwrap().rating;
-            println!("Rating: {}", u.rtg);
+            //println!("Rating: {}", u.rtg);
         }
         if update { update_in_db(u.clone()); }
         let aun:BtagData = answer.unwrap();
@@ -1421,7 +1427,7 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
         } else {
 
             let botmess = format!("{} {} {} Рейтинг {}", u.btag, u.reg, u.plat, aun.rating);
-            println!("{}",botmess);
+            //println!("{}",botmess);
             let des = format!("[Ссылка на профиль]({})", aun.url);
 
             let _ = DIS.send_embed(chanel, "",|e| return embed_builder(e, botmess.as_str(), des.as_str(),color,aun, hero_list_titles));
@@ -1435,7 +1441,7 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
 
 
 fn embed_builder(e: EmbedBuilder,botmess: &str, des: &str, col: u64, answer: BtagData, hero_list_titles: Vec<&str>) -> EmbedBuilder{
-    println!("embed_builder");
+    //println!("embed_builder");
 
     let mut b = e.title(botmess).description(des).color(col);
     b = b.thumbnail("http://winspirit.org/sites/default/files/head-logo-www-150.jpg");
@@ -1448,16 +1454,16 @@ fn embed_builder(e: EmbedBuilder,botmess: &str, des: &str, col: u64, answer: Bta
 }
 
 fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagData, hero_list_titles: Vec<&str>) -> discord::builders::EmbedFieldsBuilder{
-    println!("embed_field_builder");
+    //println!("embed_field_builder");
     let mut zz = z;
-    println!("embed: {}",hero_list_titles.len());
-    println!("embed: {}",answer.heroes.len());
+    //println!("embed: {}",hero_list_titles.len());
+    //println!("embed: {}",answer.heroes.len());
     //println!("embed: {:?}",answer.heroes);
     if hero_list_titles.len()>answer.heroes.len(){ return zz;}
 
     for (enumerat,l) in hero_list_titles.iter().enumerate(){
 
-        println!("embed_field_builder: {}",enumerat);
+        //println!("embed_field_builder: {}",enumerat);
         let ref an = answer.heroes[enumerat];
         let mut itre = an.clone().hero.name_rus();
         let name = format!("{} {}",l,itre);
@@ -1466,9 +1472,18 @@ fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagDat
         let mut f = true;
         if let Some(ref x) = answer.heroes[enumerat].time_played{
             match x{
-                &Time::Hours(t) => {value = format!("{}ч",t);}
-                &Time::Min(t) => {value = format!("{}м",t);}
-                &Time::Sec(t) => {value = format!("{}с",t);}
+                &Time::Hours(t) => {
+                    if !f{value = format!("{},",value)}
+                    else{f=false}
+                    value = format!("{}ч",t);}
+                &Time::Min(t) => {
+                    if !f{value = format!("{},",value)}
+                    else{f=false}
+                    value = format!("{}м",t);}
+                &Time::Sec(t) => {
+                    if !f{value = format!("{},",value)}
+                    else{f=false}
+                    value = format!("{}с",t);}
                 &Time::None => {}
             }
         }
@@ -1476,7 +1491,7 @@ fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagDat
         if let Some(x)= answer.heroes[enumerat].games_won{if !f{value = format!("{},",value)}else{f=false} value = format!("{} {} игр выйграно",value,x);}
         zz = zz.field(name.as_str(), value.as_str(), false);
     }
-    println!("FINAL");
+    //println!("FINAL");
     return zz;
 }
 
