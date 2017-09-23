@@ -6,6 +6,7 @@ extern crate reqwest;
 //extern crate rusqlite;
 extern crate mysql;
 extern crate serde;
+#[macro_use]
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
@@ -13,6 +14,7 @@ extern crate serde_derive;
 //https://discordapp.com/api/oauth2/authorize?client_id=316281967375024138&scope=bot&permissions=0
 use discord::{Discord, ChannelRef, State};
 use discord::model::Event;
+use discord::builders::EmbedBuilder;
 use regex::Regex;
 use std::io::Read;
 //use std::env;
@@ -174,22 +176,200 @@ fn load_overwatch_rating(btag: String, reg: String, plat: String) -> u16 //Пр�
     return result.unwrap().get(1).unwrap().as_str().parse::<u16>().unwrap();
     //println!("нашли б таг в строке");
 }
-#[derive(Debug)]
+
+
+#[derive(Debug,Clone)]
 enum Time{
     Hours(u32),
     Min(u32),
     Sec(u32),
     None
 }
-struct Hero{
-    id:String,
-    time_played: Time,
+#[derive(PartialEq,Clone,Debug)]
+enum Hero{
+    None,
+    Winston,
+    Tracer,
+    Pharah,
+    Genji,
+    Zenyatta,
+    Reinhardt,
+    Mercy,
+    Lucio,
+    Soldier,
+    DVa,
+    Reaper,
+    Hanzo,
+    Torbjorn,
+    Widowmaker,
+    Bastion,
+    Symmetra,
+    Roadhog,
+    McCree,
+    Junkrat,
+    Zarya,
+    Mei,
+    Sombra,
+    Doomfist,
+    Ana,
+    Orisa,
+}
+impl Hero{
+    fn get_from_bliz_str(str: &str) -> Hero{
+        match str{
+            "009" => {return Hero::Winston;}
+            "003" => {return Hero::Tracer;}
+            "008" => {return Hero::Pharah;}
+            "029" => {return Hero::Genji;}
+            "020" => {return Hero::Zenyatta;}
+            "007" => {return Hero::Reinhardt;}
+            "004" => {return Hero::Mercy;}
+            "079" => {return Hero::Lucio;}
+            "06E" => {return Hero::Soldier;}
+            "07A" => {return Hero::DVa;}
+            "002" => {return Hero::Reaper;}
+            "005" => {return Hero::Hanzo;}
+            "006" => {return Hero::Torbjorn;}
+            "00A" => {return Hero::Widowmaker;}
+            "015" => {return Hero::Bastion;}
+            "016" => {return Hero::Symmetra;}
+            "040" => {return Hero::Roadhog;}
+            "042" => {return Hero::McCree;}
+            "065" => {return Hero::Junkrat;}
+            "068" => {return Hero::Zarya;}
+            "0DD" => {return Hero::Mei;}
+            "12E" => {return Hero::Sombra;}
+            "12F" => {return Hero::Doomfist;}
+            "13B" => {return Hero::Ana;}
+            "13E" => {return Hero::Orisa;}
+            _ => {{return Hero::None;}}
+        }
+    }
+    fn name_eng(self) -> String{
+        match self{
+             Hero::Winston => {return String::from("Winston");}
+             Hero::Tracer => {return String::from("Tracer");}
+             Hero::Pharah => {return String::from("Pharah");}
+             Hero::Genji => {return String::from("Genji");}
+             Hero::Zenyatta => {return String::from("Zenyatta");}
+             Hero::Reinhardt => {return String::from("Reinhardt");}
+             Hero::Mercy => {return String::from("Mercy");}
+             Hero::Lucio => {return String::from("Lucio");}
+             Hero::Soldier => {return String::from("Soldier: 76");}
+             Hero::DVa => {return String::from("D.Va");}
+             Hero::Reaper => {return String::from("Reaper");}
+             Hero::Hanzo => {return String::from("Hanzo");}
+             Hero::Torbjorn => {return String::from("Torbjorn");}
+             Hero::Widowmaker => {return String::from("Widowmaker");}
+             Hero::Bastion => {return String::from("Bastion");}
+             Hero::Symmetra => {return String::from("Symmetra");}
+             Hero::Roadhog => {return String::from("Roadhog");}
+             Hero::McCree => {return String::from("McCree");}
+             Hero::Junkrat => {return String::from("Junkrat");}
+             Hero::Zarya => {return String::from("Zarya");}
+             Hero::Mei => {return String::from("Mei");}
+             Hero::Sombra => {return String::from("Sombra");}
+             Hero::Doomfist => {return String::from("Doomfist");}
+             Hero::Ana => {return String::from("Ana");}
+             Hero::Orisa => {return String::from("Orisa");}
+             Hero::None => {return String::new();}
+        }
+    }
+    fn name_rus(self) -> String{
+        match self{
+            Hero::Winston => {return String::from("Уинстон");}
+            Hero::Tracer => {return String::from("Трейсер");}
+            Hero::Pharah => {return String::from("Фарра");}
+            Hero::Genji => {return String::from("Гэндзи");}
+            Hero::Zenyatta => {return String::from("Дзенъятта");}
+            Hero::Reinhardt => {return String::from("Райнхардт");}
+            Hero::Mercy => {return String::from("Ангел");}
+            Hero::Lucio => {return String::from("Лусио");}
+            Hero::Soldier => {return String::from("Солдат-76");}
+            Hero::DVa => {return String::from("D.Va");}
+            Hero::Reaper => {return String::from("Жнец");}
+            Hero::Hanzo => {return String::from("Хандзо");}
+            Hero::Torbjorn => {return String::from("Торбьорн");}
+            Hero::Widowmaker => {return String::from("Роковая вдова");}
+            Hero::Bastion => {return String::from("Бастион");}
+            Hero::Symmetra => {return String::from("Симметра");}
+            Hero::Roadhog => {return String::from("Турбосвин");}
+            Hero::McCree => {return String::from("Маккри");}
+            Hero::Junkrat => {return String::from("Крысавчик");}
+            Hero::Zarya => {return String::from("Заря");}
+            Hero::Mei => {return String::from("Мэй");}
+            Hero::Sombra => {return String::from("Сомбра");}
+            Hero::Doomfist => {return String::from("Кулак Смерти");}
+            Hero::Ana => {return String::from("Ана");}
+            Hero::Orisa => {return String::from("Ориса");}
+            Hero::None => {return String::new();}
+        }
+    }
+}
+#[derive(Default,Clone,Debug)]
+struct BtagData {
+    btag: String,
+    reg: String,
+    plat: String,
+    rating: u16,
+    url: String,
+    avatar_url: String,
+    rank_url: String,
+    heroes: Vec<HeroStats>,
+//    time_played: Vec<(Hero,Time)>,
+//    games_won: Vec<(Hero,u32)>,
+//    win_perc: Vec<(Hero,u16)>,
+//    aim: Vec<(Hero,u16)>,
+//    kills_per_live: Vec<(Hero,f32)>,
+//    best_multiple_kills: Vec<(Hero,u32)>,
+//    obj_kills: Vec<(Hero,u32)>,
+   // len: i16,
+}
+#[derive(Default,Debug)]
+struct HeroInfoReq{
+    num: i16,
+    rating: bool,
+    time_played: bool,
+    games_won: bool,
+    win_perc: bool,
+    aim: bool,
+    kills_per_live: bool,
+    best_multiple_kills: bool,
+    obj_kills: bool,
+}
+#[derive(Clone,Debug)]
+struct HeroStats{
+    hero: Hero,
+    time_played: Option<Time>,
+    games_won: Option<u32>,
+    win_perc: Option<u16>,
+    aim: Option<u16>,
+    kills_per_live: Option<f32>,
+    best_multiple_kills: Option<u32>,
+    obj_kills: Option<u32>,
+}
+impl HeroStats{
+    fn new(h: Hero) -> HeroStats{
+        HeroStats{
+            hero: h,
+            time_played: None,
+            games_won: None,
+            win_perc: None,
+            aim: None,
+            kills_per_live: None,
+            best_multiple_kills: None,
+            obj_kills: None,
+        }
+    }
 }
 
-fn load_overwatch_comphero_played(btag: String, reg: String, plat: String) -> Option<Vec<Hero>> //Проверка существование профил и подгрузка рейтинга при наличее
+fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> Option<BtagData> //Проверка существование профил и подгрузка рейтинга при наличее
 {
     lazy_static! {
-        static ref HERO_TIME: Regex = Regex::new(r"<div class=.description.>(?P<hero_time>[0-9]+) (?P<hero_time_type>[a-z]+)</div>.+").unwrap();
+        static ref RE: Regex = Regex::new("<div class=\"u-align-center h5\">(\\d+)</div>").unwrap();
+        static ref AVATAR_URL: Regex = Regex::new("class=\"masthead-player\"><img src=\"(.+)\" class=\"player-portrait\">").unwrap();
+        static ref RANK_URL: Regex = Regex::new("class=\"competitive-rank\"><img src=\"(.+)\"><div ").unwrap();
+        static ref HERO_DATA: Regex = Regex::new("<div class=\"description\">(?P<data>[.[^<]]+?)</div>.+").unwrap();
     }
 
     let url = &format!("https://playoverwatch.com/en-us/career/{}/{}/{}", plat.to_lowercase(), reg.to_lowercase(), btag.replace("#", "-"));
@@ -207,6 +387,30 @@ fn load_overwatch_comphero_played(btag: String, reg: String, plat: String) -> Op
     if content.contains("<h1 class=\"u-align-center\">Page Not Found</h1>") {
         return None;
     }
+
+    let mut b_data = BtagData::default();
+    b_data.btag = btag;
+    b_data.reg = reg;
+    b_data.plat = plat;
+    b_data.url = url.clone();
+    b_data.avatar_url = AVATAR_URL.captures(&content).unwrap().get(1).unwrap().as_str().to_string();
+
+    if req.rating{
+        let result = RE.captures(&content);
+        if result.is_none() {
+            b_data.rating = 0;
+            b_data.rank_url = String::new();
+        }
+        else {
+            b_data.rating = result.unwrap().get(1).unwrap().as_str().parse::<u16>().unwrap();
+            b_data.rank_url = RANK_URL.captures(&content).unwrap().get(1).unwrap().as_str().to_string();
+        }
+    }
+
+
+
+
+
     let num = content.find("<div id=\"competitive\" data-js=\"career-category\"").unwrap();
     let (_,mut temp) = content.split_at(num);//Компетитев
 
@@ -219,59 +423,136 @@ fn load_overwatch_comphero_played(btag: String, reg: String, plat: String) -> Op
     let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x0860000000000039\"").unwrap();
     let (mut time_played , mut div) = div.split_at(num); //матчей выйграно
 
-  //  let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x08600000000003D1\"").unwrap();
-  //  let (mut match_played , mut div) = div.split_at(num); //Поцент побед
+    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x08600000000003D1\"").unwrap();
+    let (mut games_won , mut div) = div.split_at(num); //Поцент побед
 
-   // let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x086000000000002F\"").unwrap();
-   // let (mut win_perc , mut div) = div.split_at(num); //Меткость
+    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x086000000000002F\"").unwrap();
+    let (mut win_perc , mut div) = div.split_at(num); //Меткость
 
-  //  let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x08600000000003D2\"").unwrap();
-  //  let (mut metkost , mut div) = div.split_at(num); //Убийств за одну жизнь
+    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x08600000000003D2\"").unwrap();
+    let (mut aim , mut div) = div.split_at(num); //Убийств за одну жизнь
 
-    //let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x0860000000000346\"").unwrap();
-    //let (mut kills_per_live , mut div) = div.split_at(num); //Лучшее множественное убийство
+    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x0860000000000346\"").unwrap();
+    let (mut kills_per_live , mut div) = div.split_at(num); //Лучшее множественное убийство
 
-    //let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x086000000000039C\"").unwrap();
-    //let (mut best_multiple_kills , mut obj_kills) = div.split_at(num); //Убийств у объектов
+    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x086000000000039C\"").unwrap();
+    let (mut best_multiple_kills , mut obj_kills) = div.split_at(num); //Убийств у объектов
 
-    let mut hero_time_played_vec: Vec<Hero> = Vec::new();
+    let mut hero_time_played_vec: Vec<BtagData> = Vec::new();
 
     //data-hero-guid="0x02E0000000000
-    let str = "data-hero-guid=\"0x02E0000000000";
+    //b_data.len = req.num;
+    let mut i = 0;
+    let mut i2 = 0;
+    for sly in vec![time_played, games_won, win_perc, aim, kills_per_live, best_multiple_kills, obj_kills].iter(){
+        i+=1;
+        if i == 1 && !req.time_played{continue;}
+        if i == 2 && !req.games_won{continue;}
+        if i == 3 && !req.win_perc{continue;}
+        if i == 4 && !req.aim{continue;}
+        if i == 5 && !req.kills_per_live{continue;}
+        if i == 6 && !req.best_multiple_kills{continue;}
+        if i == 7 && !req.obj_kills{continue;}
+        i2 +=1;
+        let mut sly_copy = sly;
+        let str = "data-hero-guid=\"0x02E0000000000";
+        let num = sly_copy.find(str).unwrap()+str.len();
+        let (_,mut sly_cut) = sly_copy.split_at(num);
+        let mut h:u16 = 0;
+        let mut count = 0;
+        loop{
+            //if h == req.num{break;}
+            h+=1;
+            if h>25{println!("H >25!!");}
 
-    let num = time_played.find(str).unwrap()+str.len();
-    let (_,mut time_played_cut) = time_played.split_at(num);
+            let mut temp = sly_cut.clone();
 
-    loop{
-        let mut temp = time_played_cut.clone();
+            let num = temp.find(str).unwrap()+str.len();
+            let (mut hero,mut temp_next) = temp.split_at(num);
+            sly_cut = temp_next;
+            let (mut hero_id, mut temp_next) = hero.split_at(3 as usize);
 
-        let num = temp.find(str).unwrap()+str.len();
-        let (mut hero,mut temp_next) = temp.split_at(num);
-        time_played_cut = temp_next;
-        //println!("\nHero String:\n{}", hero);
-        let (mut hero_id, mut temp_next) = hero.split_at(3 as usize);
-        let mut time = Time::None;
-        if let None = temp_next.find("--</div></div></div></div>"){
-            if HERO_TIME.find(temp_next).is_none(){println!("HERO_TIME is none:\n{}",temp_next);}
+            let hero_enum = Hero::get_from_bliz_str(hero_id);
+
+            if HERO_DATA.find(temp_next).is_none(){println!("HERO_DATA is none:\n{}",temp_next);}
                 else {
-                    let time_num =  HERO_TIME.captures(temp_next).unwrap().name("hero_time").unwrap().as_str().parse::<u32>().unwrap();
+                    let hdat:&str = HERO_DATA.captures(temp_next).unwrap().name("data").unwrap().as_str();
+                    let mut n = -1;
 
-                    let time_type = HERO_TIME.captures(temp_next).unwrap().name("hero_time_type").unwrap().as_str();
-                    match time_type{
-                        "hour"|"hours" => {time = Time::Hours(time_num);}
-                        "minute"|"minutes" => {time = Time::Min(time_num);}
-                        "second"|"seconds" => {time = Time::Sec(time_num);}
-                        _ =>{}
+
+                    for (enumerat, her) in b_data.heroes.iter().enumerate(){
+                        if hero_enum == her.hero{
+                            if count == req.num{break;}
+                            else {count+=1;}
+                            n = enumerat as i32;
+                            //println!("Find");
+                            break;
+                        }
                     }
+
+                    if n == -1 || i2==1{b_data.heroes.push(HeroStats::new(hero_enum)); n=(b_data.heroes.len()as i32)-1;}
+                    else { break; }
+
+
+                    //println!("h={}", h);
+                    match i {
+                        1 => {
+                            let mut time = Time::None;
+                            if hdat != "--"{
+                                let num = hdat.find(" ").unwrap();
+                                let (hdat_split1,hdat_split2) = hdat.split_at(num);
+                                match hdat_split2{
+                                    " hour"|" hours" => {
+                                        time = Time::Hours(hdat_split1.parse::<u32>().unwrap());
+
+                                    }
+                                    " minute"|" minutes" => {time = Time::Min(hdat_split1.parse::<u32>().unwrap());}
+                                    " second"|" seconds" => {time = Time::Sec(hdat_split1.parse::<u32>().unwrap());}
+                                    _ =>{}
+                                }}
+
+                            b_data.heroes[n as usize].time_played = Some(time);
+                        }
+                        2 => {b_data.heroes[n as usize].games_won = Some(hdat.parse::<u32>().unwrap());}
+                        3 => {b_data.heroes[n as usize].win_perc = Some(hdat.trim_matches('%').parse::<u16>().unwrap());}
+                        4 => {b_data.heroes[n as usize].aim = Some(hdat.trim_matches('%').parse::<u16>().unwrap());}
+                        5 => {b_data.heroes[n as usize].kills_per_live = Some(hdat.parse::<f32>().unwrap());}
+                        6 => {b_data.heroes[n as usize].best_multiple_kills = Some(hdat.parse::<u32>().unwrap());}
+                        7 => {b_data.heroes[n as usize].obj_kills = Some(hdat.parse::<u32>().unwrap());}
+                        _ => {}
+                    }
+
+
+//                    match i {
+//                        1 => {
+//                            let mut time = Time::None;
+//                            let mut hdat_split = hdat.split_whitespace();
+//                            match hdat_split.nth(1).unwrap(){
+//                                "hour"|"hours" => {time = Time::Hours(hdat_split.nth(0).unwrap().parse::<u32>().unwrap());}
+//                                "minute"|"minutes" => {time = Time::Min(hdat_split.nth(0).unwrap().parse::<u32>().unwrap());}
+//                                "second"|"seconds" => {time = Time::Sec(hdat_split.nth(0).unwrap().parse::<u32>().unwrap());}
+//                                _ =>{}
+//                            }
+//                            b_data.time_played.push((hero_enum, time));
+//                        }
+//                        2 => {b_data.games_won.push((hero_enum, hdat.parse::<u32>().unwrap()));}
+//                        3 => {b_data.win_perc.push((hero_enum, hdat.trim_matches('%').parse::<u16>().unwrap()));}
+//                        4 => {b_data.aim.push((hero_enum, hdat.trim_matches('%').parse::<u16>().unwrap()));}
+//                        5 => {b_data.kills_per_live.push((hero_enum, hdat.parse::<f32>().unwrap()));}
+//                        6 => {b_data.best_multiple_kills.push((hero_enum, hdat.parse::<u32>().unwrap()));}
+//                        7 => {b_data.obj_kills.push((hero_enum, hdat.parse::<u32>().unwrap()));}
+//                        _ => {}
+//                    }
                 }
+            if let None = sly_cut.find(str){
+                break;
+            }
         }
-        hero_time_played_vec.push(Hero{id:hero_id.to_string(),time_played:time});
-        if let None = time_played_cut.find(str){
-            break;
-        }
+
     }
 
-    return Some(hero_time_played_vec);
+
+    return Some(b_data);
 }
 
 fn add_to_db(user: User) //Добавление Нового профиля в БД
@@ -1033,6 +1314,172 @@ fn get_arg_from_mes(mut reg_str: Vec<&str>) -> User{
     return u;
 }
 
+fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::model::ChannelId){
+
+    let mut err_end = false;
+
+    let err_color: u64 = 13369344;
+    let err_title = ":no_entry: Упс...";
+    let color: u64 = 37595;
+    let rating_field_name = "Рейтинг";
+    let hero_list_titles = vec!["Обычно","Но в душе","Иногда","Реже","И в крайнем случае"];
+
+    let mut u = User::empty();
+    let mut m = User::empty();
+    let mut update = false;
+
+    let mut req = HeroInfoReq::default();
+    req.num = 5;
+    req.rating = true;
+    req.time_played = true;
+    req.games_won = true;
+    req.aim = false;
+    req.kills_per_live = false;
+    req.win_perc = true;
+    req.best_multiple_kills = false;
+    req.obj_kills = false;
+
+    if mes.capacity() > 1 {
+        m = get_arg_from_mes(mes);
+        u = load_by_id(autor_id.0);
+        if u.btag.is_empty() && m.btag.is_empty() {
+
+            //Ошибка: Вы не указали BTag при регистрации и в сообщении.
+            let botmess = "Вы не указали BTag при регистрации и в сообщении";
+            let _ = DIS.send_embed(chanel, "", |e| e.title(err_title).description(botmess).color(err_color));
+            err_end = true;
+
+        } else if u.btag == m.btag {
+            if u.plat == m.plat && u.reg == m.reg { update = true; } else { u = m; }
+        } else {
+            if m.btag.is_empty() && m.plat.is_empty() && m.reg.is_empty() {
+
+                //Ошибка: Параметры не распознаны.
+                let botmess = "Параметры не распознаны";
+                let _ = DIS.send_embed(chanel, "", |e| e.title(err_title).description(botmess).color(err_color));
+                err_end = true;
+
+            } else {
+                if !m.btag.is_empty() { u.btag = m.btag; }
+                if !m.plat.is_empty() { u.plat = m.plat; }
+                if !m.reg.is_empty() { u.reg = m.reg; }
+            }
+        }
+    } else {
+        match reg_check(autor_id) {
+            false => {
+
+                //Ошибка: Вы не зарегестрированы и не указали BTag в сообщении.
+                let botmess = "Вы не зарегестрированы и не указали BTag в сообщении";
+                let _ = DIS.send_embed(chanel, "", |e| e.title(err_title).description(botmess).color(err_color));
+                err_end = true;
+            }
+            true => {
+
+                u = load_by_id(autor_id.0);
+                if u.btag.is_empty() {
+
+                    //Ошибка: Вы не указали BTag при регистрации и в сообщении.
+                    let botmess = "Вы не указали BTag при регистрации и в сообщении";
+                    let _ = DIS.send_embed(chanel, "", |e| e.title(err_title).description(botmess).color(err_color));
+                    err_end = true;
+
+                } else { update = true; }
+
+            }
+        }
+    }
+    if !err_end {
+        if u.plat.is_empty() { u.plat = "PC".to_string(); }
+        if u.reg.is_empty() { u.reg = "EU".to_string(); }
+
+        let answer = load_btag_data(u.btag.to_string(), u.reg.to_string(), u.plat.to_string(), req);
+
+        if answer.is_none(){
+            u.rtg = 6000;
+        }
+        else {
+            u.rtg = answer.clone().unwrap().rating;
+            println!("Rating: {}", u.rtg);
+        }
+        if update { update_in_db(u.clone()); }
+        let aun:BtagData = answer.unwrap();
+
+        if u.rtg == 6000 {
+
+            //Ошибка: Такой игрок не найден.
+            let botmess = "Такой игрок не найден";
+            let _ = DIS.send_embed(chanel, "", |e| e.title(err_title).description(botmess).color(err_color));
+
+        } else if u.rtg == 0 {
+
+            //KILOgramM#2947 EU PC Рейтинг отсутствует
+            let botmess = format!("{} {} {} Рейтинг отсутствует", u.btag, u.reg, u.plat);
+            let des = format!("[Ссылка на профиль]({})", aun.url);
+            let _ = DIS.send_embed(chanel, "", |e| e.title(botmess.as_str()).description(des.as_str()).color(color));
+
+        } else {
+
+            let botmess = format!("{} {} {} Рейтинг {}", u.btag, u.reg, u.plat, aun.rating);
+            println!("{}",botmess);
+            let des = format!("[Ссылка на профиль]({})", aun.url);
+
+            let _ = DIS.send_embed(chanel, "",|e| return embed_builder(e, botmess.as_str(), des.as_str(),color,aun, hero_list_titles));
+
+
+        }
+
+
+    }
+}
+
+
+fn embed_builder(e: EmbedBuilder,botmess: &str, des: &str, col: u64, answer: BtagData, hero_list_titles: Vec<&str>) -> EmbedBuilder{
+    println!("embed_builder");
+
+    let mut b = e.title(botmess).description(des).color(col);
+    b = b.thumbnail("http://winspirit.org/sites/default/files/head-logo-www-150.jpg");
+    if hero_list_titles.len() == 0{return b;}
+
+    //b = b.fields(|z|return embed_field_builder(z,answer,hero_list_titles));
+
+    b = b.fields(|z| embed_field_builder(z,answer,hero_list_titles));
+    b
+}
+
+fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagData, hero_list_titles: Vec<&str>) -> discord::builders::EmbedFieldsBuilder{
+    println!("embed_field_builder");
+    let mut zz = z;
+    println!("embed: {}",hero_list_titles.len());
+    println!("embed: {}",answer.heroes.len());
+    //println!("embed: {:?}",answer.heroes);
+    if hero_list_titles.len()>answer.heroes.len(){ return zz;}
+
+    for (enumerat,l) in hero_list_titles.iter().enumerate(){
+
+        println!("embed_field_builder: {}",enumerat);
+        let ref an = answer.heroes[enumerat];
+        let mut itre = an.clone().hero.name_rus();
+        let name = format!("{} {}",l,itre);
+       // println!("{}",name);
+        let mut value = String::new();
+        let mut f = true;
+        if let Some(ref x) = answer.heroes[enumerat].time_played{
+            match x{
+                &Time::Hours(t) => {value = format!("{}ч",t);}
+                &Time::Min(t) => {value = format!("{}м",t);}
+                &Time::Sec(t) => {value = format!("{}с",t);}
+                &Time::None => {}
+            }
+        }
+        if let Some(x)= answer.heroes[enumerat].win_perc{if !f{value = format!("{},",value)}else{f=false} value = format!("{} {}% побед",value,x);}
+        if let Some(x)= answer.heroes[enumerat].games_won{if !f{value = format!("{},",value)}else{f=false} value = format!("{} {} игр выйграно",value,x);}
+        zz = zz.field(name.as_str(), value.as_str(), false);
+    }
+    println!("FINAL");
+    return zz;
+}
+
 fn main() {
     let (mut connection, ready) = DIS.connect().expect("connect failed");
 
@@ -1095,178 +1542,10 @@ fn main() {
                                 }
                             }
                             "!wsstats" => {
-                                let mut err_end = false;
-                                let mut u = User::empty();
-                                let mut m = User::empty();
-                                let mut update = false;
-                                if mes_split.capacity() > 1 {
-                                    m = get_arg_from_mes(mes_split);
-                                    u = load_by_id(mes.author.id.0);
-                                    if u.btag.is_empty() && m.btag.is_empty() {
-                                        let botmess = "Ошибка: Вы не указали BTag при регистрации и в сообщении.";
-                                        let _ = DIS.send_message(message.channel_id, botmess, "", false);
-                                        err_end = true;
-                                    } else if u.btag == m.btag {
-                                        if u.plat == m.plat && u.reg == m.reg { update = true; } else { u = m; }
-                                    } else {
-                                        if m.btag.is_empty() && m.plat.is_empty() && m.reg.is_empty() {
-                                            let botmess = "Ошибка: Параметры не распознаны.";
-                                            let _ = DIS.send_message(message.channel_id, botmess, "", false);
-                                            err_end = true;
-                                        } else {
-                                            if !m.btag.is_empty() { u.btag = m.btag; }
-                                            if !m.plat.is_empty() { u.plat = m.plat; }
-                                            if !m.reg.is_empty() { u.reg = m.reg; }
-                                        }
-                                    }
-                                } else {
-                                    match reg_check(mes.author.id) {
-                                        false => {
-                                            let botmess = "Ошибка: Вы не зарегестрированы и не указали BTag в сообщении.";
-                                            let _ = DIS.send_message(message.channel_id, botmess, "", false);
-                                            err_end = true;
-                                        }
-                                        true => {
-                                            u = load_by_id(mes.author.id.0);
-                                            if u.btag.is_empty() {
-                                                let botmess = "Ошибка: Вы не указали BTag при регистрации и в сообщении.";
-                                                let _ = DIS.send_message(message.channel_id, botmess, "", false);
-                                                err_end = true;
-                                            } else { update = true; }
-                                        }
-                                    }
-                                }
-                                if !err_end {
-                                    if u.plat.is_empty() { u.plat = "PC".to_string(); }
-                                    if u.reg.is_empty() { u.reg = "EU".to_string(); }
 
-                                    u.rtg = match load_overwatch_rating(u.btag.to_string(), u.reg.to_string(), u.plat.to_string()) {
-                                        6000 => {
-                                            6000
-                                        }
-                                        x => { x }
-                                        _ => { 0 }
-                                    };
-                                    if update { update_in_db(u.clone()); }
-                                    if u.rtg == 6000 {
-                                        let botmess = "Ошибка: Такой игрок не найден.";
-                                        let _ = DIS.send_message(message.channel_id, botmess, "", false);
-                                    } else if u.rtg == 0 {
-                                        let botmess = format!("Рейтинг - Отсутствует, регион - {}, платформа {}", u.reg, u.plat);
-                                        let _ = DIS.send_message(message.channel_id, botmess.as_str(), "", false);
-                                    } else {
-                                        let botmess = format!("Рейтинг акаунта {} - {}, регион - {}, платформа {}", u.btag, u.rtg, u.reg, u.plat);
-                                        let _ = DIS.send_message(message.channel_id, botmess.as_str(), "", false);
-                                    }
-                                    if let Some(vec) = load_overwatch_comphero_played(u.btag, u.reg, u.plat) {
-                                        for i in 0..5 {
-                                            match vec[i].id.as_str() {
-                                                "009" => {
-                                                    let msg = format!("Winstone");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "003" => {
-                                                    let msg = format!("Tracer");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "008" => {
-                                                    let msg = format!("Pharah");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "029" => {
-                                                    let msg = format!("Genji");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "020" => {
-                                                    let msg = format!("Zenyatta");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "007" => {
-                                                    let msg = format!("Reinhardt");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "004" => {
-                                                    let msg = format!("Mercy");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "079" => {
-                                                    let msg = format!("Lucio");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "06E" => {
-                                                    let msg = format!("Soldier: 76");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "07A" => {
-                                                    let msg = format!("D.Va");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "002" => {
-                                                    let msg = format!("Reaper");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "005" => {
-                                                    let msg = format!("Hanzo");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "006" => {
-                                                    let msg = format!("Torbjorn");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "00A" => {
-                                                    let msg = format!("Widowmaker");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "015" => {
-                                                    let msg = format!("Bastion");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "016" => {
-                                                    let msg = format!("Symmetra");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "040" => {
-                                                    let msg = format!("Roadhog");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "042" => {
-                                                    let msg = format!("McCree");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "065" => {
-                                                    let msg = format!("Junkrat");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "068" => {
-                                                    let msg = format!("Zarya");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "0DD" => {
-                                                    let msg = format!("Mei");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "12E" => {
-                                                    let msg = format!("Sombra");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "12F" => {
-                                                    let msg = format!("Doomfist");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "13B" => {
-                                                    let msg = format!("Ana");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                "13E" => {
-                                                    let msg = format!("Orisa");
-                                                    let _ = DIS.send_message(message.channel_id, msg.as_str(), "", false);
-                                                }
-                                                _ => {}
-                                            }
-                                        }
-                                    }
-                                    let user = load_by_id(mes.author.id.0);
-                                }
+                                wsstats(mes_split, mes.author.id, message.channel_id);
+
+
                             }
                             "!wsscrim" => {
                                 scrim_starter(mes.content.as_str(), mes.author);
@@ -1296,17 +1575,7 @@ fn main() {
                                 add_to_db(test_user);
                             }
                             "!test2" => {
-                                let botmess = ("Ваш рейтинг - {}, регион - {}, платформа {}");
-                                let _ = DIS.send_message(message.channel_id, botmess, "", false);
                                 delete_user(mes.author.id);
-                            }
-                            "!test3" => {
-                                let user = load_by_id(mes.author.id.0);
-                                if let Some(vec) = load_overwatch_comphero_played(user.btag, user.reg, user.plat) {
-                                    for v in vec {
-                                        println!("Hero Id: {}, Hero Time: {:?}", v.id, v.time_played);
-                                    }
-                                }
                             }
                             _ => {}
                         }
