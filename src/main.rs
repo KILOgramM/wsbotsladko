@@ -1441,7 +1441,7 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
 fn embed_builder(e: EmbedBuilder,botmess: &str, des: &str, col: u64, answer: BtagData, hero_list_titles: Vec<&str>) -> EmbedBuilder{
 
     let mut b = e.title(botmess).description(des).color(col);
-    b = b.thumbnail("http://winspirit.org/sites/default/files/head-logo-www-150.jpg");
+    b = b.thumbnail(answer.avatar_url.as_str());
     if hero_list_titles.len() == 0{return b;}
 
     b.fields(|z| embed_field_builder(z,answer,hero_list_titles))
