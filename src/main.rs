@@ -1408,7 +1408,7 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
             u.rtg = answer.clone().unwrap().rating;
         }
         if update { update_in_db(u.clone()); }
-        let aun:BtagData = answer.unwrap();
+        
 
         if u.rtg == 6000 {
 
@@ -1417,14 +1417,14 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
             let _ = DIS.send_embed(chanel, "", |e| e.title(err_title).description(botmess).color(err_color));
 
         } else if u.rtg == 0 {
-
+            let aun:BtagData = answer.unwrap();
             //KILOgramM#2947 EU PC Рейтинг отсутствует
             let botmess = format!("{} {} {} Рейтинг отсутствует", u.btag, u.reg, u.plat);
             let des = format!("[Ссылка на профиль]({})", aun.url);
             let _ = DIS.send_embed(chanel, "", |e| e.title(botmess.as_str()).description(des.as_str()).color(color));
 
         } else {
-
+            let aun:BtagData = answer.unwrap();
             let botmess = format!("{} {} {} Рейтинг {}", u.btag, u.reg, u.plat, aun.rating);
             let des = format!("[Ссылка на профиль]({})", aun.url);
 
