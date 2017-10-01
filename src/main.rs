@@ -650,8 +650,20 @@ fn reg_check(id: discord::model::UserId) -> bool //Проверка наличи
     return exist;
 }
 
-fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User) //Диалог создания профиля
+fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::model::ChannelId) //Диалог создания профиля
 {
+    let err_color: u64 = 13369344;
+    let err_title = ":no_entry: Упс...";
+    let color: u64 = 37595;
+    let thumbnail_ws = "http://winspirit.org/sites/default/files/full-quad-200px.png";
+
+    let mut title = "";
+    let mut des = "";
+    let mut thumbnail:String = String::new();
+    let mut footer = "";
+    let mut fields: Vec<(String, String, bool)> = Vec::new();
+
+
     let mut battletag: String = String::new();
     let mut region: String = String::new();
     let mut platform: String = String::new();
@@ -696,48 +708,65 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User) //Диалог 
         let mut acc_not_found = false;
 
         if !no_btag {
-            rating = match load_overwatch_rating(battletag.to_string(), region.to_string(), platform.to_string()) {
-                6000 => {
-                    acc_not_found = true;
-                    0
-                }
-                x => { x }
-                _ => { 0 }
-            };
+            let mut req = HeroInfoReq::default();
+            req.num = 0;
+            req.rating = true;
+            req.time_played = false;
+            req.games_won = false;
+            req.aim = false;
+            req.kills_per_live = false;
+            req.win_perc = false;
+            req.best_multiple_kills = false;
+            req.obj_kills = false;
+
+            let answer = load_btag_data(battletag.to_string(), region.to_string(), platform.to_string(), req);
+
+            if let Some(an) = answer{
+                rating = an.rating;
+                //println!("rating: {}", rating);
+                thumbnail = an.avatar_url.clone();
+            }
+            else {
+                acc_not_found = true;
+                rating = 0;
+            }
         }
 
-        botmess.push_str("Теперь Вы с нами!");
-        if no_btag || no_plat || no_reg {
-            botmess.push_str("\nНо, к сожалению, мы не нашли ваш");
+        title = "Регистрация пройдена";
 
-            match (no_btag, no_plat, no_reg) {
-                (true, true, true) => { botmess.push_str(" BattleTag, платформу и регион"); }
-                (true, true, false) => { botmess.push_str(" BattleTag и платформу"); }
-                (true, false, true) => { botmess.push_str(" BattleTag и регион"); }
-                (true, false, false) => { botmess.push_str(" BattleTag"); }
-                (false, true, true) => { botmess.push_str("у платформу и регион"); }
-                (false, true, false) => { botmess.push_str("у платформу"); }
-                (false, false, true) => { botmess.push_str(" регион"); }
-                _ => {}
-            }
-            botmess.push_str(" в вашем сообщении.");
+
+        if no_btag || no_plat || no_reg {
+
+            des = "Но вы не указали полные данные :worried:";
+
+            if no_btag {fields.push(("BattleTag".to_string(),"Не указан".to_string(),false))}
+                else { fields.push(("BattleTag".to_string(), battletag.clone(), false)) }
+            if no_reg {fields.push(("Регион".to_string(),"По умолчанию (EU)".to_string(),false))}
+                else { fields.push(("Регион".to_string(), region.clone(), false)) }
+            if no_plat {fields.push(("Платформа".to_string(),"По умолчанию (PC)".to_string(),false))}
+                else { fields.push(("Платформа".to_string(), platform.clone(), false)) }
+
             if acc_not_found {
-                botmess.push_str("\nТакже мы не смогли найти ваш профиль Overwtach по заданным параметрам. Возможно вы ошиблись или указали недостаточно данных.");
-                botmess.push_str("\nВы можете добавить их позже с помощью комманды \n```markdown\n!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}\n```");
+                des = "Мы не смогли найти ваш профиль Overwtach по заданным параметрам.\nВозможно вы ошиблись или указали недостаточно данных.";
+                footer = "Вы можете указать корректные данные позже с помощью комманды !wsreg";
             } else {
-                if no_reg { botmess.push_str("\nРегион установлен по умолчанию: EU"); }
-                if no_plat { botmess.push_str("\nПлатформа установленна по умолчанию: PC"); }
-                if rating > 0 { botmess.push_str(format!("\nВаш рейтинг определён: {}", rating).as_str()); }
-                botmess.push_str("\nИзменить BattleTag, Регион и Платформу вы можете повторно введя комманду \n```markdown\n!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}\n```");
+                if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
+                footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
             }
         } else {
             if acc_not_found {
-                botmess.push_str("\nТакже мы не смогли найти ваш профиль Overwtach по заданным параметрам. Возможно вы ошиблись или указали недостаточно данных.");
-                botmess.push_str("\nВы можете добавить их позже с помощью комманды \n```markdown\n!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}\n```");
+                des = "Похоже мы не смогли найти ваш профиль Overwtach по заданным параметрам. \nВозможно вы ошиблись или указали недостаточно данных.";
+                fields.push(("BattleTag".to_string(), battletag.clone(), false));
+                fields.push(("Регион".to_string(), region.clone(), false));
+                fields.push(("Платформа".to_string(), platform.clone(), false));
+                footer ="Вы можете добавить их позже с помощью комманды !wsreg";
             } else {
-                botmess.push_str("\nВаш аккаунт успешно найден");
-                if rating > 0 { botmess.push_str(format!("\nВаш рейтинг определён: {}", rating).as_str()); }
-                botmess.push_str("\nИзменить BattleTag, Регион и Платформу вы можете повторно введя комманду \n```markdown\n!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}\n```");
+                des = "Информация успешно добавлена :wink:";
+                fields.push(("BattleTag".to_string(), battletag.clone(), false));
+                fields.push(("Регион".to_string(), region.clone(), false));
+                fields.push(("Платформа".to_string(), platform.clone(), false));
+                if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
+                footer ="Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
             }
         }
 
@@ -759,9 +788,9 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User) //Диалог 
             add_to_db(temp_user);
         }
     } else {
-        botmess.push_str("Теперь вы с нами!");
-        botmess.push_str("\nВы не указали никакой информации, но вы всегда можете добавить их с помощью комманды \n```markdown\n!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}\n```");
-
+        title = "Регистрация пройдена";
+        des ="Но вы не указали никакой информации. Совсем :worried:";
+        footer ="Вы можете добавить её позже с помощью комманды !wsreg";
         let mut temp_user = User::empty();
         temp_user.did = autor.id.0;
         temp_user.name = autor.name;
@@ -769,10 +798,12 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User) //Диалог 
 
         add_to_db(temp_user);
     }
-    let _ = DIS.send_message(DIS.create_private_channel(autor.id).unwrap().id, botmess.as_str(), "", false);
+    if let Err(e) = embed(chan, "",title,des,thumbnail,color,footer,fields){
+        println!("Message Error: {:?}", e);
+    }
 }
 
-fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User) //Диалог на запрос редактирования профиля
+fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::model::ChannelId) //Диалог на запрос редактирования профиля
 {
     let mut battletag: String = String::new();
     let mut region: String = String::new();
@@ -783,6 +814,12 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User) //Диалог
     let mut botmess: String = String::new();
     let mut force: bool = false;
 
+    let mut title = "";
+    let mut des = "";
+    let mut thumbnail:String = String::new();
+    let mut footer = "";
+    let mut fields: Vec<(String, String, bool)> = Vec::new();
+    let color: u64 = 37595;
 
     if reg_str.capacity() > 1 {
         reg_str.remove(0);
@@ -845,8 +882,8 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User) //Диалог
         let mut new_data = false;
         if no_btag && no_plat && no_reg {
             unnone = false;
-            botmess = "К сожалению, не удалось определить праметры заданные вами.".to_string();
-            botmess.push_str("\nУбедитесь, что верно ввели парамтры на изменение ваших данных\n```markdown\n!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}\n```");
+            title = ":rolling_eyes: Упс..";
+            des = "К сожалению, не удалось определить праметры заданные вами";
         } else {
             if !no_btag && !battletag.eq(&user.btag) { new_data = true; }
             if !no_plat && !platform.eq(&user.plat) { new_data = true; }
@@ -866,20 +903,32 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User) //Диалог
 
                     update_in_db(temp_user);
 
-                    botmess = "Мы обновили ваши данные.".to_string();
-                    botmess.push_str("\nК сожалению, мы не сможем узнать ваш рейтинг без указания BattleTag.");
-                    botmess.push_str(format!("\nРегион: {}", region).as_str());
-                    botmess.push_str(format!("\nПлатформа: {}", platform).as_str());
-                    botmess.push_str("\nУбедитесь, что верно ввели парамтры на изменение ваших данных");
+                    fields.push(("Мы обновили ваши данные".to_string(),
+                                 "Но мы не сможем узнать ваш рейтинг без указания BattleTag\nУбедитесь, что верно ввели парамтры на изменение ваших данных".to_string(),
+                                 false));
                 } else {
-                    rating = match load_overwatch_rating(battletag.clone(), region.clone(), platform.clone()) {
-                        6000 => {
+                    let mut req = HeroInfoReq::default();
+                    req.num = 0;
+                    req.rating = true;
+                    req.time_played = false;
+                    req.games_won = false;
+                    req.aim = false;
+                    req.kills_per_live = false;
+                    req.win_perc = false;
+                    req.best_multiple_kills = false;
+                    req.obj_kills = false;
+                    let answer = load_btag_data(battletag.to_string(), region.to_string(), platform.to_string(), req);
+
+                    if let Some(an) = answer{
+                        rating = an.rating;
+                        //println!("rating: {}", rating);
+                        thumbnail = an.avatar_url.clone();
+                    }
+                        else {
                             acc_not_found = true;
-                            0
+                            rating = 0;
                         }
-                        x => { x }
-                        _ => { 0 }
-                    };
+
                     if acc_not_found {
                         if force {
                             let mut temp_user = User::empty();
@@ -894,18 +943,24 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User) //Диалог
                             temp_user.rtg_preset = user.rtg_preset;
 
                             update_in_db(temp_user);
-                            botmess = "Мы принудително обновили ваши данные.".to_string();
-                            botmess.push_str(format!("\nBattleTag: {}", battletag).as_str());
-                            botmess.push_str(format!("\nРегион: {}", region).as_str());
-                            botmess.push_str(format!("\nПлатформа: {}", platform).as_str());
-                            botmess.push_str("\nУбедитесь, что верно ввели парамтры на изменение ваших данных");
+                            title = "Данные обновлены";
+                            des = "Мы принудително обновили ваши данные";
+
+                            fields.push(("BattleTag".to_string(), battletag.clone(), false));
+                            fields.push(("Регион".to_string(), region.clone(), false));
+                            fields.push(("Платформа".to_string(),
+                                         format!("{} \n\nУбедитесь, что верно ввели парамтры на изменение ваших данных",platform.clone()), false));
+
+
                         } else {
-                            botmess = "Мы не смогли найти ваш профиль Overwatch по заданным параметрам. Возможно вы ошиблись или указали недостаточно данных.".to_string();
-                            botmess.push_str(format!("\nBattleTag: {}", battletag).as_str());
-                            botmess.push_str(format!("\nРегион: {}", region).as_str());
-                            botmess.push_str(format!("\nПлатформа: {}", platform).as_str());
-                            botmess.push_str("\nУбедитесь, что верно ввели парамтры на изменение ваших данных\n```markdown\n!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}\n```");
-                            botmess.push_str("\nНо если вы настаиваете, то добавте FORCE в конец, для изменения данных.");
+                            title = "Изменение данных";
+                            des = "Мы не смогли найти ваш профиль Overwatch по заданным параметрам";
+                            fields.push(("BattleTag".to_string(), battletag.clone(), false));
+                            fields.push(("Регион".to_string(), region.clone(), false));
+                            fields.push(("Платформа".to_string(),
+                                         format!("{} \n\nУбедитесь, что верно ввели парамтры на изменение ваших данных\nНо если вы настаиваете, то добавте FORCE в конец, для изменения данных",platform.clone()),
+                                         false));
+
                         }
                     } else {
                         let mut temp_user = User::empty();
@@ -913,36 +968,43 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User) //Диалог
                         temp_user.name = autor.name;
                         temp_user.disc = autor.discriminator.to_string();
                         temp_user.btag = battletag.clone();
-                        temp_user.rtg = 0;
+                        temp_user.rtg = rating;
                         temp_user.reg = region.clone();
                         temp_user.plat = platform.clone();
                         temp_user.scrim_preset = user.scrim_preset;
                         temp_user.rtg_preset = user.rtg_preset;
 
                         update_in_db(temp_user);
-                        botmess = "Мы обновили ваши данные.".to_string();
-                        botmess.push_str(format!("\nBattleTag: {}", battletag).as_str());
-                        botmess.push_str(format!("\nРегион: {}", region).as_str());
-                        botmess.push_str(format!("\nПлатформа: {}", platform).as_str());
-                        if rating > 0 { botmess.push_str(format!("\nРейтинг: {}", rating).as_str()); }
-                        botmess.push_str("\nУбедитесь, что верно ввели парамтры на изменение ваших данных");
+                        title = "Данные обновлены";
+                        des = "Профиль OW найден";
+                        fields.push(("BattleTag".to_string(), battletag.clone(), false));
+                        fields.push(("Регион".to_string(), region.clone(), false));
+                        fields.push(("Платформа".to_string(), platform.clone(), false));
+                        if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
+                        footer = "Убедитесь, что верно ввели парамтры на изменение ваших данных";
+
                     }
                 }
             } else {
-                botmess = "Ваши текущие данные совпадают с введёнными.".to_string();
-                botmess.push_str("\nУбедитесь, что верно ввели парамтры на изменение ваших данных\n```markdown\n!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}\n```");
+                title = "Изменение данных";
+                des = "Ваши текущие данные совпадают с введёнными";
+                fields.push(("BattleTag".to_string(), battletag.clone(), false));
+                fields.push(("Регион".to_string(), region.clone(), false));
+                fields.push(("Платформа".to_string(), platform.clone(), false));
+                if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
             }
         }
-        if unnone {
-            botmess.push_str("\nНе все настройки удалось определить, перепроверьте ваше сообщение.");
-        }
-    } else {
-        botmess = "Вы уже зарегестрированны.".to_string();
-        botmess.push_str("\nЧто бы добаваить или изменить данные о вашем профиле, укажите их вместе с командой\n```markdown\n!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}\n```");
-    }
-    let _ = DIS.send_message(DIS.create_private_channel(autor.id).unwrap().id, botmess.as_str(), "", false);
-}
 
+    } else {
+        title = "Вы уже зарегестрированны";
+        des = "Что бы добаваить или изменить данные о вашем профиле, укажите их вместе с командой !wsreg";
+    }
+    if footer.is_empty(){footer = "!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}";}
+
+    if let Err(e) = embed(chan, "",title,des,thumbnail,color,footer,fields){
+        println!("Message Error: {:?}", e);
+    }
+}
 
 fn scrim_starter(mut mes: &str, autor: discord::model::User) //Отправная функция по всем запросам касательно скримов
 {
@@ -1541,9 +1603,9 @@ fn main() {
                             "!wsreg" => {
                                 match reg_check(mes.author.id) {
                                     false => {
-                                        reg_user(mes_split, mes.author);
+                                        reg_user(mes_split, mes.author, message.channel_id);
                                     }
-                                    true => { edit_user(mes_split, mes.author); }
+                                    true => { edit_user(mes_split, mes.author, message.channel_id); }
                                 }
                             }
                             "!wsstats" => {
