@@ -1630,19 +1630,12 @@ fn main() {
                                 }
                             }
                             "!wsstats" => {
-
                                 wsstats(mes_split, mes.author.id, message.channel_id);
-
-
                             }
                             "!wsscrim" => {
                                 scrim_starter(mes.content.as_str(), mes.author);
                             }
 
-                            "!bothelp" => {
-                                let botmess = "Коммамнда !bothelp";
-                                let _ = DIS.send_message(message.channel_id, botmess, "", false);
-                            }
                             "!wscmd" => {
                                 let wscmd = include_str!("cmd.ws");
                                 let _ = DIS.send_message(message.channel_id, wscmd, "", false);
@@ -1652,8 +1645,6 @@ fn main() {
                                 let wscmd = include_str!("help.ws");
                                 let _ = DIS.send_message(message.channel_id, wscmd, "", false);
                             }
-
-                            "!botreg" => {}
 
                             "!test" => {
                                 let mut test_user: User = User::empty();
