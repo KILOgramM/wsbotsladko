@@ -1499,6 +1499,27 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
     }
 }
 
+fn embed(chanel: discord::model::ChannelId, text: &str, title: &str, des: &str,
+         thumbnail: String, col: u64, footer: &str, fields: Vec<(String, String , bool)>) -> discord::Result<discord::model::Message>{
+
+    return DIS.send_embed(chanel, text, |e| {
+        let mut a = e.color(col);
+        if !title.is_empty() {a = a.title(title);}
+        if !des.is_empty() {a = a.description(des);}
+        if !thumbnail.is_empty() {a = a.thumbnail(thumbnail.as_str());}
+        if !footer.is_empty() {a = a.footer(|f| f.text(footer));}
+        if fields.len() > 0 {
+            a = a.fields(|z| {
+                let mut w = z;
+                for (name, text, inline) in fields{
+                    w = w.field(name.as_str(), text.as_str(), inline);
+                }
+                w
+            });
+        }
+        a
+    });
+}
 
 fn embed_builder(e: EmbedBuilder,botmess: &str, des: &str, col: u64, answer: BtagData, hero_list_titles: Vec<&str>) -> EmbedBuilder{
 
