@@ -1568,11 +1568,81 @@ fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagDat
     return zz;
 }
 
+fn broadcast_info() {
+    extern crate time;
+    thread::spawn(move || {
+       let mut date = 0;
+        loop{
+            let now = time::now();
+            if now.tm_hour == 21 && now.tm_mday != date{
+                date = now.tm_mday;
+                lazy_static! {
+                                        static ref REG_FILE: Regex = Regex::new(r"(?ms)^(?P<name>[.[[:^space:]]]+?)[[:space:]]*?=[[:space:]]*?(?P<data>.+?);").expect("Regex file error");
+                                       
+                                    }
+                let raw = include_str!("info.ws");
+                let mut color: u64 = 0;
+                let mut thumbnail = "";
+                let mut author_name = "";
+                let mut author_url = "";
+                let mut author_icon_url = "";
+                let mut fields = Vec::new();
+
+                for m in REG_FILE.captures_iter(raw){
+                    println!("\n{}: {}",m.name("name").unwrap().as_str(),m.name("data").unwrap().as_str());
+                    match m.name("name").unwrap().as_str(){
+                        "color" => {color = m.name("data").unwrap().as_str().trim().parse::<u64>().unwrap();}
+                        "thumbnail" => {thumbnail = m.name("data").unwrap().as_str();}
+                        "author_name" => {author_name = m.name("data").unwrap().as_str();}
+                        "author_url" => {author_url = m.name("data").unwrap().as_str();}
+                        "author_icon_url" => {author_icon_url = m.name("data").unwrap().as_str();}
+                        "field" => {
+                            let mut str1 = "";
+                            let mut str2 = "";
+                            let mut b = false;
+                            let mut data = m.name("data").unwrap().as_str();
+                            let (string1, other) = data.split_at(data.find('~').unwrap()+1);
+                            let (string2, string3) = other.split_at(other.find('~').unwrap()+1);
+                            let string1 = string1.trim_matches('~');
+                            let string2 = string2.trim_matches('~');
+                            let string3 = string3.trim_matches('~');
+
+                            if string1.starts_with("\r\n") {let (_,p) = string1.split_at(2); str1 = p; }
+                                else { str1 = string1;  }
+                            if string2.starts_with("\r\n") {let (_,p) = string2.split_at(2); str2 = p;}
+                                else { str2 = string2;  }
+                            if string3.contains("true") {b = true;}
+                            fields.push((str1.to_string(),str2.to_string(), b));
+                        }
+                        _ => {println!("uncnown: {}", m.name("name").unwrap().as_str())}
+                    }
+                }
+                match DIS.get_servers() {
+                    Ok(list) => {
+                        for serv in list{
+                            if let Err(e) = embed(serv.id.main(), "","","",thumbnail.to_string()
+                                                  ,color,"",fields.clone(),(author_name.clone(),author_url.clone(),author_icon_url.clone())){
+                                println!("Message Error: {:?}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {println!("get_servers err: {}", e)}
+                }
+
+            }
+            else {
+                std::thread::sleep(std::time::Duration::from_secs(60));
+            }
+        }
+    });
+}
+
 fn main() {
     let (mut connection, ready) = DIS.connect().expect("connect failed");
 
     let mut state_t = State::new(ready);
     println!("[Status] Ready");
+    broadcast_info();
     loop {
         let event = match connection.recv_event() {
             Ok(event) => event,
