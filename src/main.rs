@@ -1539,7 +1539,7 @@ fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagDat
     for (enumerat,l) in hero_list_titles.iter().enumerate(){
 
         let ref an = answer.heroes[enumerat];
-        let mut itre = an.clone().hero.name_rus();
+        let mut itre = an.clone().hero.name_eng();
         let name = format!("{} {}",l,itre);
 
         let mut value = String::new();
