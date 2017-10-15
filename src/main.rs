@@ -798,7 +798,7 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::
 
         add_to_db(temp_user);
     }
-    if let Err(e) = embed(chan, "",title,des,thumbnail,color,footer,fields){
+    if let Err(e) = embed(chan, "",title,des,thumbnail,color,footer,fields,("","","")){
         println!("Message Error: {:?}", e);
     }
 }
@@ -1001,7 +1001,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
     }
     if footer.is_empty(){footer = "!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}";}
 
-    if let Err(e) = embed(chan, "",title,des,thumbnail,color,footer,fields){
+    if let Err(e) = embed(chan, "",title,des,thumbnail,color,footer,fields,("","","")){
         println!("Message Error: {:?}", e);
     }
 }
@@ -1499,8 +1499,8 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
     }
 }
 
-fn embed(chanel: discord::model::ChannelId, text: &str, title: &str, des: &str,
-         thumbnail: String, col: u64, footer: &str, fields: Vec<(String, String , bool)>) -> discord::Result<discord::model::Message>{
+pub fn embed(chanel: discord::model::ChannelId, text: &str, title: &str, des: &str,
+         thumbnail: String, col: u64, footer: &str, fields: Vec<(String, String , bool)>, author: (&str,&str,&str)) -> discord::Result<discord::model::Message>{
 
     return DIS.send_embed(chanel, text, |e| {
         let mut a = e.color(col);
@@ -1508,6 +1508,14 @@ fn embed(chanel: discord::model::ChannelId, text: &str, title: &str, des: &str,
         if !des.is_empty() {a = a.description(des);}
         if !thumbnail.is_empty() {a = a.thumbnail(thumbnail.as_str());}
         if !footer.is_empty() {a = a.footer(|f| f.text(footer));}
+        if !author.0.is_empty() || !author.1.is_empty() || !author.2.is_empty()
+            {a = a.author(|au| {
+                let mut aut = au;
+                if !author.0.is_empty() {aut = aut.name(author.0);}
+                if !author.1.is_empty() {aut = aut.url(author.1);}
+                if !author.2.is_empty() {aut = aut.icon_url(author.2);}
+                aut
+            })}
         if fields.len() > 0 {
             a = a.fields(|z| {
                 let mut w = z;
