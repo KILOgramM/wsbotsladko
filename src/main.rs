@@ -1579,15 +1579,23 @@ fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagDat
 fn broadcast_info() {
     extern crate time;
     thread::spawn(move || {
-       let mut date = 0;
+        let string = get_db("broadcast_date");
+        
+        let mut date = if string.is_empty() {
+            0
+        }
+        else{
+            string.as_str().parse::<i32>().unwrap()
+        }
+        
         loop{
             let now = time::now();
             if now.tm_hour == 21 && now.tm_mday != date{
                 date = now.tm_mday;
+                insert("broadcast_date",format!("{}",date));
                 lazy_static! {
-                                        static ref REG_FILE: Regex = Regex::new(r"(?ms)^(?P<name>[.[[:^space:]]]+?)[[:space:]]*?=[[:space:]]*?(?P<data>.+?);").expect("Regex file error");
-                                       
-                                    }
+                    static ref REG_FILE: Regex = Regex::new(r"(?ms)^(?P<name>[.[[:^space:]]]+?)[[:space:]]*?=[[:space:]]*?(?P<data>.+?);").expect("Regex file error"); 
+                }
                 let raw = include_str!("info.ws");
                 let mut color: u64 = 0;
                 let mut thumbnail = "";
