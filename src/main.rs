@@ -1605,7 +1605,7 @@ fn broadcast_info() {
                 let mut fields = Vec::new();
 
                 for m in REG_FILE.captures_iter(raw){
-                    println!("\n{}: {}",m.name("name").unwrap().as_str(),m.name("data").unwrap().as_str());
+                    //println!("\n{}: {}",m.name("name").unwrap().as_str(),m.name("data").unwrap().as_str());
                     match m.name("name").unwrap().as_str(){
                         "color" => {color = m.name("data").unwrap().as_str().trim().parse::<u64>().unwrap();}
                         "thumbnail" => {thumbnail = m.name("data").unwrap().as_str();}
@@ -1636,6 +1636,10 @@ fn broadcast_info() {
                 match DIS.get_servers() {
                     Ok(list) => {
                         for serv in list{
+                            println!("\nServer name: {}", serv.name);
+                            println!("Server Id: {}", serv.id.0);
+                            println!("Main Chanel Id: {}", serv.id.main().0);
+                            println!("Get Main Chanel result: \n{:?}\n", DIS.get_channel(serv.id.main()));
                             if let Err(e) = embed(serv.id.main(), "","","",thumbnail.to_string()
                                                   ,color,"",fields.clone(),(author_name.clone(),author_url.clone(),author_icon_url.clone())){
                                 println!("Message Error: {:?}", e);
