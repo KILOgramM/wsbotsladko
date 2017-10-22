@@ -1588,7 +1588,7 @@ fn broadcast_info() {
             string.as_str().parse::<i32>().unwrap()
         }
         
-        loop{
+        loop {
             let now = time::now();
             if now.tm_hour == 21 && now.tm_mday != date{
                 date = now.tm_mday;
@@ -1653,7 +1653,7 @@ fn broadcast_info() {
             else {
                 std::thread::sleep(std::time::Duration::from_secs(60));
             }
-        }
+        };
     });
 }
 
@@ -1735,7 +1735,7 @@ fn main() {
                                 let wscmd = include_str!("help.ws");
                                 let _ = DIS.send_message(message.channel_id, wscmd, "", false);
                             }
-
+                            "!srvlist" => { println!("{:?}", DIS.get_servers());}
                             "!test" => {
                                 let mut test_user: User = User::empty();
                                 test_user.did = mes.author.id.0;
