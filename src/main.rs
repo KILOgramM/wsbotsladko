@@ -1586,7 +1586,7 @@ fn broadcast_info() {
         }
         else{
             string.as_str().parse::<i32>().unwrap()
-        }
+        };
         
         loop{
             let now = time::now();
