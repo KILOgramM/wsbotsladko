@@ -1592,7 +1592,8 @@ fn broadcast_info() {
             let now = time::now();
             if now.tm_hour == 21 && now.tm_mday != date{
                 date = now.tm_mday;
-                insert("broadcast_date",format!("{}",date));
+                let date_string = format!("{}",date);
+                insert("broadcast_date",&date_string);
                 lazy_static! {
                     static ref REG_FILE: Regex = Regex::new(r"(?ms)^(?P<name>[.[[:^space:]]]+?)[[:space:]]*?=[[:space:]]*?(?P<data>.+?);").expect("Regex file error"); 
                 }
