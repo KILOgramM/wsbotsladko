@@ -1641,10 +1641,25 @@ fn broadcast_info() {
                             println!("Server Id: {}", serv.id.0);
                             println!("Main Chanel Id: {}", serv.id.main().0);
                             println!("Get Main Chanel result: \n{:?}\n", DIS.get_channel(serv.id.main()));
-                            if let Err(e) = embed(serv.id.main(), "","","",thumbnail.to_string()
+                            if serv.id.0 == 351798277756420098 {
+                                if let Ok(chnels) = DIS.get_server_channels(serv.id){
+                                    for c in chnels{
+                                        if c.name.as_str() == "main-chat"{
+                                            if let Err(e) = embed(c.id, "","","",thumbnail.to_string()
                                                   ,color,"",fields.clone(),(author_name.clone(),author_url.clone(),author_icon_url.clone())){
-                                println!("Message Error: {:?}", e);
+                                                println!("Message Error: {:?}", e);
+                                            }
+                                        }
+                                    }
+                                }
                             }
+                            else{
+                                if let Err(e) = embed(serv.id.main(), "","","",thumbnail.to_string()
+                                                     ,color,"",fields.clone(),(author_name.clone(),author_url.clone(),author_icon_url.clone())){
+                                    println!("Message Error: {:?}", e);
+                                }
+                            }
+                         
                         }
                     }
                     Err(e) => {println!("get_servers err: {}", e)}
