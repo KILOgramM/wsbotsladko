@@ -1649,16 +1649,17 @@ fn broadcast_info() {
                                                   ,color,"",fields.clone(),(author_name.clone(),author_url.clone(),author_icon_url.clone())){
                                                 println!("Message Error: {:?}", e);
                                             }
+                                            break;
                                         }
                                     }
                                 }
                             }
-                            else{
-                                if let Err(e) = embed(serv.id.main(), "","","",thumbnail.to_string()
-                                                     ,color,"",fields.clone(),(author_name.clone(),author_url.clone(),author_icon_url.clone())){
-                                    println!("Message Error: {:?}", e);
-                                }
-                            }
+                            //else{
+                            //    if let Err(e) = embed(serv.id.main(), "","","",thumbnail.to_string()
+                            //                         ,color,"",fields.clone(),(author_name.clone(),author_url.clone(),author_icon_url.clone())){
+                            //        println!("Message Error: {:?}", e);
+                            //    }
+                            //}
                          
                         }
                     }
