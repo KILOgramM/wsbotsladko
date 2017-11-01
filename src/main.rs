@@ -17,9 +17,13 @@ use discord::model::Event;
 use discord::builders::EmbedBuilder;
 use regex::Regex;
 use std::io::Read;
+use std::io::Write;
 //use std::env;
 //use rusqlite::Connection;
 
+pub mod addon;
+
+use addon::{DB, Chat, lfg, Stage_LFG, Global, TempData};
 
 use std::{thread, time, fmt};
 
@@ -29,9 +33,9 @@ use std::sync::mpsc::channel;
 use mysql::from_row;
 
 lazy_static! {
-    static ref DIS: discord::Discord = Discord::from_bot_token(load_settings().as_str()).expect("login failed");
-    static ref POOL: mysql::conn::pool::Pool = mysql::Pool::new(build_opts()).unwrap();
-    static ref REG_BTAG: Regex = Regex::new(r"^.{2,16}#[0-9]{2,6}$").expect("Regex btag error");
+    pub static ref DIS: discord::Discord = Discord::from_bot_token(load_settings().as_str()).expect("login failed");
+    pub static ref POOL: mysql::conn::pool::Pool = mysql::Pool::new(build_opts()).unwrap();
+    pub static ref REG_BTAG: Regex = Regex::new(r"^.{2,16}#[0-9]{2,6}$").expect("Regex btag error");
     static ref REG_TIME: Regex = Regex::new(r"(?P<n>\d){1,4} ?(?i)(?P<ntype>m|min|h|hour)").expect("Regex btag error");
 }
 
@@ -97,7 +101,7 @@ impl Scrim {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-struct User {
+pub struct User {
     did: u64,
     //discord id?
     name: String,
@@ -117,7 +121,7 @@ struct User {
 }
 
 impl User {
-    fn empty() -> User {
+    pub fn empty() -> User {
         User {
             did: 0,
             name: String::new(),
@@ -186,7 +190,7 @@ enum Time{
     None
 }
 #[derive(PartialEq,Clone,Debug)]
-enum Hero{
+pub enum Hero{
     None,
     Winston,
     Tracer,
@@ -215,8 +219,8 @@ enum Hero{
     Orisa,
 }
 impl Hero{
-    fn get_from_bliz_str(str: &str) -> Hero{
-        match str{
+    fn get_from_bliz_str(s: &str) -> Hero{
+        match s{
             "009" => {return Hero::Winston;}
             "003" => {return Hero::Tracer;}
             "008" => {return Hero::Pharah;}
@@ -275,7 +279,7 @@ impl Hero{
              Hero::None => {return String::new();}
         }
     }
-    fn name_rus(self) -> String{
+    pub  fn name_rus(self) -> String{
         match self{
             Hero::Winston => {return String::from("Уинстон");}
             Hero::Tracer => {return String::from("Трейсер");}
@@ -307,7 +311,7 @@ impl Hero{
     }
 }
 #[derive(Default,Clone,Debug)]
-struct BtagData {
+pub struct BtagData {
     btag: String,
     reg: String,
     plat: String,
@@ -326,7 +330,7 @@ struct BtagData {
    // len: i16,
 }
 #[derive(Default,Debug)]
-struct HeroInfoReq{
+pub struct HeroInfoReq{
     num: i16,
     rating: bool,
     time_played: bool,
@@ -336,6 +340,21 @@ struct HeroInfoReq{
     kills_per_live: bool,
     best_multiple_kills: bool,
     obj_kills: bool,
+}
+impl HeroInfoReq{
+    pub fn empty() -> HeroInfoReq{
+        HeroInfoReq{
+            num: 0,
+            rating: false,
+            time_played: false,
+            games_won: false,
+            win_perc: false,
+            aim: false,
+            kills_per_live: false,
+            best_multiple_kills: false,
+            obj_kills: false,
+        }
+    }
 }
 #[derive(Clone,Debug)]
 struct HeroStats{
@@ -429,14 +448,14 @@ fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> O
     let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x086000000000002F\"").unwrap();
     let (mut win_perc , mut div) = div.split_at(num); //Меткость
 
-    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x08600000000003D2\"").unwrap();
-    let (mut aim , mut div) = div.split_at(num); //Убийств за одну жизнь
-
-    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x0860000000000346\"").unwrap();
-    let (mut kills_per_live , mut div) = div.split_at(num); //Лучшее множественное убийство
-
-    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x086000000000039C\"").unwrap();
-    let (mut best_multiple_kills , mut obj_kills) = div.split_at(num); //Убийств у объектов
+//    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x08600000000003D2\"").unwrap();
+//    let (mut aim , mut div) = div.split_at(num); //Убийств за одну жизнь
+//
+//    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x0860000000000346\"").unwrap();
+//    let (mut kills_per_live , mut div) = div.split_at(num); //Лучшее множественное убийство
+//
+//    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x086000000000039C\"").unwrap();
+//    let (mut best_multiple_kills , mut obj_kills) = div.split_at(num); //Убийств у объектов
 
     let mut hero_time_played_vec: Vec<BtagData> = Vec::new();
 
@@ -444,15 +463,22 @@ fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> O
     //b_data.len = req.num;
     let mut i = 0;
     let mut i2 = 0;
-    for sly in vec![time_played, games_won, win_perc, aim, kills_per_live, best_multiple_kills, obj_kills].iter(){
+    //for sly in vec![time_played, games_won, win_perc, aim, kills_per_live, best_multiple_kills, obj_kills].iter(){
+    for sly in vec![time_played, games_won, win_perc].iter(){
         i+=1;
         if i == 1 && !req.time_played{continue;}
         if i == 2 && !req.games_won{continue;}
         if i == 3 && !req.win_perc{continue;}
-        if i == 4 && !req.aim{continue;}
-        if i == 5 && !req.kills_per_live{continue;}
-        if i == 6 && !req.best_multiple_kills{continue;}
-        if i == 7 && !req.obj_kills{continue;}
+
+//        if i == 4 && !req.aim{continue;}
+//        if i == 5 && !req.kills_per_live{continue;}
+//        if i == 6 && !req.best_multiple_kills{continue;}
+//        if i == 7 && !req.obj_kills{continue;}
+
+        if i == 4 {continue;}
+        if i == 5 {continue;}
+        if i == 6 {continue;}
+        if i == 7 {continue;}
 
         let mut sly_copy = sly;
         let str = "data-hero-guid=\"0x02E0000000000";
@@ -578,15 +604,18 @@ fn update_in_db(user: User) //Изменение профиля в БД
     let _ = conn.query(call);
 }
 
-fn load_by_id(id: u64) -> User //Получение профиля из базы по DiscordId
+pub fn load_by_id(id: u64) -> Option<User> //Получение профиля из базы по DiscordId
 {
     let mut conn = POOL.get_conn().unwrap();
     let command = format!("SELECT did, name, disc, btag, rtg, reg, plat, scrim_preset, rtg_preset FROM users WHERE did = {}", &id);
     let mut stmt = conn.prepare(command).unwrap();
-    let mut u = User::empty();
+    let mut user:Option<User> = None;
 
     for row in stmt.execute(()).unwrap() {
-        let (udid, uname, udisc, ubtag, urtg, ureg, uplat, scrim_preset, rtg_preset) = mysql::from_row::<(u64, String, String, String, u16, String, String, String, String)>(row.unwrap());
+        let (udid, uname, udisc, ubtag, urtg, ureg,
+            uplat, scrim_preset, rtg_preset) = mysql::from_row::<
+            (u64, String, String, String, u16, String, String, String, String)>(row.unwrap());
+        let mut u = User::empty();
         u.did = udid;
         u.name = uname;
         u.disc = udisc;
@@ -596,11 +625,12 @@ fn load_by_id(id: u64) -> User //Получение профиля из базы
         u.plat = uplat;
         u.scrim_preset = serde_json::from_str(&scrim_preset).unwrap();
         u.rtg_preset = serde_json::from_str(&rtg_preset).unwrap();
+        user = Some(u);
     }
-    return u;
+    return user;
 }
 
-fn load_settings() -> String //Загрузка DiscordId
+pub fn load_settings() -> String //Загрузка DiscordId
 {
     let mut ta = String::new();
     let mut stmt = POOL.prepare("SELECT distoken FROM bottoken").unwrap();
@@ -798,7 +828,9 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::
 
         add_to_db(temp_user);
     }
-    if let Err(e) = embed(chan, "",title,des,thumbnail,color,footer,fields,("","","")){
+    if let Err(e) = embed(chan, "",title,des,thumbnail,color,
+                          (String::new(),footer),fields,("","",""),
+                          String::new(), String::new()){
         println!("Message Error: {:?}", e);
     }
 }
@@ -808,7 +840,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
     let mut battletag: String = String::new();
     let mut region: String = String::new();
     let mut platform: String = String::new();
-    let user = load_by_id(autor.id.0);
+    let user = load_by_id(autor.id.0).unwrap();
     let mut rating: u16 = 0;
     let mut unnone = false;
     let mut botmess: String = String::new();
@@ -1001,10 +1033,13 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
     }
     if footer.is_empty(){footer = "!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}";}
 
-    if let Err(e) = embed(chan, "",title,des,thumbnail,color,footer,fields,("","","")){
+    if let Err(e) = embed(chan, "",title,des,thumbnail,color,
+                          (String::new(),footer),fields,("","",""),
+                          String::new(), String::new()){
         println!("Message Error: {:?}", e);
     }
 }
+
 
 fn scrim_starter(mut mes: &str, autor: discord::model::User) //Отправная функция по всем запросам касательно скримов
 {
@@ -1023,9 +1058,9 @@ fn scrim_starter(mut mes: &str, autor: discord::model::User) //Отправна�
     let mut hide: bool = false;
     let mut show_btag: bool = false;
     let mut help_str = "\n```markdown\n!wsscrim {Время поиска: m|H} {Платформа: PC|P4|XB} {Рейтинг группы (по умолчанию будет взят ваш рейтинг)} {Сохранить шаблон: save}\n```";
-    let is_reg = reg_check(autor.id);
-    let user: User = match is_reg {
-        true => { load_by_id(autor.id.0) }
+    //let is_reg = reg_check(autor.id);
+    let user: User = match load_by_id(autor.id.0) {
+        Some(u) => { u }
         _ => { User::empty() }
     };
     if user.did != 0 && !user.btag.is_empty() {
@@ -1271,14 +1306,14 @@ fn insert(name: &str, var: &String) {
 }
 
 fn get_db(name: &str) -> String {
-    let mut str = String::new();
+    let mut string = String::new();
     let mut call = format!("SELECT var FROM variables WHERE");
     call = format!("{} name='{}'", call, name);
     let mut stmt = POOL.prepare(call.as_str()).unwrap();
     for row in stmt.execute(()).unwrap() {
-        str = from_row::<String>(row.unwrap());
+        string = from_row::<String>(row.unwrap());
     }
-    return str;
+    return string;
 }
 
 /*
@@ -1409,7 +1444,10 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
 
     if mes.capacity() > 1 {
         m = get_arg_from_mes(mes);
-        u = load_by_id(autor_id.0);
+        u = match load_by_id(autor_id.0) {
+            Some(u) => { u }
+            _ => { User::empty() }
+        };
         if u.btag.is_empty() && m.btag.is_empty() {
 
             //Ошибка: Вы не указали BTag при регистрации и в сообщении.
@@ -1444,7 +1482,10 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
             }
             true => {
 
-                u = load_by_id(autor_id.0);
+                u = match load_by_id(autor_id.0) {
+                    Some(u) => { u }
+                    _ => { User::empty() }
+                };
                 if u.btag.is_empty() {
 
                     //Ошибка: Вы не указали BTag при регистрации и в сообщении.
@@ -1470,7 +1511,8 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
             u.rtg = answer.clone().unwrap().rating;
         }
         if update { update_in_db(u.clone()); }
-        
+
+
 
         if u.rtg == 6000 {
 
@@ -1500,14 +1542,24 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
 }
 
 pub fn embed(chanel: discord::model::ChannelId, text: &str, title: &str, des: &str,
-         thumbnail: String, col: u64, footer: &str, fields: Vec<(String, String , bool)>, author: (&str,&str,&str)) -> discord::Result<discord::model::Message>{
+         thumbnail: String, col: u64, footer: (String, &str), fields: Vec<(String, String , bool)>,
+             author: (&str,&str,&str), url: String, image: String) -> discord::Result<discord::model::Message>{
 
     return DIS.send_embed(chanel, text, |e| {
         let mut a = e.color(col);
         if !title.is_empty() {a = a.title(title);}
         if !des.is_empty() {a = a.description(des);}
         if !thumbnail.is_empty() {a = a.thumbnail(thumbnail.as_str());}
-        if !footer.is_empty() {a = a.footer(|f| f.text(footer));}
+        if !url.is_empty() {a = a.url(url.as_str());}
+        if !image.is_empty() {a = a.image(image.as_str());}
+        if !footer.0.is_empty() || !footer.1.is_empty() {
+            a = a.footer(|f| {
+                let mut foo = f;
+                if !footer.0.is_empty(){foo=foo.icon_url(footer.0.as_str());}
+                if !footer.0.is_empty(){foo=foo.text(footer.1);}
+                foo
+            });
+        }
         if !author.0.is_empty() || !author.1.is_empty() || !author.2.is_empty()
             {a = a.author(|au| {
                 let mut aut = au;
@@ -1532,6 +1584,7 @@ pub fn embed(chanel: discord::model::ChannelId, text: &str, title: &str, des: &s
 fn embed_builder(e: EmbedBuilder,botmess: &str, des: &str, col: u64, answer: BtagData, hero_list_titles: Vec<&str>) -> EmbedBuilder{
 
     let mut b = e.title(botmess).description(des).color(col);
+
     b = b.thumbnail(answer.avatar_url.as_str());
     if hero_list_titles.len() == 0{return b;}
 
@@ -1547,7 +1600,7 @@ fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagDat
     for (enumerat,l) in hero_list_titles.iter().enumerate(){
 
         let ref an = answer.heroes[enumerat];
-        let mut itre = an.clone().hero.name_eng();
+        let mut itre = an.clone().hero.name_rus();
         let name = format!("{} {}",l,itre);
 
         let mut value = String::new();
@@ -1576,110 +1629,159 @@ fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagDat
     return zz;
 }
 
-fn broadcast_info() {
+pub fn embed_from_value(chanel: discord::model::ChannelId, val: serde_json::Value){
+
+    let mut text = "";
+    let mut title = "";
+    let mut des = "";
+    let mut url = String::new();
+    let mut thumbnail = String::new();
+    let mut col: u64 = 37595;
+    let mut footer = (String::new(),"");
+    let mut fields = Vec::new();
+    let mut author = ("","","");
+    let mut image = String::new();
+    if let Some(content) = val.get("content"){
+        text = content.as_str().unwrap();
+    }
+    if let Some(e) = val.get("embed"){
+        if let Some(v) = e.get("color"){
+            col = v.as_u64().unwrap();
+        }
+        if let Some(v) = e.get("title"){
+            title = v.as_str().unwrap();
+        }
+        if let Some(v) = e.get("description"){
+            des = v.as_str().unwrap();
+        }
+        if let Some(v) = e.get("url"){
+            url = v.as_str().unwrap().to_string();
+        }
+        if let Some(v) = e.get("footer"){
+            if let Some(icon_url) = v.get("icon_url"){
+                footer.0 = icon_url.as_str().unwrap().to_string();
+            }
+            if let Some(text) = v.get("text"){
+                footer.1 = text.as_str().unwrap();
+            }
+        }
+        if let Some(v) = e.get("thumbnail"){
+            thumbnail = v.get("url").unwrap().as_str().unwrap().to_string();
+        }
+        if let Some(v) = e.get("image"){
+            image = v.get("url").unwrap().as_str().unwrap().to_string();
+        }
+        if let Some(v) = e.get("author"){
+            if let Some(icon_url) = v.get("icon_url"){
+                author.2 = icon_url.as_str().unwrap();
+            }
+            if let Some(name) = v.get("name"){
+                author.0 = name.as_str().unwrap();
+            }
+            if let Some(url) = v.get("url"){
+                author.1 = url.as_str().unwrap();
+            }
+        }
+        if let Some(v) = e.get("fields"){
+            for val in v.as_array().unwrap(){
+                let mut field = (String::new(), String::new(), false);
+                if let Some(name) = val.get("name"){
+                    field.0 = name.as_str().unwrap().to_string();
+                }
+                if let Some(value) = val.get("value"){
+                    field.1 = value.as_str().unwrap().to_string();
+                }
+                if let Some(inline) = val.get("inline"){
+                    field.2 = inline.as_bool().unwrap();
+                }
+                fields.push(field);
+            }
+        }
+
+        if let Err(e) = embed(chanel,text,title,des,thumbnail,col,footer,fields,author,url,image){
+            println!("Message Error: {:?}", e);
+        }
+    }
+    else {
+        println!("Wrong embed");
+    }
+
+
+}
+
+fn broadcast_info(tog_id: u32) {
     extern crate time;
     thread::spawn(move || {
         let string = get_db("broadcast_date");
-        
+
         let mut date = if string.is_empty() {
             0
         }
+            else{
+                string.as_str().parse::<i32>().unwrap()
+            };
+
+        let string = get_db("broadcast_toggle");
+
+        if string.eq("true") {
+            DB.set_temp(tog_id, TempData::Bool(true));
+        }
         else{
-            string.as_str().parse::<i32>().unwrap()
-        };
-        
-        loop {
+            DB.set_temp(tog_id, TempData::Bool(false));
+        }
+
+        loop{
             let now = time::now();
-            if now.tm_hour == 21 && now.tm_mday != date{
+            if now.tm_hour == 21 && now.tm_mday != date && now.tm_min < 3 && DB.get_temp(tog_id).unwrap().is_true(){
                 date = now.tm_mday;
                 let date_string = format!("{}",date);
                 insert("broadcast_date",&date_string);
-                lazy_static! {
-                    static ref REG_FILE: Regex = Regex::new(r"(?ms)^(?P<name>[.[[:^space:]]]+?)[[:space:]]*?=[[:space:]]*?(?P<data>.+?);").expect("Regex file error"); 
-                }
-                let raw = include_str!("info.ws");
-                let mut color: u64 = 0;
-                let mut thumbnail = "";
-                let mut author_name = "";
-                let mut author_url = "";
-                let mut author_icon_url = "";
-                let mut fields = Vec::new();
 
-                for m in REG_FILE.captures_iter(raw){
-                    //println!("\n{}: {}",m.name("name").unwrap().as_str(),m.name("data").unwrap().as_str());
-                    match m.name("name").unwrap().as_str(){
-                        "color" => {color = m.name("data").unwrap().as_str().trim().parse::<u64>().unwrap();}
-                        "thumbnail" => {thumbnail = m.name("data").unwrap().as_str();}
-                        "author_name" => {author_name = m.name("data").unwrap().as_str();}
-                        "author_url" => {author_url = m.name("data").unwrap().as_str();}
-                        "author_icon_url" => {author_icon_url = m.name("data").unwrap().as_str();}
-                        "field" => {
-                            let mut str1 = "";
-                            let mut str2 = "";
-                            let mut b = false;
-                            let mut data = m.name("data").unwrap().as_str();
-                            let (string1, other) = data.split_at(data.find('~').unwrap()+1);
-                            let (string2, string3) = other.split_at(other.find('~').unwrap()+1);
-                            let string1 = string1.trim_matches('~');
-                            let string2 = string2.trim_matches('~');
-                            let string3 = string3.trim_matches('~');
-
-                            if string1.starts_with("\r\n") {let (_,p) = string1.split_at(2); str1 = p; }
-                                else { str1 = string1;  }
-                            if string2.starts_with("\r\n") {let (_,p) = string2.split_at(2); str2 = p;}
-                                else { str2 = string2;  }
-                            if string3.contains("true") {b = true;}
-                            fields.push((str1.to_string(),str2.to_string(), b));
-                        }
-                        _ => {println!("uncnown: {}", m.name("name").unwrap().as_str())}
-                    }
-                }
-                match DIS.get_servers() {
-                    Ok(list) => {
-                        for serv in list{
-                            println!("\nServer name: {}", serv.name);
-                            println!("Server Id: {}", serv.id.0);
-                            println!("Main Chanel Id: {}", serv.id.main().0);
-                            println!("Get Main Chanel result: \n{:?}\n", DIS.get_channel(serv.id.main()));
-                            if serv.id.0 == 351798277756420098 {
-                                if let Ok(chnels) = DIS.get_server_channels(serv.id){
-                                    for c in chnels{
-                                        if c.name.as_str() == "main-chat"{
-                                            if let Err(e) = embed(c.id, "","","",thumbnail.to_string()
-                                                  ,color,"",fields.clone(),(author_name.clone(),author_url.clone(),author_icon_url.clone())){
-                                                println!("Message Error: {:?}", e);
+                if let Some(v) = DB.get_embed("broadcast"){
+                    match DIS.get_servers() {
+                        Ok(list) => {
+                            for serv in list{
+                                if serv.id.0 == 351798277756420098 {
+                                    if let Ok(chnels) = DIS.get_server_channels(serv.id){
+                                        for c in chnels{
+                                            if c.name.as_str() == "main-chat"{
+                                                embed_from_value(c.id,v.clone());
+                                                break;
                                             }
-                                            break;
                                         }
                                     }
                                 }
-                            }
-                            //else{
-                            //    if let Err(e) = embed(serv.id.main(), "","","",thumbnail.to_string()
-                            //                         ,color,"",fields.clone(),(author_name.clone(),author_url.clone(),author_icon_url.clone())){
-                            //        println!("Message Error: {:?}", e);
-                            //    }
-                            //}
-                         
-                        }
-                    }
-                    Err(e) => {println!("get_servers err: {}", e)}
-                }
+                                //else{
+                                //    if let Err(e) = embed(serv.id.main(), "","","",thumbnail.to_string()
+                                //                         ,color,"",fields.clone(),(author_name.clone(),author_url.clone(),author_icon_url.clone())){
+                                //        println!("Message Error: {:?}", e);
+                                //    }
+                                //}
 
+                            }
+                        }
+                        Err(e) => {println!("get_servers err: {}", e)}
+                    }
+                }
             }
-            else {
-                std::thread::sleep(std::time::Duration::from_secs(60));
-            }
-        };
+                else {
+                    std::thread::sleep(std::time::Duration::from_secs(60));
+                }
+        }
     });
 }
 
+
+
 fn main() {
     let (mut connection, ready) = DIS.connect().expect("connect failed");
-
     let mut state_t = State::new(ready);
+    DB.ini_lfg();
+    DB.ini_chat();
+    DB.ini_embeds_s();
     println!("[Status] Ready");
-    broadcast_info();
+    let broadcatst_bool = DB.new_temp(TempData::None);
+    broadcast_info(broadcatst_bool);
     loop {
         let event = match connection.recv_event() {
             Ok(event) => event,
@@ -1721,52 +1823,131 @@ fn main() {
                 //                        }
                 //                        None => println!("[Unknown Channel] {}: {}", message.author.name, message.content),
                 //                    }*/
+                let mut mes: discord::model::Message = message.clone();
+                thread::spawn(move || {
 
-                if message.content.as_str().starts_with('!') {
-                    let mut mes: discord::model::Message = message.clone();
-
-                    thread::spawn(move || {
-                        let mes_split: Vec<&str> = mes.content.as_str().split_whitespace().collect();
+                    if mes.content.as_str().starts_with('!') {
+                        let content = mes.content.clone();
+                        let mes_split: Vec<&str> = content.as_str().split_whitespace().collect();
                         match mes_split[0].to_lowercase().as_str() {
                             "!wsreg" => {
+                                DIS.broadcast_typing(message.channel_id);
                                 match reg_check(mes.author.id) {
                                     false => {
-                                        reg_user(mes_split, mes.author, message.channel_id);
+                                        reg_user(mes_split.clone(), mes.author.clone(), message.channel_id);
                                     }
-                                    true => { edit_user(mes_split, mes.author, message.channel_id); }
+                                    true => { edit_user(mes_split.clone(), mes.author.clone(), message.channel_id); }
                                 }
                             }
+
                             "!wsstats" => {
-                                wsstats(mes_split, mes.author.id, message.channel_id);
-                            }
-                            "!wsscrim" => {
-                                scrim_starter(mes.content.as_str(), mes.author);
+                                DIS.broadcast_typing(message.channel_id);
+                                wsstats(mes_split.clone(), mes.author.id, message.channel_id);
                             }
 
-                            "!wscmd" => {
-                                let wscmd = include_str!("cmd.ws");
-                                let _ = DIS.send_message(message.channel_id, wscmd, "", false);
+                            "!wsscrim" => {
+                                scrim_starter(mes.content.as_str(), mes.author.clone());
+                            }
+
+                            "!wstour" => {
+                                DB.send_embed("tourneys",message.channel_id);
                             }
 
                             "!wshelp" => {
-                                let wscmd = include_str!("help.ws");
-                                let _ = DIS.send_message(message.channel_id, wscmd, "", false);
+                                DB.send_embed("help",message.channel_id);
                             }
-                            "!srvlist" => { println!("{:?}", DIS.get_servers());}
-                            "!test" => {
-                                let mut test_user: User = User::empty();
-                                test_user.did = mes.author.id.0;
-                                test_user.name = mes.author.name;
-                                test_user.disc = mes.author.discriminator.to_string();
-                                add_to_db(test_user);
-                            }
-                            "!test2" => {
-                                delete_user(mes.author.id);
+
+                            "!wslfg" => {
+                                lfg(mes.clone(), Stage_LFG::None);
                             }
                             _ => {}
                         }
-                    });
-                }
+
+
+                        //ADMIN COMMANDS
+
+                        if mes.author.id.0 == 193759349531869184 || mes.author.id.0 == 222781446971064320{
+                            match mes_split[0].to_lowercase().as_str() {
+                                "!test" => {
+                                    let mut test_user: User = User::empty();
+                                    test_user.did = mes.author.id.0;
+                                    test_user.name = mes.author.name;
+                                    test_user.disc = mes.author.discriminator.to_string();
+                                    add_to_db(test_user);
+                                }
+                                "!test2" => {
+                                    delete_user(mes.author.id);
+                                }
+                                "!ini" =>{
+                                    if mes_split.len() > 1{
+                                        match mes_split[1].to_lowercase().as_str(){
+                                            "embed" => {
+                                                DB.ini_embeds_s();
+                                                let _ = DIS.send_message(message.channel_id, "Embed-ы инициализированы", "", false);
+                                            }
+                                            "lfg" => {
+                                                DB.ini_lfg();
+                                                let _ = DIS.send_message(message.channel_id, "Вектор LFG инициализирован", "", false);
+                                            }
+                                            "chat" => {
+                                                DB.ini_chat();
+                                                let _ = DIS.send_message(message.channel_id, "Вектор Chat инициализирован", "", false);
+                                            }
+                                            _ => {
+                                                let _ = DIS.send_message(message.channel_id, "Опция не определена", "", false);
+                                            }
+                                        }
+
+                                    }
+                                    else {
+                                        let _ = DIS.send_message(message.channel_id, "Перезагрузить embed, lfg или chat", "", false);
+                                    }
+
+                                }
+                                "!broadcast" => {
+                                    if mes_split.len() > 1{
+                                        match mes_split[1].to_lowercase().as_str(){
+                                            "on" => {
+                                                DB.set_temp(broadcatst_bool,TempData::Bool(true));
+                                                insert("broadcast_toggle",&"true".to_string());
+                                                let _ = DIS.send_message(message.channel_id, "Broadcast Включен", "", false);
+                                            }
+                                            "off" => {
+                                                DB.set_temp(broadcatst_bool,TempData::Bool(false));
+                                                insert("broadcast_toggle",&"false".to_string());
+                                                let _ = DIS.send_message(message.channel_id, "Broadcast Выключен", "", false);
+                                            }
+                                            _ => {
+                                                let string = format!("Broadcast статус: {:?} DB: {}", DB.get_temp(broadcatst_bool).unwrap().is_true(),get_db("broadcast_toggle"));
+                                                let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                            }
+                                        }
+                                    }
+                                    else {
+                                        let string = format!("Broadcast статус: {:?} DB: {}", DB.get_temp(broadcatst_bool).unwrap().is_true(),get_db("broadcast_toggle"));
+                                        let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                    }
+                                }
+                                _=>{}
+                            }
+                        }
+
+                    }
+                    else {
+                        /*if let Ok(discord::model::Channel::Private(_)) = DIS.get_channel(mes.channel_id){
+                            if let Some(c) = DB.get_chat(mes.author.id.0){
+                                match c{
+                                    Chat::LFG(stage) => {lfg(mes,stage);}
+                                }
+                            }
+                        }*/
+						if let Some(c) = DB.get_chat(mes.author.id.0){
+                                match c{
+                                    Chat::LFG(stage) => {lfg(mes,stage);}
+                                }
+                            }
+                    }
+                });
             }
             /*
                         Event::ServerCreate(x) => {
@@ -1782,6 +1963,9 @@ fn main() {
             */
 
             Event::Unknown(name, data) => {
+
+
+
                 // log unknown event types for later study
                 println!("[Unknown Event] {}: {:?}", name, data);
             }
