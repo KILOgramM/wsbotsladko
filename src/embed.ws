@@ -2,10 +2,6 @@
 {
   "embed": {
       "color": 37595,
-
-      "thumbnail": {
-        "url": "http://winspirit.org/sites/default/files/full-quad-200px.png"
-      },
       "image": {
         "url": "http://winspirit.org/sites/default/files/findplayer_0.jpg"},
       "author": {
@@ -59,6 +55,45 @@
 *[lfg_del_notfound]* LFG пользователь похочет удалить объявление, но объявления и так нет
 
 *[lfg_help]* LFG помощь по команде !wslfg
+{
+  "embed": {
+    "title": "Привет я помошник для функций поиска игроков и команд",
+   "url": "https://discordapp.com/api/oauth2/authorize?client_id=291380685392838657&scope=bot&permissions=1",
+    "color": 37595,
+
+    "image": {
+      "url": "http://winspirit.org/sites/default/files/field/image/mrcy.jpg"
+    },
+
+    "fields": [
+      {
+        "name": "Полный набор команд из раздела lfg",
+        "value": "```!wslfg BattleTag#1234 EU PC \"Ваше сообщение для списка поиска\" help del\n\nВсе вводится через пробел, а сообщение всегда в ковычках.```"
+      },
+      {
+        "name": "!wslfg",
+        "value": "Вывод списка игроков."
+      },
+      {
+        "name": "!wslfg help",
+        "value": "Вывод справки и помощи по функции поиска."
+      },
+      {
+        "name": "!wslfg del",
+        "value": "Удаление вашей записи из списка игроков. Возможно использование дополнительного синтаксиса delete rem remove."
+      },
+      {
+               "name": "!wslfg \"Ваше сообщение\"",
+               "value": "Добавление или обновление сообщения для списка. Для пользователей которые вводили команду !wsreg c батлтагом такой команды достаточно, чтобы внести себя в список игроков."
+             },
+             {
+                     "name": "!wslfg BattleTag#1234 eu pc",
+                     "value": "Команда для внесения вас в список поиска. Регион и платформу вводить необязательно, по умолчанию - eu pc"
+                   }
+
+    ]
+  }
+}
 
 *[tourneys]* Список турниров
 {
@@ -69,9 +104,7 @@
     "footer": {
       "text": "WinSpirit™"
     },
-    "thumbnail": {
-      "url": "http://winspirit.org/sites/default/files/full-quad-200px.png"
-    },
+
     "image": {
       "url": "https://blizzard.gamespress.com/cdn/propressroom/Content/Artwork/Eva/BlizzardLive/artwork/2017/10/08170355-64c84909-3f5f-41b7-9dfc-39afdcaacfd2/OWContenders_S1_Playoffs_Day_One__(1).jpg?w=1024&maxheight=4096&mode=pad&format=jpg"
     },
@@ -102,9 +135,7 @@
     "description": "Я помогаю игрокам в OverWatch в разных аспектах профессиональной игры:",
     "url": "https://discordapp.com/api/oauth2/authorize?client_id=291380685392838657&scope=bot&permissions=1",
     "color": 37595,
-    "thumbnail": {
-      "url": "http://winspirit.org/sites/default/files/full-quad-200px.png"
-    },
+
     "image": {
       "url": "https://i.mycdn.me/image?id=837867512990&t=0&plc=WEB&tkn=*TWC36ZePKUyxlXxZGFM0HDrGYpg"
     },
