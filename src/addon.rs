@@ -764,14 +764,7 @@ fn lfg_none(mes: Message){
 
     let private_c = DIS.create_private_channel(mes.author.id).unwrap().id;
 
-    match load_by_id(mes.author.id.0) {
-        None => {
-            DB.send_embed("lfg_user_not_reg",mes.channel_id);
-            return;}
-        Some(u) => {
-            user = u;
-        }
-    }
+    
     let (mut mes_data, des) = split_mes(mes.content.clone());
 
     let _ = mes_data.remove(0);
@@ -791,6 +784,14 @@ fn lfg_none(mes: Message){
             }
     }
     else {
+	  match load_by_id(mes.author.id.0) {
+        	None => {
+            		DB.send_embed("lfg_user_not_reg",mes.channel_id);
+            		return;}
+        	Some(u) => {
+            		user = u;
+        		}
+    	}
 
 //        let was_private_c = match DIS.get_channel(mes.channel_id) {
 //            Ok(Channel::Private(_)) => {true}
