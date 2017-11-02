@@ -1029,7 +1029,4 @@ fn lfg_add(lfg: LFG){
     }
 
     DB.push_lfg(lfg);
-
-
-    //println!("Done");
 }
