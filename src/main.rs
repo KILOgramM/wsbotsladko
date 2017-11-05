@@ -1928,6 +1928,34 @@ fn main() {
                                         let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
                                     }
                                 }
+                                "!serverlist" => {
+                                    match DIS.get_servers() {
+                                        Ok(list) => {
+                                            let string = format!("==Начало списка==");
+                                            let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                            for serv in list{
+                                                let thum = match serv.icon_url(){
+                                                    None => { String::new()}
+                                                    Some(s) => {s}
+                                                };
+                                                let title = serv.name;
+                                                let des = format!("Id: {:?}",serv.id.0);
+                                                if let Err(e) = embed(message.channel_id,"",title.as_str(),
+                                                      des.as_str(),thum,0,(String::new(),""),
+                                                      Vec::new(),("","",""),String::new(),String::new()){
+                                                    println!("Message Error: {:?}", e);
+                                                }
+                                            }
+                                            let string = format!("==Конец списка==");
+                                            let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                        }
+                                        Err(e) => {
+                                            let string = format!("get_servers Error: {:?}", e);
+                                            let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                        }
+
+                                    }
+                                }
                                 _=>{}
                             }
                         }
