@@ -1823,6 +1823,7 @@ fn main() {
                 //                        }
                 //                        None => println!("[Unknown Channel] {}: {}", message.author.name, message.content),
                 //                    }*/
+                let state_clone = state_t.clone();
                 let mut mes: discord::model::Message = message.clone();
                 thread::spawn(move || {
 
@@ -1929,32 +1930,29 @@ fn main() {
                                     }
                                 }
                                 "!serverlist" => {
-                                    match DIS.get_servers() {
-                                        Ok(list) => {
-                                            let string = format!("==Начало списка==");
-                                            let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
-                                            for serv in list{
-                                                let thum = match serv.icon_url(){
-                                                    None => { String::new()}
-                                                    Some(s) => {s}
-                                                };
-                                                let title = serv.name;
-                                                let des = format!("Id: {:?}",serv.id.0);
-                                                if let Err(e) = embed(message.channel_id,"",title.as_str(),
-                                                      des.as_str(),thum,0,(String::new(),""),
-                                                      Vec::new(),("","",""),String::new(),String::new()){
-                                                    println!("Message Error: {:?}", e);
-                                                }
-                                            }
-                                            let string = format!("==Конец списка==");
-                                            let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
-                                        }
-                                        Err(e) => {
-                                            let string = format!("get_servers Error: {:?}", e);
-                                            let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
-                                        }
+                                    let string = format!("==Начало списка==");
+                                    let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
 
+                                    for s in state_clone.servers(){
+                                        let thum = match s.icon_url(){
+                                            None => { String::new()}
+                                            Some(s) => {s}
+                                        };
+                                        let title = &s.name;
+                                        let mut des = format!("Id: {:?}\n",s.id.0);
+                                        des = format!("{}Owner: <@{}>\n",des,s.owner_id);
+                                        des = format!("{}Region: {}\n",des,s.region);
+                                        des = format!("{}Members Count: {}\n",des,s.member_count);
+                                        des = format!("{}Joined At: {}",des,s.joined_at);
+                                        if let Err(e) = embed(message.channel_id,"",title.as_str(),
+                                                              des.as_str(),thum,0,(String::new(),""),
+                                                              Vec::new(),("","",""),String::new(),String::new()){
+                                            println!("Message Error: {:?}", e);
+                                        }
                                     }
+                                    let string = format!("==Конец списка==");
+                                    let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+
                                 }
                                 _=>{}
                             }
