@@ -771,7 +771,7 @@ fn lfg_none(mes: Message){
 
     if mes_data.is_empty() && des.is_empty(){
         let string = LFG::def_table();
-        let title = "Команду ищут:".to_string();
+        let title = "Список игроков:".to_string();
         if string.is_empty(){
             DB.send_embed("lfg_list_empty",mes.channel_id);
             return;

@@ -1856,7 +1856,9 @@ fn main() {
                             "!wshelp" => {
                                 DB.send_embed("help",message.channel_id);
                             }
-
+                            "!wscmd" => {
+                                DB.send_embed("cmd",message.channel_id);
+                            }
                             "!wslfg" => {
                                 lfg(mes.clone(), Stage_LFG::None);
                             }
