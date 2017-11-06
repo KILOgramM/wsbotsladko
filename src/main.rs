@@ -1823,6 +1823,7 @@ fn main() {
                 //                        }
                 //                        None => println!("[Unknown Channel] {}: {}", message.author.name, message.content),
                 //                    }*/
+                let state_clone = state_t.clone();
                 let mut mes: discord::model::Message = message.clone();
                 thread::spawn(move || {
 
@@ -1929,6 +1930,31 @@ fn main() {
                                         let string = format!("Broadcast статус: {:?} DB: {}", DB.get_temp(broadcatst_bool).unwrap().is_true(),get_db("broadcast_toggle"));
                                         let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
                                     }
+                                }
+                                "!serverlist" => {
+                                    let string = format!("==Начало списка==");
+                                    let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+
+                                    for s in state_clone.servers(){
+                                        let thum = match s.icon_url(){
+                                            None => { String::new()}
+                                            Some(s) => {s}
+                                        };
+                                        let title = &s.name;
+                                        let mut des = format!("Id: {:?}\n",s.id.0);
+                                        des = format!("{}Owner: <@{}>\n",des,s.owner_id);
+                                        des = format!("{}Region: {}\n",des,s.region);
+                                        des = format!("{}Members Count: {}\n",des,s.member_count);
+                                        des = format!("{}Joined At: {}",des,s.joined_at);
+                                        if let Err(e) = embed(message.channel_id,"",title.as_str(),
+                                                              des.as_str(),thum,0,(String::new(),""),
+                                                              Vec::new(),("","",""),String::new(),String::new()){
+                                            println!("Message Error: {:?}", e);
+                                        }
+                                    }
+                                    let string = format!("==Конец списка==");
+                                    let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+
                                 }
                                 _=>{}
                             }
