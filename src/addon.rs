@@ -34,7 +34,6 @@ lazy_static!{
     pub static ref DB: Global = Global::new();
 }
 
-//pub static DB: Global = Global::new();
 
 pub struct Global{
     pub lfg: RwLock<Vec<LFG>>,
@@ -777,9 +776,10 @@ fn lfg_none(mes: Message){
             return;
         }
             else {
+                let fields = vec![(title,string,false)];
                 if let Err(e) = embed(mes.channel_id,"","","",String::new(),color,
-                                      (String::new(),""),vec![(title,string,false)],("","",""),String::new(),String::new()){
-                    println!("Message Error: {:?}", e);
+                                      (String::new(),""),fields.clone(),("","",""),String::new(),String::new()){
+                    println!("Message Error [!wslfg]: \n{:?}\nFields: \n{:?}\n", e, fields);
                 }
             }
     }
@@ -856,65 +856,50 @@ fn lfg_none(mes: Message){
             }
         }
 
-        if btag.is_empty(){
-            if user.btag.is_empty() {
-                DB.send_embed("lfg_user_no_btag",mes.channel_id);
-                return;
-            }
-                else {
-                    btag = user.btag;
+
+
+        if let Some(mut old_lfg) = DB.get_lfg(mes.author.id.0){
+
+
+
+            if !btag.is_empty() || !reg.is_empty() || !plat.is_empty(){
+
+                if btag.is_empty(){
+                    btag = old_lfg.btag;
                 }
-        }
 
-        match (reg.is_empty(), user.reg.is_empty()) {
-            (true, true) => {
-                reg = "EU".to_string();
+                if reg.is_empty(){
+                    reg = old_lfg.reg;
+                }
+                if plat.is_empty(){
+                    plat = old_lfg.plat;
+                }
+
+                let mut req = HeroInfoReq::empty();
+                req.rating = true;
+                match load_btag_data(btag.clone(),reg.clone(),plat.clone(),req){
+                    None => {
+                        DB.send_embed("lfg_wrong_btag",mes.channel_id);
+                        return;
+                    }
+                    Some(data) => {
+                        old_lfg.btag = btag;
+                        old_lfg.rating = data.rating;
+                        old_lfg.reg = reg;
+                        old_lfg.plat = plat;
+                    }
+                }
             }
-            (true, false) => {
-                reg = user.reg.clone();
+
+            if !des.is_empty(){
+                old_lfg.description = des;
             }
-            _ => {}
-        };
 
-        match (plat.is_empty(), user.reg.is_empty()) {
-            (true, true) => {
-                plat = "PC".to_string();
-            }
-            (true, false) => {
-                plat = user.plat.clone();
-            }
-            _ =>{}
-
-        };
-
-        let mut req = HeroInfoReq::empty();
-        req.rating = true;
-        match load_btag_data(btag.clone(),reg.clone(),plat.clone(),req){
-            None => {
-                DB.send_embed("lfg_wrong_btag",mes.channel_id);
-                return;
-            }
-            Some(data) => {
-                rating = data.rating;
-            }
-        }
-
-        let lfg = LFG{
-            did: mes.author.id.0,
-            rating,
-            btag,
-            plat,
-            reg,
-            description: des,
-        };
-
-        if let Some(old_lfg) = DB.get_lfg(mes.author.id.0){
-
-			lfg_add(lfg.clone());
+			lfg_add(old_lfg.clone());
 
 			let title = "Ваше объявление обновлено:".to_string();
 			if let Err(e) = embed(mes.channel_id,"","","",String::new(),color,
-								  (String::new(),""),vec![(title,lfg.to_line(),false)],("","",""),String::new(),String::new()){
+								  (String::new(),""),vec![(title,old_lfg.to_line(),false)],("","",""),String::new(),String::new()){
 				println!("Message Error: {:?}", e);
 			}
 			/*
@@ -935,6 +920,59 @@ fn lfg_none(mes: Message){
 
         }
             else {
+
+                if btag.is_empty(){
+                    if user.btag.is_empty() {
+                        DB.send_embed("lfg_user_no_btag",mes.channel_id);
+                        return;
+                    }
+                        else {
+                            btag = user.btag;
+                        }
+                }
+
+                match (reg.is_empty(), user.reg.is_empty()) {
+                    (true, true) => {
+                        reg = "EU".to_string();
+                    }
+                    (true, false) => {
+                        reg = user.reg.clone();
+                    }
+                    _ => {}
+                };
+
+                match (plat.is_empty(), user.reg.is_empty()) {
+                    (true, true) => {
+                        plat = "PC".to_string();
+                    }
+                    (true, false) => {
+                        plat = user.plat.clone();
+                    }
+                    _ =>{}
+
+                };
+
+                let mut req = HeroInfoReq::empty();
+                req.rating = true;
+                match load_btag_data(btag.clone(),reg.clone(),plat.clone(),req){
+                    None => {
+                        DB.send_embed("lfg_wrong_btag",mes.channel_id);
+                        return;
+                    }
+                    Some(data) => {
+                        rating = data.rating;
+                    }
+                }
+
+                let lfg = LFG{
+                    did: mes.author.id.0,
+                    rating,
+                    btag,
+                    plat,
+                    reg,
+                    description: des,
+                };
+
                 lfg_add(lfg.clone());
 
                 let title = "Ваше объявление добавлено в базу:".to_string();
