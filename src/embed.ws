@@ -172,7 +172,7 @@
     "fields": [
       {
             "name": "# LootBox от WhiteFox",
-            "value": "Еженедельный 3на3 с призами\n[подробнее...](http://winspirit.org/node/311)"
+            "value": "Еженедельный 3на3 с призами от WinSpirit и WhiteFox\n[подробнее...](http://winspirit.org/node/311)"
        },
       {
         "name": "# Open Division",
