@@ -22,11 +22,15 @@
         },
         {
           "name": "*Список команд*",
-          "value": "```!wsreg BattleTag#1234 - регистрация для включения всех функций\n!wsstats - вывод статистики(если не вводил wsreg то необходимо указать BattleTag#1234)\n!wscmd - вывод полного списка команд\n!wshelp - вывод помощи и справочной информации\n!wslfg - вывод списка игроков в поиске, если ввести !wslfg \"Любое сообщение\", то попадаешь в список```"
+          "value": "```!wsstats - вывод статистики(если не вводил !wsreg то необходимо указать BattleTag#1234)\n!wscmd - вывод полного списка команд\n!wshelp - вывод помощи и справочной информации\n!wslfg - вывод списка игроков в поиске```"
         },
         {
           "name": "*Регулярные турниры*",
           "value": "[OpenDivision](https://overwatch.starladder.com/ru) - открытый турнир от Blizzard\n[Еженельник от ESL](https://play.eslgaming.com/overwatch/europe/) - европейский еженедельник с призовыми\n[Legendary Competitions of eSport](https://vk.com/lcescomp) - регулярный Российский турнир с хорошими призовыми"
+        },
+        {
+          "name": "*Наши турниры*",
+          "value": "[LootBox от WhiteFox](http://winspirit.org/node/311) - Еженедельник 3на3 с призами от WhiteFox"
         },
         {
           "name": "*Ищем таланты*",
@@ -64,7 +68,7 @@
         "inline": true
       },
       {
-        "name": "!wstur",
+        "name": "!wstour",
         "value": "```Вывод списка туринров с открытой регистрацией```"
       },
       {
@@ -166,6 +170,10 @@
       "name": "Список турниров"
       },
     "fields": [
+      {
+            "name": "# LootBox от WhiteFox",
+            "value": "Еженедельный 3на3 с призами\n[подробнее...](http://winspirit.org/node/311)"
+       },
       {
         "name": "# Open Division",
         "value": "Открытый турнир от Blizzard и StarLadder\n[подробнее...](https://overwatch.starladder.com/ru/season3)"
