@@ -179,6 +179,10 @@
         "value": "Открытый турнир от Blizzard и StarLadder\n[подробнее...](https://overwatch.starladder.com/ru/season3)"
       },
       {
+              "name": "# Open Division",
+              "value": "Открытый турнир от Blizzard и Faceit\n[подробнее...](https://www.faceit.com/ru/championship/5678458d-c2e5-4e88-8c3b-7023bd225cf2/Overwatch%20Open%20Division%20%233)"
+            },
+      {
          "name": "# LCES [Legendary Competitions of eSport]",
         "value": "Российский регулярный онлайн турнир с хорошими призовыми\n[подробнее...](https://vk.com/lcescomp)"
       },
