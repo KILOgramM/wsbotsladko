@@ -34,7 +34,6 @@ lazy_static!{
     pub static ref DB: Global = Global::new();
 }
 
-//pub static DB: Global = Global::new();
 
 pub struct Global{
     pub lfg: RwLock<Vec<LFG>>,
@@ -626,24 +625,26 @@ pub struct LFG{
     description: String,
 }
 impl LFG{
-    fn def_table() -> String{
+    fn def_table() -> Vec<(String, String,bool)>{
         let mut lfg_list: Vec<LFG> = DB.get_lfg_list();
-        let mut string = String::new();
-        for i in 0..lfg_list.len(){
+        let mut fields:Vec<(String, String,bool)> = Vec::new();
+        for i in 0..25{
             if let Some(lfg) = lfg_list.pop(){
+                let (string, mut des) = lfg.to_line();
                 let num = if i+1<10{
                     format!("0{}",i+1)
                 }
                 else { format!("{}",i+1) };
-                string = format!("{}\n#{} | {}", string, num, lfg.to_line());
+                des = format!("#{} | {}", num, des);
+                fields.push((string,des,false));
             }
             else {
                 break;
             }
         }
-        return string;
+        return fields;
     }
-    fn to_line(&self) -> String{
+    fn to_line(&self) -> (String,String){
 
         let des = if self.description.is_empty(){
             String::new()
@@ -651,8 +652,10 @@ impl LFG{
         else {
             format!("\n```\n{}\n```",self.description)
         };
-        return format!("<@{}> | [{}](https://playoverwatch.com/en-us/career/{}/{}/{}) | {} {}",
-                self.did, self.btag, self.plat.to_lowercase(), self.reg.to_lowercase(), self.btag.replace("#", "-"), self.rating, des);
+        let u:User = load_by_id(self.did).unwrap();
+        return (format!("\u{FEFF}"),
+                format!("<@{}> | [{}](https://playoverwatch.com/en-us/career/{}/{}/{}) | {} SR {}",
+                self.did, self.btag, self.plat.to_lowercase(), self.reg.to_lowercase(), self.btag.replace("#", "-"), self.rating, des));
 
     }
 }
@@ -690,9 +693,10 @@ pub fn lfg(mes: Message, stage: Stage_LFG){
                     "N" | "NO" | "НЕТ" | "ОТМЕНА" => {
                         match DB.get_lfg(mes.author.id.0){
                             Some(lfg) => {
-                                let title = "Объявление осталось на месте:".to_string();
-                                if let Err(e) = embed(mes.channel_id,"","","",String::new(),color,
-                                                      (String::new(),""),vec![(title,lfg.to_line(),false)],("","",""),String::new(),String::new()){
+                                let title = "Объявление осталось на месте:";
+                                let (tstring, dstring) = lfg.to_line();
+                                if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
+                                                      (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
                                     println!("Message Error: {:?}", e);
                                 }
                             }
@@ -721,9 +725,10 @@ pub fn lfg(mes: Message, stage: Stage_LFG){
                     "N" | "NO" | "НЕТ" | "ОТМЕНА" => {
                         match DB.get_lfg(mes.author.id.0){
                             Some(lfg) => {
-                                let title = "Объявление осталось преждним:".to_string();
-                                if let Err(e) = embed(mes.channel_id,"","","",String::new(),color,
-                                                      (String::new(),""),vec![(title,lfg.to_line(),false)],("","",""),String::new(),String::new()){
+                                let title = "Объявление осталось преждним:";
+                                let (tstring, dstring) = lfg.to_line();
+                                if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
+                                                      (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
                                     println!("Message Error: {:?}", e);
                                 }
                             }
@@ -737,9 +742,10 @@ pub fn lfg(mes: Message, stage: Stage_LFG){
                     "YES" | "ДА" | "Y" => {
                         lfg_add(lfg.clone());
 
-                        let title = "Ваше объявление обновлено:".to_string();
-                        if let Err(e) = embed(mes.channel_id,"","","",String::new(),color,
-                                              (String::new(),""),vec![(title,lfg.to_line(),false)],("","",""),String::new(),String::new()){
+                        let title = "Ваше объявление обновлено:";
+                        let (tstring, dstring) = lfg.to_line();
+                        if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
+                                              (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
                             println!("Message Error: {:?}", e);
                         }
                         DB.rem_chat(mes.author.id.0);
@@ -764,33 +770,34 @@ fn lfg_none(mes: Message){
 
     let private_c = DIS.create_private_channel(mes.author.id).unwrap().id;
 
-    match load_by_id(mes.author.id.0) {
-        None => {
-            DB.send_embed("lfg_user_not_reg",mes.channel_id);
-            return;}
-        Some(u) => {
-            user = u;
-        }
-    }
+    
     let (mut mes_data, des) = split_mes(mes.content.clone());
 
     let _ = mes_data.remove(0);
 
     if mes_data.is_empty() && des.is_empty(){
-        let string = LFG::def_table();
-        let title = "Команду ищут:".to_string();
-        if string.is_empty(){
+        let fields:Vec<(String,String,bool)> = LFG::def_table();
+        let title = "Список игроков:";
+        if fields.is_empty(){
             DB.send_embed("lfg_list_empty",mes.channel_id);
             return;
         }
             else {
-                if let Err(e) = embed(mes.channel_id,"","","",String::new(),color,
-                                      (String::new(),""),vec![(title,string,false)],("","",""),String::new(),String::new()){
-                    println!("Message Error: {:?}", e);
+                if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
+                                      (String::new(),""),fields.clone(),("","",""),String::new(),String::new()){
+                    println!("Message Error [!wslfg]: \n{:?}\nFields: \n{:?}\n", e, fields);
                 }
             }
     }
     else {
+	  match load_by_id(mes.author.id.0) {
+        	None => {
+            		DB.send_embed("lfg_user_not_reg",mes.channel_id);
+            		return;}
+        	Some(u) => {
+            		user = u;
+        		}
+    	}
 
 //        let was_private_c = match DIS.get_channel(mes.channel_id) {
 //            Ok(Channel::Private(_)) => {true}
@@ -855,65 +862,51 @@ fn lfg_none(mes: Message){
             }
         }
 
-        if btag.is_empty(){
-            if user.btag.is_empty() {
-                DB.send_embed("lfg_user_no_btag",mes.channel_id);
-                return;
-            }
-                else {
-                    btag = user.btag;
+
+
+        if let Some(mut old_lfg) = DB.get_lfg(mes.author.id.0){
+
+
+
+            if !btag.is_empty() || !reg.is_empty() || !plat.is_empty(){
+
+                if btag.is_empty(){
+                    btag = old_lfg.btag;
                 }
-        }
 
-        match (reg.is_empty(), user.reg.is_empty()) {
-            (true, true) => {
-                reg = "EU".to_string();
+                if reg.is_empty(){
+                    reg = old_lfg.reg;
+                }
+                if plat.is_empty(){
+                    plat = old_lfg.plat;
+                }
+
+                let mut req = HeroInfoReq::empty();
+                req.rating = true;
+                match load_btag_data(btag.clone(),reg.clone(),plat.clone(),req){
+                    None => {
+                        DB.send_embed("lfg_wrong_btag",mes.channel_id);
+                        return;
+                    }
+                    Some(data) => {
+                        old_lfg.btag = btag;
+                        old_lfg.rating = data.rating;
+                        old_lfg.reg = reg;
+                        old_lfg.plat = plat;
+                    }
+                }
             }
-            (true, false) => {
-                reg = user.reg.clone();
+
+            if !des.is_empty(){
+                old_lfg.description = des;
             }
-            _ => {}
-        };
 
-        match (plat.is_empty(), user.reg.is_empty()) {
-            (true, true) => {
-                plat = "PC".to_string();
-            }
-            (true, false) => {
-                plat = user.plat.clone();
-            }
-            _ =>{}
+			lfg_add(old_lfg.clone());
 
-        };
-
-        let mut req = HeroInfoReq::empty();
-        req.rating = true;
-        match load_btag_data(btag.clone(),reg.clone(),plat.clone(),req){
-            None => {
-                DB.send_embed("lfg_wrong_btag",mes.channel_id);
-                return;
-            }
-            Some(data) => {
-                rating = data.rating;
-            }
-        }
-
-        let lfg = LFG{
-            did: mes.author.id.0,
-            rating,
-            btag,
-            plat,
-            reg,
-            description: des,
-        };
-
-        if let Some(old_lfg) = DB.get_lfg(mes.author.id.0){
-
-			lfg_add(lfg.clone());
-
-			let title = "Ваше объявление обновлено:".to_string();
-			if let Err(e) = embed(mes.channel_id,"","","",String::new(),color,
-								  (String::new(),""),vec![(title,lfg.to_line(),false)],("","",""),String::new(),String::new()){
+			let title = "Ваше объявление обновлено:";
+            let (tstring, dstring) = old_lfg.to_line();
+			if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
+								  (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
 				println!("Message Error: {:?}", e);
 			}
 			/*
@@ -934,11 +927,65 @@ fn lfg_none(mes: Message){
 
         }
             else {
+
+                if btag.is_empty(){
+                    if user.btag.is_empty() {
+                        DB.send_embed("lfg_user_no_btag",mes.channel_id);
+                        return;
+                    }
+                        else {
+                            btag = user.btag;
+                        }
+                }
+
+                match (reg.is_empty(), user.reg.is_empty()) {
+                    (true, true) => {
+                        reg = "EU".to_string();
+                    }
+                    (true, false) => {
+                        reg = user.reg.clone();
+                    }
+                    _ => {}
+                };
+
+                match (plat.is_empty(), user.reg.is_empty()) {
+                    (true, true) => {
+                        plat = "PC".to_string();
+                    }
+                    (true, false) => {
+                        plat = user.plat.clone();
+                    }
+                    _ =>{}
+
+                };
+
+                let mut req = HeroInfoReq::empty();
+                req.rating = true;
+                match load_btag_data(btag.clone(),reg.clone(),plat.clone(),req){
+                    None => {
+                        DB.send_embed("lfg_wrong_btag",mes.channel_id);
+                        return;
+                    }
+                    Some(data) => {
+                        rating = data.rating;
+                    }
+                }
+
+                let lfg = LFG{
+                    did: mes.author.id.0,
+                    rating,
+                    btag,
+                    plat,
+                    reg,
+                    description: des,
+                };
+
                 lfg_add(lfg.clone());
 
-                let title = "Ваше объявление добавлено в базу:".to_string();
-                if let Err(e) = embed(mes.channel_id,"","","",String::new(),color,
-                                      (String::new(),""),vec![(title,lfg.to_line(),false)],("","",""),String::new(),String::new()){
+                let title = "Ваше объявление добавлено в базу:";
+                let (tstring, dstring) = lfg.to_line();
+                if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
+                                      (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
                     println!("Message Error: {:?}", e);
                 }
                 return;
@@ -952,9 +999,10 @@ fn lfg_rem(chanel: ChannelId,id: u64){
     let color: u64 = 37595;
     match DB.get_lfg(id){
         Some(lfg) => {
-            let title = "Ваше объявление удалено:".to_string();
-            if let Err(e) = embed(chanel,"","","",String::new(),color,
-                                  (String::new(),""),vec![(title,lfg.to_line(),false)],("","",""),String::new(),String::new()){
+            let title = "Ваше объявление удалено:";
+            let (tstring, dstring) = lfg.to_line();
+            if let Err(e) = embed(chanel,"",title,"",String::new(),color,
+                                  (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
                 println!("Message Error: {:?}", e);
             }
             let mut call = format!("DELETE FROM lfg WHERE did={}",id);
@@ -1028,7 +1076,4 @@ fn lfg_add(lfg: LFG){
     }
 
     DB.push_lfg(lfg);
-
-
-    //println!("Done");
 }
