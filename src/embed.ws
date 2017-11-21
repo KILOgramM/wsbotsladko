@@ -2,6 +2,10 @@
 {
   "embed": {
       "color": 37595,
+
+      "thumbnail": {
+        "url": "http://winspirit.org/sites/default/files/full-quad-200px.png"
+      },
       "image": {
         "url": "http://winspirit.org/sites/default/files/findplayer_0.jpg"},
       "author": {
@@ -22,15 +26,11 @@
         },
         {
           "name": "*Список команд*",
-          "value": "```!wsstats - вывод статистики(если не вводил !wsreg то необходимо указать BattleTag#1234)\n!wscmd - вывод полного списка команд\n!wshelp - вывод помощи и справочной информации\n!wslfg - вывод списка игроков в поиске```"
+          "value": "```!wsreg BattleTag#1234 - регистрация для включения всех функций\n!wsstats - вывод статистики(если не вводил wsreg то необходимо указать BattleTag#1234)\n!wscmd - вывод полного списка команд\n!wshelp - вывод помощи и справочной информации\n!wslfg - вывод списка игроков в поиске, если ввести !wslfg \"Любое сообщение\", то попадаешь в список(работает только после wsreg)```"
         },
         {
           "name": "*Регулярные турниры*",
           "value": "[OpenDivision](https://overwatch.starladder.com/ru) - открытый турнир от Blizzard\n[Еженельник от ESL](https://play.eslgaming.com/overwatch/europe/) - европейский еженедельник с призовыми\n[Legendary Competitions of eSport](https://vk.com/lcescomp) - регулярный Российский турнир с хорошими призовыми"
-        },
-        {
-          "name": "*Наши турниры*",
-          "value": "[LootBox от WhiteFox](http://winspirit.org/node/311) - Еженедельник 3на3 с призами от WhiteFox"
         },
         {
           "name": "*Ищем таланты*",
@@ -45,61 +45,7 @@
 
     }
 }
-*[cmd]* Список команд
-{
-"embed": {
-   "title": "Привет я помошник в освоении команд",
-   "url": "https://discordapp.com/api/oauth2/authorize?client_id=291380685392838657&scope=bot&permissions=1",
-    "color": 37595,
 
-    "image": {
-      "url": "http://winspirit.org/sites/default/files/ana_by_xyrlei-daqs404.jpg"
-    },
-
-    "fields": [
-      {
-        "name": "!wshelp",
-        "value": "```Вывод помощи.```",
-        "inline": true
-      },
-      {
-        "name": "!wscmd",
-        "value": "```Вывод списка команд.```",
-        "inline": true
-      },
-      {
-        "name": "!wstour",
-        "value": "```Вывод списка турниров с открытой регистрацией```"
-      },
-      {
-        "name": "!wsreg BattleTag#1234 eu pc",
-        "value": "```!wsreg BattleTag#1234\n\nВсе вводится через пробел. Регион и платформу вводить необязательно, по умолчанию - eu pc.\nЯ сохраняю ваш БаттлеТаг, он необходим для некоторых моих сервисов и упрощает использования общих функций.```"
-      },
-      {
-        "name": "!wsstats BattleTag#1234 eu pc",
-        "value": "```!wsstats BattleTag#1234 EU PC - выводит статистику игрока с overwatch.com\n\nРегион и платформу вводить необязательно, по умолчанию - eu pc. Если вы выполняли команду !wsreg, то можете не вводить БаттлТаг, я смогу взять его из сохранненого для вас.```"
-      },
-      {
-        "name": "Полный набор команд из раздела lfg",
-        "value": "```!wslfg BattleTag#1234 EU PC \"Ваше сообщение для списка поиска\" help del\n\nВсе вводится через пробел, а сообщение всегда в ковычках.```"
-      },
-      {
-        "name": "!wslfg",
-        "value": "```Вывод списка игроков.```",
-        "inline": true
-      },
-      {
-        "name": "!wslfg help",
-        "value": "```Вывод справки по функции поиска.```",
-        "inline": true
-      },
-      {
-        "name": "!wslfg BattleTag#1234 \"Ищу тиму, танк, РТ 19-00 - 23-00 МСК\"",
-        "value": "```Команда для внесения вас в список поиска. Регион и платформу вводить необязательно, по умолчанию - eu pc.```"
-                   }
-    ]
-}
-}
 *[lfg_user_not_reg]* LFG незарегестрированный пользователь пробует воспользоваться lfg
 {
   "embed": {
@@ -115,8 +61,8 @@
 *[lfg_user_no_btag]* LFG Необнаружен бтаг ни в сообщении, ни в профиле
 {
   "embed": {
-      "title": ":o: Упс..",
-      "description": "А ты вводил бтаг?",
+      "title": ":warning: Упс..",
+      "description": "Вы не уазали BTag ни в профиле, ни при регистрации",
       "color": 13369344,
       "footer": {
         "text": "Для помощи воспользуйтесь !wshelp"
@@ -127,8 +73,8 @@
 *[lfg_wrong_btag]* LFG по бтагу не найден профиль
 {
   "embed": {
-      "title": ":o: Упс..",
-      "description": "Пройди регистрацию !wsreg BattleTag#1234",
+      "title": ":warning: Упс..",
+      "description": "По указанной BTag-у и плтаформе не найден профиль Overwatch",
       "color": 13369344,
       "footer": {
         "text": "Для помощи воспользуйтесь !wshelp"
@@ -139,22 +85,23 @@
 *[lfg_not_found_WTF]* LFG уже находил объявление но при взаимодействии не нашел. В принцие ошибка не должна появлятся но...
 {
   "embed": {
-      "title": ":o: Упс..",
-      "description": "Мы сами не знаем, что происходит, паранормальное.",
+      "title": "Упс..",
+      "description": "Что-то пошло не так и вы не должны увидеть эту ошибку",
       "color": 13369344,
       "footer": {
-        "text": "Для помощи воспользуйтесь !wshelp"
+        "text": "Просто не обращайте на меня внимание"
       }
     }
 }
+
 *[lfg_list_empty]* LFG никто не ищет комманду. Лист пуст
 {
   "embed": {
-      "title": ":o: Упс..",
-      "description": "Попробуйте позже",
-      "color": 13369344,
+      "title": "Лист пуст",
+      "description": "К сожалению я не нашел никого, что бы вам показать",
+      "color": 37595,
       "footer": {
-        "text": "Для помощи воспользуйтесь !wshelp"
+        "text": "Но вы можете написать первым!"
       }
     }
 }
@@ -162,55 +109,16 @@
 *[lfg_del_notfound]* LFG пользователь похочет удалить объявление, но объявления и так нет
 {
   "embed": {
-      "title": ":o: Упс..",
-      "description": "Ваше сообщение уже удалено",
+      "title": ":warning: Упс..",
+      "description": "За вами не закрепелено объявлений",
       "color": 13369344,
       "footer": {
-        "text": "Для помощи воспользуйтесь !wshelp"
+        "text": "но вы можете создать, а потом удалить =3"
       }
     }
 }
 
 *[lfg_help]* LFG помощь по команде !wslfg
-{
-  "embed": {
-    "title": "Привет я помошник для функций поиска игроков и команд",
-   "url": "https://discordapp.com/api/oauth2/authorize?client_id=291380685392838657&scope=bot&permissions=1",
-    "color": 37595,
-
-    "image": {
-      "url": "http://winspirit.org/sites/default/files/field/image/mrcy.jpg"
-    },
-
-    "fields": [
-      {
-        "name": "Полный набор команд из раздела lfg",
-        "value": "```!wslfg BattleTag#1234 EU PC \"Ваше сообщение для списка поиска\" help del\n\nВсе вводится через пробел, а сообщение всегда в ковычках.```"
-      },
-      {
-        "name": "!wslfg",
-        "value": "Вывод списка игроков."
-      },
-      {
-        "name": "!wslfg help",
-        "value": "Вывод справки и помощи по функции поиска."
-      },
-      {
-        "name": "!wslfg del",
-        "value": "Удаление вашей записи из списка игроков. Возможно использование дополнительного синтаксиса delete rem remove."
-      },
-      {
-               "name": "!wslfg \"Ваше сообщение\"",
-               "value": "Добавление или обновление сообщения для списка. Для пользователей которые вводили команду !wsreg c батлтагом такой команды достаточно, чтобы внести себя в список игроков."
-             },
-             {
-                     "name": "!wslfg BattleTag#1234 eu pc",
-                     "value": "Команда для внесения вас в список поиска. Регион и платформу вводить необязательно, по умолчанию - eu pc"
-                   }
-
-    ]
-  }
-}
 
 *[tourneys]* Список турниров
 {
@@ -221,7 +129,9 @@
     "footer": {
       "text": "WinSpirit™"
     },
-
+    "thumbnail": {
+      "url": "http://winspirit.org/sites/default/files/full-quad-200px.png"
+    },
     "image": {
       "url": "https://blizzard.gamespress.com/cdn/propressroom/Content/Artwork/Eva/BlizzardLive/artwork/2017/10/08170355-64c84909-3f5f-41b7-9dfc-39afdcaacfd2/OWContenders_S1_Playoffs_Day_One__(1).jpg?w=1024&maxheight=4096&mode=pad&format=jpg"
     },
@@ -230,17 +140,9 @@
       },
     "fields": [
       {
-            "name": "# LootBox от WhiteFox",
-            "value": "Еженедельный 3на3 с призами от WinSpirit и WhiteFox\n[подробнее...](http://winspirit.org/node/311)"
-       },
-      {
         "name": "# Open Division",
         "value": "Открытый турнир от Blizzard и StarLadder\n[подробнее...](https://overwatch.starladder.com/ru/season3)"
       },
-      {
-              "name": "# Open Division",
-              "value": "Открытый турнир от Blizzard и Faceit\n[подробнее...](https://www.faceit.com/ru/championship/5678458d-c2e5-4e88-8c3b-7023bd225cf2/Overwatch%20Open%20Division%20%233)"
-            },
       {
          "name": "# LCES [Legendary Competitions of eSport]",
         "value": "Российский регулярный онлайн турнир с хорошими призовыми\n[подробнее...](https://vk.com/lcescomp)"
@@ -248,11 +150,7 @@
       {
         "name": "# ESL Go4Overwatch",
         "value": "Еженедельный европейский турнир с сильным соперниками и небольшим призовым\n[подробнее...](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe/cup-73/)"
-      },
-             {
-               "name": "# Look Of Queue",
-               "value": "Регулярные турниры с призовым\n[подробнее...](https://vk.com/lookofq)"
-             }
+      }
     ]
   }
 }
@@ -264,7 +162,9 @@
     "description": "Я помогаю игрокам в OverWatch в разных аспектах профессиональной игры:",
     "url": "https://discordapp.com/api/oauth2/authorize?client_id=291380685392838657&scope=bot&permissions=1",
     "color": 37595,
-
+    "thumbnail": {
+      "url": "http://winspirit.org/sites/default/files/full-quad-200px.png"
+    },
     "image": {
       "url": "https://i.mycdn.me/image?id=837867512990&t=0&plc=WEB&tkn=*TWC36ZePKUyxlXxZGFM0HDrGYpg"
     },
