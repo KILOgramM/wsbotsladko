@@ -790,21 +790,11 @@ fn lfg_none(mes: Message){
             }
     }
     else {
-	  match load_by_id(mes.author.id.0) {
-        	None => {
-            		DB.send_embed("lfg_user_not_reg",mes.channel_id);
-            		return;}
-        	Some(u) => {
-            		user = u;
-        		}
-    	}
-
+        
 //        let was_private_c = match DIS.get_channel(mes.channel_id) {
 //            Ok(Channel::Private(_)) => {true}
 //            _ => {false}
 //        };
-
-
 
 
         let mut btag = String::new();
@@ -862,7 +852,14 @@ fn lfg_none(mes: Message){
             }
         }
 
-
+        match load_by_id(mes.author.id.0) {
+            None => {
+                DB.send_embed("lfg_user_not_reg",mes.channel_id);
+                return;}
+            Some(u) => {
+                user = u;
+            }
+        }
 
         if let Some(mut old_lfg) = DB.get_lfg(mes.author.id.0){
 
