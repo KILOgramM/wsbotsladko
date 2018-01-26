@@ -217,6 +217,7 @@ pub enum Hero{
     Doomfist,
     Ana,
     Orisa,
+    Moira,
 }
 impl Hero{
     fn get_from_bliz_str(s: &str) -> Hero{
@@ -246,6 +247,7 @@ impl Hero{
             "12F" => {return Hero::Doomfist;}
             "13B" => {return Hero::Ana;}
             "13E" => {return Hero::Orisa;}
+            "1A2" => {return Hero::Moira;}
             _ => {{return Hero::None;}}
         }
     }
@@ -276,6 +278,7 @@ impl Hero{
              Hero::Doomfist => {return String::from("Doomfist");}
              Hero::Ana => {return String::from("Ana");}
              Hero::Orisa => {return String::from("Orisa");}
+             Hero::Moira => {return String::from("Moira");}
              Hero::None => {return String::new();}
         }
     }
@@ -306,6 +309,7 @@ impl Hero{
             Hero::Doomfist => {return String::from("Кулак Смерти");}
             Hero::Ana => {return String::from("Ана");}
             Hero::Orisa => {return String::from("Ориса");}
+            Hero::Moira => {return String::from("Мойра");}
             Hero::None => {return String::new();}
         }
     }
