@@ -414,7 +414,9 @@ fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> O
     if content.contains("<h1 class=\"u-align-center\">Internal Error</h1>") {
         return None;
     }
-
+    if content.contains("<h1 class=\"u-align-center\">Profile Not Found</h1>") {
+        return None;
+    }
     let mut b_data = BtagData::default();
     b_data.btag = btag;
     b_data.reg = reg;
