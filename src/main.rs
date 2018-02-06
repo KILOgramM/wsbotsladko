@@ -18,10 +18,13 @@ use discord::builders::EmbedBuilder;
 use regex::Regex;
 use std::io::Read;
 use std::io::Write;
+use std::ops::Deref;
+
 //use std::env;
 //use rusqlite::Connection;
 
 pub mod addon;
+//pub mod tournaments;
 
 use addon::{DB, Chat, lfg, Stage_LFG, Global, TempData};
 
@@ -31,13 +34,17 @@ use std::time::{Duration, Instant, SystemTime};
 use std::fmt::Debug;
 use std::sync::mpsc::channel;
 use mysql::from_row;
+use std::sync::RwLock;
 
 lazy_static! {
     pub static ref DIS: discord::Discord = Discord::from_bot_token(load_settings().as_str()).expect("login failed");
     pub static ref POOL: mysql::conn::pool::Pool = mysql::Pool::new(build_opts()).unwrap();
     pub static ref REG_BTAG: Regex = Regex::new(r"^.{2,16}#[0-9]{2,6}$").expect("Regex btag error");
     static ref REG_TIME: Regex = Regex::new(r"(?P<n>\d){1,4} ?(?i)(?P<ntype>m|min|h|hour)").expect("Regex btag error");
+    static ref STATE: RwLock<Option<State>> = RwLock::new(None);
 }
+static WSSERVER: u64 = 351798277756420098; //351798277756420098
+
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct Preset_Scrim {
@@ -152,7 +159,7 @@ impl User {
 fn build_opts() -> mysql::Opts //Конструктор для БД
 {
     let mut builder = mysql::OptsBuilder::new();
-    builder.user(Some("bot")).pass(Some("1234")).db_name(Some("wsowbot"));
+    builder.user(Some("bot")).pass(Some("1234")).db_name(Some("wsowbot")); //wsowbot
     return mysql::Opts::from(builder);
 }
 
@@ -414,7 +421,9 @@ fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> O
     if content.contains("<h1 class=\"u-align-center\">Internal Error</h1>") {
         return None;
     }
-
+    if content.contains("<h1 class=\"u-align-center\">Profile Not Found</h1>") {
+        return None;
+    }
     let mut b_data = BtagData::default();
     b_data.btag = btag;
     b_data.reg = reg;
@@ -763,6 +772,9 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::
                 rating = an.rating;
                 //println!("rating: {}", rating);
                 thumbnail = an.avatar_url.clone();
+                role_ruler(discord::model::ServerId(WSSERVER),
+                           autor.id,
+                           RoleR::rating(rating));
             }
             else {
                 acc_not_found = true;
@@ -963,6 +975,9 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
                         rating = an.rating;
                         //println!("rating: {}", rating);
                         thumbnail = an.avatar_url.clone();
+                        role_ruler(discord::model::ServerId(WSSERVER),
+                                   autor.id,
+                                   RoleR::rating(rating));
                     }
                         else {
                             acc_not_found = true;
@@ -1518,7 +1533,11 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
         else {
             u.rtg = answer.clone().unwrap().rating;
         }
-        if update { update_in_db(u.clone()); }
+        if update {
+            role_ruler(discord::model::ServerId(WSSERVER),
+                       autor_id,
+                       RoleR::rating(u.rtg));
+            update_in_db(u.clone()); }
 
 
 
@@ -1749,7 +1768,7 @@ fn broadcast_info(tog_id: u32) {
                     match DIS.get_servers() {
                         Ok(list) => {
                             for serv in list{
-                                if serv.id.0 == 351798277756420098 {
+                                if serv.id.0 == WSSERVER {
                                     if let Ok(chnels) = DIS.get_server_channels(serv.id){
                                         for c in chnels{
                                             if c.name.as_str() == "main-chat"{
@@ -1779,7 +1798,98 @@ fn broadcast_info(tog_id: u32) {
     });
 }
 
+enum RoleR{
+    rating(u16),
+}
 
+fn role_ruler(server_id: discord::model::ServerId, user_id: discord::model::UserId, cmd: RoleR){
+    lazy_static! {
+        static ref ROLES: Vec<String> = vec![
+            String::from("4500+"),
+            String::from("4000+"),
+            String::from("3500+"),
+            String::from("3000+"),
+            String::from("2500+"),
+            String::from("2500-")
+            ];
+    }
+    if let Ok(member) = DIS.get_member(server_id,user_id){
+        let mut state_cloned = None;
+        {
+
+            loop{
+                match STATE.try_read(){
+                    Ok(state) => {
+                        let state = state.deref();
+                        if let &Some(ref s) = state{
+                            state_cloned = Some(s.clone());
+                        }
+                        break;
+                    }
+                    _=>{}
+                }
+            }
+
+            if let Some(state) = state_cloned{
+                if let Some(ser) = state.find_server(server_id){
+                    match cmd{
+                        RoleR::rating(r) => {
+                            let mut find_role = String::new();
+                            let mut done = false;
+                            let mut new_roles = Vec::new();
+
+                            match r{
+                                1...2499 =>{ find_role = String::from("2500-")}
+                                2500...2999 =>{ find_role = String::from("2500+")}
+                                3000...3499 =>{ find_role = String::from("3000+")}
+                                3500...3999 =>{ find_role = String::from("3500+")}
+                                4000...4499 =>{ find_role = String::from("4000+")}
+                                4500...5000 =>{ find_role = String::from("4500+")}
+                                _ =>{}
+                            }
+
+                            for roleid in member.roles{
+                                for role in ser.clone().roles{
+                                    if role.id.0 == roleid.0{
+                                        let mut is_find = false;
+                                        for ROLE in ROLES.clone(){
+                                            if ROLE == role.name{
+                                                is_find = true;
+                                                if role.name == find_role{
+                                                    done = true;
+                                                }
+                                            }
+                                        }
+                                        if is_find == false{
+                                            new_roles.push(roleid);
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                            if done == false{
+                                for role in ser.clone().roles{
+                                    if find_role == role.name{
+                                        new_roles.push(role.id);
+                                    }
+                                }
+                                if let Err(e) = DIS.edit_member_roles(server_id,
+                                                                      user_id, new_roles.as_slice()){
+                                    println!("[role_ruler] Error while edit_member_roles: {}", e);
+                                }
+                            }
+
+                        }
+                    }
+                }
+                    else{
+                        println!("[role_ruler] Server ID NOT Found: {}", server_id);
+                    }
+            }
+
+        }
+    }
+}
 
 fn main() {
     let (mut connection, ready) = DIS.connect().expect("connect failed");
@@ -1803,6 +1913,18 @@ fn main() {
             }
         };
         state_t.update(&event);
+        let state_clone = state_t.clone();
+        thread::spawn(move || {
+            loop{
+                match STATE.try_write() {
+                    Ok(mut state) => {
+                        *state = Some(state_clone);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        });
 
         match event {
             Event::MessageCreate(message) => {
