@@ -1479,6 +1479,8 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
             err_end = true;
 
         } else if u.btag == m.btag {
+            if m.plat.is_empty() { m.plat = "PC".to_string(); }
+            if m.reg.is_empty() { m.reg = "EU".to_string(); }
             if u.plat == m.plat && u.reg == m.reg { update = true; } else { u = m; }
         } else {
             if m.btag.is_empty() && m.plat.is_empty() && m.reg.is_empty() {
