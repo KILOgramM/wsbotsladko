@@ -11,6 +11,12 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 
+extern crate hyper; //Используется в net
+extern crate tokio_core; //Используется в net
+extern crate hyper_tls; //Используется в net
+extern crate native_tls; //Используется в net
+extern crate futures;
+
 //https://discordapp.com/api/oauth2/authorize?client_id=316281967375024138&scope=bot&permissions=0
 use discord::{Discord, ChannelRef, State};
 use discord::model::Event;
@@ -19,14 +25,17 @@ use regex::Regex;
 use std::io::Read;
 use std::io::Write;
 use std::ops::Deref;
+use std::ops::Index;
 
 //use std::env;
 //use rusqlite::Connection;
 
 pub mod addon;
+pub mod net;
 //pub mod tournaments;
 
 use addon::{DB, Chat, lfg, Stage_LFG, Global, TempData};
+use net::Net;
 
 use std::{thread, time, fmt};
 
@@ -35,6 +44,7 @@ use std::fmt::Debug;
 use std::sync::mpsc::channel;
 use mysql::from_row;
 use std::sync::RwLock;
+use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 
 lazy_static! {
     pub static ref DIS: discord::Discord = Discord::from_bot_token(load_settings().as_str()).expect("login failed");
@@ -44,7 +54,8 @@ lazy_static! {
     static ref STATE: RwLock<Option<State>> = RwLock::new(None);
 }
 static WSSERVER: u64 = 351798277756420098; //351798277756420098
-
+static SWITCH_NET: AtomicBool = ATOMIC_BOOL_INIT;
+static DEBUG: AtomicBool = ATOMIC_BOOL_INIT;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct Preset_Scrim {
@@ -163,32 +174,6 @@ fn build_opts() -> mysql::Opts //Конструктор для БД
     return mysql::Opts::from(builder);
 }
 
-fn load_overwatch_rating(btag: String, reg: String, plat: String) -> u16 //Проверка существование профил и подгрузка рейтинга при наличее
-{
-    lazy_static! {
-        static ref RE: Regex = Regex::new("<div class=\"u-align-center h5\">(\\d+)</div>").unwrap();
-    }
-
-    let url = &format!("https://playoverwatch.com/en-us/career/{}/{}/{}", plat.to_lowercase(), reg.to_lowercase(), btag.replace("#", "-"));
-    //println!("сам урл есть - {}", &url);
-    let mut resp = reqwest::get(url).expect("Wrong url");
-    //println!("Запрос УРЛ успешен");
-    let mut content = String::new();
-    //println!("новая строка?");
-    resp.read_to_string(&mut content).expect("OW player page downloading error");
-    //println!("весь контент страницы в строке?");
-    if content.contains("<h1 class=\"u-align-center\">Page Not Found</h1>") {
-        return 6000;
-    }
-    let result = RE.captures(&content);
-    if result.is_none() {
-        return 0;
-    }
-    return result.unwrap().get(1).unwrap().as_str().parse::<u16>().unwrap();
-    //println!("нашли б таг в строке");
-}
-
-
 #[derive(Debug,Clone)]
 enum Time{
     Hours(u32),
@@ -196,6 +181,7 @@ enum Time{
     Sec(u32),
     None
 }
+
 #[derive(PartialEq,Clone,Debug)]
 pub enum Hero{
     None,
@@ -258,35 +244,35 @@ impl Hero{
             _ => {{return Hero::None;}}
         }
     }
-    fn name_eng(self) -> String{
+    fn name_eng(&self) -> String{
         match self{
-             Hero::Winston => {return String::from("Winston");}
-             Hero::Tracer => {return String::from("Tracer");}
-             Hero::Pharah => {return String::from("Pharah");}
-             Hero::Genji => {return String::from("Genji");}
-             Hero::Zenyatta => {return String::from("Zenyatta");}
-             Hero::Reinhardt => {return String::from("Reinhardt");}
-             Hero::Mercy => {return String::from("Mercy");}
-             Hero::Lucio => {return String::from("Lucio");}
-             Hero::Soldier => {return String::from("Soldier: 76");}
-             Hero::DVa => {return String::from("D.Va");}
-             Hero::Reaper => {return String::from("Reaper");}
-             Hero::Hanzo => {return String::from("Hanzo");}
-             Hero::Torbjorn => {return String::from("Torbjorn");}
-             Hero::Widowmaker => {return String::from("Widowmaker");}
-             Hero::Bastion => {return String::from("Bastion");}
-             Hero::Symmetra => {return String::from("Symmetra");}
-             Hero::Roadhog => {return String::from("Roadhog");}
-             Hero::McCree => {return String::from("McCree");}
-             Hero::Junkrat => {return String::from("Junkrat");}
-             Hero::Zarya => {return String::from("Zarya");}
-             Hero::Mei => {return String::from("Mei");}
-             Hero::Sombra => {return String::from("Sombra");}
-             Hero::Doomfist => {return String::from("Doomfist");}
-             Hero::Ana => {return String::from("Ana");}
-             Hero::Orisa => {return String::from("Orisa");}
-             Hero::Moira => {return String::from("Moira");}
-             Hero::None => {return String::new();}
+             &Hero::Winston => {return String::from("Winston");}
+             &Hero::Tracer => {return String::from("Tracer");}
+             &Hero::Pharah => {return String::from("Pharah");}
+             &Hero::Genji => {return String::from("Genji");}
+             &Hero::Zenyatta => {return String::from("Zenyatta");}
+             &Hero::Reinhardt => {return String::from("Reinhardt");}
+             &Hero::Mercy => {return String::from("Mercy");}
+             &Hero::Lucio => {return String::from("Lucio");}
+             &Hero::Soldier => {return String::from("Soldier: 76");}
+             &Hero::DVa => {return String::from("D.Va");}
+             &Hero::Reaper => {return String::from("Reaper");}
+             &Hero::Hanzo => {return String::from("Hanzo");}
+             &Hero::Torbjorn => {return String::from("Torbjorn");}
+             &Hero::Widowmaker => {return String::from("Widowmaker");}
+             &Hero::Bastion => {return String::from("Bastion");}
+             &Hero::Symmetra => {return String::from("Symmetra");}
+             &Hero::Roadhog => {return String::from("Roadhog");}
+             &Hero::McCree => {return String::from("McCree");}
+             &Hero::Junkrat => {return String::from("Junkrat");}
+             &Hero::Zarya => {return String::from("Zarya");}
+             &Hero::Mei => {return String::from("Mei");}
+             &Hero::Sombra => {return String::from("Sombra");}
+             &Hero::Doomfist => {return String::from("Doomfist");}
+             &Hero::Ana => {return String::from("Ana");}
+             &Hero::Orisa => {return String::from("Orisa");}
+             &Hero::Moira => {return String::from("Moira");}
+             &Hero::None => {return String::new();}
         }
     }
     pub  fn name_rus(self) -> String{
@@ -321,6 +307,7 @@ impl Hero{
         }
     }
 }
+
 #[derive(Default,Clone,Debug)]
 pub struct BtagData {
     btag: String,
@@ -331,15 +318,40 @@ pub struct BtagData {
     avatar_url: String,
     rank_url: String,
     heroes: Vec<HeroStats>,
-//    time_played: Vec<(Hero,Time)>,
-//    games_won: Vec<(Hero,u32)>,
-//    win_perc: Vec<(Hero,u16)>,
-//    aim: Vec<(Hero,u16)>,
-//    kills_per_live: Vec<(Hero,f32)>,
-//    best_multiple_kills: Vec<(Hero,u32)>,
-//    obj_kills: Vec<(Hero,u32)>,
-   // len: i16,
 }
+impl BtagData{
+   fn hero_data(&mut self, hero_stats: HeroStats){
+        for hero in &mut self.heroes{
+            if hero.hero == hero_stats.hero{
+                if let Some(x) = hero_stats.time_played{
+                    hero.time_played = Some(x);
+                }
+                if let Some(x) = hero_stats.games_won{
+                    hero.games_won = Some(x);
+                }
+                if let Some(x) = hero_stats.win_perc{
+                    hero.win_perc = Some(x);
+                }
+                if let Some(x) = hero_stats.aim{
+                    hero.aim = Some(x);
+                }
+                if let Some(x) = hero_stats.kills_per_live{
+                    hero.kills_per_live = Some(x);
+                }
+                if let Some(x) = hero_stats.best_multiple_kills{
+                    hero.best_multiple_kills = Some(x);
+                }
+                if let Some(x) = hero_stats.obj_kills{
+                    hero.obj_kills = Some(x);
+                }
+
+                return;
+            }
+        }
+       self.heroes.push(hero_stats);
+   }
+}
+
 #[derive(Default,Debug)]
 pub struct HeroInfoReq{
     num: i16,
@@ -367,6 +379,7 @@ impl HeroInfoReq{
         }
     }
 }
+
 #[derive(Clone,Debug)]
 struct HeroStats{
     hero: Hero,
@@ -395,213 +408,508 @@ impl HeroStats{
 
 fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> Option<BtagData> //Проверка существование профил и подгрузка рейтинга при наличее
 {
-    lazy_static! {
-        static ref RE: Regex = Regex::new("<div class=\"u-align-center h5\">(\\d+)</div>").unwrap();
-        static ref AVATAR_URL: Regex = Regex::new("class=\"masthead-player\"><img src=\"(.+)\" class=\"player-portrait\">").unwrap();
-        static ref RANK_URL: Regex = Regex::new("class=\"competitive-rank\"><img src=\"(.+)\"><div ").unwrap();
-        static ref HERO_DATA: Regex = Regex::new("<div class=\"description\">(?P<data>[.[^<]]+?)</div>.+").unwrap();
-    }
+    use std::time::SystemTime;
 
-    let url = &format!("https://playoverwatch.com/en-us/career/{}/{}/{}", plat.to_lowercase(), reg.to_lowercase(), btag.replace("#", "-"));
-    //println!("сам урл есть - {}", &url);
-    let mut resp = reqwest::get(url).expect("Wrong url");
-    //println!("Запрос УРЛ успешен");
-    let mut content = String::new();
-    //println!("новая строка?");
-    resp.read_to_string(&mut content).expect("OW player page downloading error");
-    //println!("весь контент страницы в строке?");
-    //<div id="competitive" data-js="career-category"
-    //<section id="achievements-section"
-    //<div data-group-id="comparisons" data-category-id="overwatch.guid.0x0860000000000021"
+    let sys_time_old = SystemTime::now();
 
-    if content.contains("<h1 class=\"u-align-center\">Page Not Found</h1>") {
-        return None;
-    }
+    let use_new_net: bool = SWITCH_NET.load(Ordering::Relaxed);
+    let mode_debug: bool = DEBUG.load(Ordering::Relaxed);
 
-    if content.contains("<h1 class=\"u-align-center\">Internal Error</h1>") {
-        return None;
-    }
-    if content.contains("<h1 class=\"u-align-center\">Profile Not Found</h1>") {
-        return None;
-    }
-    let mut b_data = BtagData::default();
-    b_data.btag = btag;
-    b_data.reg = reg;
-    b_data.plat = plat;
-    b_data.url = url.clone();
-    b_data.avatar_url = AVATAR_URL.captures(&content).unwrap().get(1).unwrap().as_str().to_string();
 
-    if req.rating{
-        let result = RE.captures(&content);
-        if result.is_none() {
-            b_data.rating = 0;
-            b_data.rank_url = String::new();
-        }
-        else {
-            b_data.rating = result.unwrap().get(1).unwrap().as_str().parse::<u16>().unwrap();
-            b_data.rank_url = RANK_URL.captures(&content).unwrap().get(1).unwrap().as_str().to_string();
-        }
+    if mode_debug{
+        println!("Start: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
     }
 
 
+    let mut result = None;
+    let mut url = String::new();
+    if use_new_net{
 
+        let mut retry_count = 0;
+        let retry_max = 3;
 
+        url = format!("https://playoverwatch.com/en-us/career/{}/{}", plat.to_lowercase(), btag.replace("#", "-"));
+        //https://playoverwatch.com/en-us/career/pc/{btag}
 
-    let num = content.find("<div id=\"competitive\" data-js=\"career-category\"").unwrap();
-    let (_,mut temp) = content.split_at(num);//Компетитев
-
-    let num = temp.find("<section id=\"achievements-section\"").unwrap();
-    let (mut div, _) = temp.split_at(num);
-
-    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x0860000000000021\"").unwrap();
-    let (_ , mut div) = div.split_at(num); //время в игре
-
-    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x0860000000000039\"").unwrap();
-    let (mut time_played , mut div) = div.split_at(num); //матчей выйграно
-
-    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x08600000000003D1\"").unwrap();
-    let (mut games_won , mut div) = div.split_at(num); //Поцент побед
-
-    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x086000000000002F\"").unwrap();
-    let (mut win_perc , mut div) = div.split_at(num); //Меткость
-
-//    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x08600000000003D2\"").unwrap();
-//    let (mut aim , mut div) = div.split_at(num); //Убийств за одну жизнь
-//
-//    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x0860000000000346\"").unwrap();
-//    let (mut kills_per_live , mut div) = div.split_at(num); //Лучшее множественное убийство
-//
-//    let num = div.find("<div data-group-id=\"comparisons\" data-category-id=\"overwatch.guid.0x086000000000039C\"").unwrap();
-//    let (mut best_multiple_kills , mut obj_kills) = div.split_at(num); //Убийств у объектов
-
-    let mut hero_time_played_vec: Vec<BtagData> = Vec::new();
-
-    //data-hero-guid="0x02E0000000000
-    //b_data.len = req.num;
-    let mut i = 0;
-    let mut i2 = 0;
-    //for sly in vec![time_played, games_won, win_perc, aim, kills_per_live, best_multiple_kills, obj_kills].iter(){
-    for sly in vec![time_played, games_won, win_perc].iter(){
-        i+=1;
-        if i == 1 && !req.time_played{continue;}
-        if i == 2 && !req.games_won{continue;}
-        if i == 3 && !req.win_perc{continue;}
-
-//        if i == 4 && !req.aim{continue;}
-//        if i == 5 && !req.kills_per_live{continue;}
-//        if i == 6 && !req.best_multiple_kills{continue;}
-//        if i == 7 && !req.obj_kills{continue;}
-
-        if i == 4 {continue;}
-        if i == 5 {continue;}
-        if i == 6 {continue;}
-        if i == 7 {continue;}
-
-        let mut sly_copy = sly;
-        let str = "data-hero-guid=\"0x02E0000000000";
-        let num = sly_copy.find(str).unwrap()+str.len();
-        let (_,mut sly_cut) = sly_copy.split_at(num);
-
-
-        let mut h:u16 = 0;
-        let mut count = 0;
         loop{
-            //if h == req.num{break;}
-            h+=1;
-            if h>25{println!("H >25!!");}
+            match Net::get(url.clone()){
+                Ok((hyper::StatusCode::Ok, body)) => {
+                    result = Some(body);
+                    break;
+                }
+                Ok((x,_)) => {
+                    println!("Not so Ok code: {}\n", x);
+                    break;
+                }
+                Err(e) => {
+                    match e {
+                        net::NetError::ParceLink(_) => {
+                            println!("{}", e);
+                            break;
+                        }
+                        _ => {
+                            if retry_count < retry_max{
+                                retry_count += 1;
+                                println!("{}\nConnection retry {}", e.get_des(), retry_count);
+                                continue;
+                            }
+                                else{
+                                    println!("{}", e);
+                                    break;
+                                }
+                        }
+                    }
+                }
+            }
+        }//loop end
 
-            let mut temp = sly_cut.clone();
+    }
+    else {
+        url = format!("https://playoverwatch.com/en-us/career/{}/{}/{}", plat.to_lowercase(), reg.to_lowercase(), btag.replace("#", "-"));
 
-            let num = temp.find(str).unwrap()+str.len();
-            let (mut hero,mut temp_next) = temp.split_at(num);
-            sly_cut = temp_next;
-            let (mut hero_id, mut temp_next) = hero.split_at(3 as usize);
 
-            let hero_enum = Hero::get_from_bliz_str(hero_id);
-
-            if HERO_DATA.find(temp_next).is_none(){println!("HERO_DATA is none:\n{}",temp_next);}
+        match reqwest::get(&url){
+            Ok(mut resp) => {
+                let mut content = String::new();
+                if let Err(e) = resp.read_to_string(&mut content){
+                    println!("[load_btag_data] Error while reading body:\n{}", e);
+                }
                 else {
-                    let hdat:&str = HERO_DATA.captures(temp_next).unwrap().name("data").unwrap().as_str();
+                    result = Some(content);
+                }
+            }
+            Err(e) => {
+                println!("[load_btag_data] Error while get responce from url. Probaly wron url:\n{}", e);
+            }
+        }
+    }
 
-                    let mut n = -1;
 
-                    if b_data.heroes.is_empty() {i2=i}
+    if mode_debug{
+        println!("Get respornse: {:?}",
+                 SystemTime::now().duration_since(sys_time_old).unwrap());
+    }
 
-                    if i2==i {
-                        if count == req.num{break;}
-                            else {count+=1;}
-                        b_data.heroes.push(HeroStats::new(hero_enum));
-                        n=(b_data.heroes.len()as i32)-1;
+    if let Some(body) = result{
+        if body.contains("h1 class=\"u-align-center\">Profile Not Found<") {
+            return None;
+        }
 
+        let mut b_data = BtagData::default();
+        b_data.btag = btag;
+        b_data.reg = reg;
+        b_data.plat = plat;
+        b_data.url = url.clone();
+
+
+        let avatar_url_patern = "masthead-player\"><img src=\"";
+        b_data.avatar_url = match body.find(avatar_url_patern){ //Ищем URL аватара
+            Some(start_pos) => {
+                let mut string = String::new();
+                let mut pos = start_pos + avatar_url_patern.len();
+                loop{
+                    let c = body.index(pos..pos+1).chars().next().unwrap();
+
+                    if c == '\"'{
+                         break;
                     }
                     else {
-                        for (enumerat, her) in b_data.heroes.iter().enumerate(){
-                            if hero_enum == her.hero{
-                                n = enumerat as i32;
-                                //println!("Find");
-                                break;
-                            }
-                        }
-                    }
-                    if n!=-1{
-                        match i {
-                            1 => {
-                                let mut time = Time::None;
-                                if hdat != "--"{
-                                    let num = hdat.find(" ").unwrap();
-                                    let (hdat_split1,hdat_split2) = hdat.split_at(num);
-                                    match hdat_split2{
-                                        " hour"|" hours" => {
-                                            time = Time::Hours(hdat_split1.parse::<u32>().unwrap());
-
-                                        }
-                                        " minute"|" minutes" => {time = Time::Min(hdat_split1.parse::<u32>().unwrap());}
-                                        " second"|" seconds" => {time = Time::Sec(hdat_split1.parse::<u32>().unwrap());}
-                                        _ =>{}
-                                    }}
-
-                                b_data.heroes[n as usize].time_played = Some(time);
-                            }
-                            2 => {b_data.heroes[n as usize].games_won = Some(hdat.parse::<u32>().unwrap());}
-                            3 => {b_data.heroes[n as usize].win_perc = Some(hdat.trim_matches('%').parse::<u16>().unwrap());}
-                            4 => {b_data.heroes[n as usize].aim = Some(hdat.trim_matches('%').parse::<u16>().unwrap());}
-                            5 => {b_data.heroes[n as usize].kills_per_live = Some(hdat.parse::<f32>().unwrap());}
-                            6 => {b_data.heroes[n as usize].best_multiple_kills = Some(hdat.parse::<u32>().unwrap());}
-                            7 => {b_data.heroes[n as usize].obj_kills = Some(hdat.parse::<u32>().unwrap());}
-                            _ => {}
-                        }
+                        string.push(c);
+                        pos += 1;
+                        continue;
                     }
 
-//                    match i {
-//                        1 => {
-//                            let mut time = Time::None;
-//                            let mut hdat_split = hdat.split_whitespace();
-//                            match hdat_split.nth(1).unwrap(){
-//                                "hour"|"hours" => {time = Time::Hours(hdat_split.nth(0).unwrap().parse::<u32>().unwrap());}
-//                                "minute"|"minutes" => {time = Time::Min(hdat_split.nth(0).unwrap().parse::<u32>().unwrap());}
-//                                "second"|"seconds" => {time = Time::Sec(hdat_split.nth(0).unwrap().parse::<u32>().unwrap());}
-//                                _ =>{}
-//                            }
-//                            b_data.time_played.push((hero_enum, time));
-//                        }
-//                        2 => {b_data.games_won.push((hero_enum, hdat.parse::<u32>().unwrap()));}
-//                        3 => {b_data.win_perc.push((hero_enum, hdat.trim_matches('%').parse::<u16>().unwrap()));}
-//                        4 => {b_data.aim.push((hero_enum, hdat.trim_matches('%').parse::<u16>().unwrap()));}
-//                        5 => {b_data.kills_per_live.push((hero_enum, hdat.parse::<f32>().unwrap()));}
-//                        6 => {b_data.best_multiple_kills.push((hero_enum, hdat.parse::<u32>().unwrap()));}
-//                        7 => {b_data.obj_kills.push((hero_enum, hdat.parse::<u32>().unwrap()));}
-//                        _ => {}
-//                    }
+
                 }
-            if let None = sly_cut.find(str){
-                break;
+                string
+            }
+            None => {
+                String::new()
+            }
+        };
+
+        if req.rating{
+            let rating_patern = "class=\"u-align-center h5\">";
+            match body.find(rating_patern){  //Ищем рейтинг
+                Some(start_pos) => {
+
+                    let mut string = String::new();
+                    let mut pos = start_pos+rating_patern.chars().count();
+                    loop{
+
+                        let c = body.index(pos..pos+1).chars().next().unwrap();
+                        if c == '<'{
+                            break;
+                        }
+                            else {
+                                pos += 1;
+                                string.push(c);
+                                continue;
+                            }
+                    }
+                    b_data.rating = match string.parse::<u16>(){
+
+                        Ok(x) => {x}
+
+                        Err(e) => {
+                            println!("Error while parce rating:\n{}\n{}",string ,e);
+                            0
+                        }
+                    };
+                    let comp_rang_patern = "class=\"competitive-rank\"><img src=\"";
+                    match body.find(comp_rang_patern){  //Ищем URL иконки рейтинга
+                        Some(start_pos) => {
+                            let mut string = String::new();
+                            let mut pos = start_pos + comp_rang_patern.len();
+                            loop{
+                                let c = body.index(pos..pos+1).chars().next().unwrap();
+
+                                if c == '\"'{
+                                    break;
+                                }
+                                    else {
+                                        string.push(c);
+                                        pos += 1;
+                                        continue;
+                                    }
+
+                            }
+
+                            b_data.rank_url = string;
+                        }
+                        None => {
+                            b_data.rank_url = String::new();
+                        }
+                    }
+
+                }
+                None => {
+                    b_data.rating = 0;
+                    b_data.rank_url = String::new();
+                }
+            }
+
+        }
+
+        if mode_debug{
+            println!("Get rating: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
+        }
+
+        let mut comp = String::new();
+        let mut time_played = String::new();
+        let mut games_won = String::new();
+        let mut win_perc = String::new();
+        let mut aim = String::new();
+        let mut kills_per_live = String::new();
+        let mut best_multiple_kills = String::new();
+        let mut obj_kills = String::new();
+
+        static COMP_STR: &str = "id=\"competitive\" data-js=\"career-category\""; //начало комп раздела, конец раздела быстрой игры
+        static TIME_PLAYED_STR: &str = "data-category-id=\"overwatch.guid.0x0860000000000021\""; //начало раздела времени в игре
+        static GAMES_WON_STR: &str = "data-category-id=\"overwatch.guid.0x0860000000000039\""; //начало раздела выйграных матчей
+        static WIN_PERC_STR: &str = "data-category-id=\"overwatch.guid.0x08600000000003D1\""; //начало раздела процента побед
+        static AIM_STR: &str = "data-category-id=\"overwatch.guid.0x086000000000002F\""; //начало раздела меткости
+        static KILLS_PER_LIVE_STR: &str = "data-category-id=\"overwatch.guid.0x08600000000003D2\""; //начало раздела убийств за одну жизнь
+        static BEST_MULTIPLE_KILLS_STR: &str = "data-category-id=\"overwatch.guid.0x0860000000000346\""; //начало раздела лучш. множ. убийств
+        static OBJ_KILLS_STR: &str = "data-category-id=\"overwatch.guid.0x086000000000039C\""; //начало раздела убийств у объекта
+        static ACHIVMENT_STR: &str = "<section id=\"achievements-section\""; //начало раздела ачивок, конец комп раздела
+
+        if req.time_played || req.games_won || req.win_perc || req.aim
+            || req.kills_per_live || req.best_multiple_kills || req.obj_kills{
+
+            comp = cut_part_of_str(&body.to_string(), COMP_STR, ACHIVMENT_STR);
+        }
+        if req.time_played{
+            time_played = cut_part_of_str(&comp, TIME_PLAYED_STR, GAMES_WON_STR);
+
+            loop{
+                match find_next_hero(&time_played){
+                    (Hero::None, ..) => {break;}
+                    (hero, hero_data, next_data) => {
+                        //println!("3 cut");
+                        let hdat = find_description(hero_data.as_str());
+                        let mut time = Time::None;
+                        if hdat != "--" || hdat.is_empty(){
+                            let num = hdat.find(" ").unwrap();
+                            let (hdat_split1,hdat_split2) = hdat.split_at(num);
+                            time = match hdat_split2{
+                                " hour"|" hours" => {
+                                    Time::Hours(hdat_split1.parse::<u32>().unwrap())
+                                }
+                                " minute"|" minutes" => {
+                                    Time::Min(hdat_split1.parse::<u32>().unwrap())
+                                }
+                                " second"|" seconds" => {
+                                    Time::Sec(hdat_split1.parse::<u32>().unwrap())
+                                }
+                                _ =>{
+                                    Time::None
+                                }
+                            };
+                        }
+
+                        let mut hero_stats = HeroStats::new(hero);
+                        hero_stats.time_played = Some(time);
+
+                        b_data.hero_data(hero_stats);
+
+                        if next_data.is_empty(){
+                                break;
+                        }
+                        else {
+                            time_played = next_data;
+                        }
+                    }
+                }
+            }
+        }
+        if req.games_won{
+            games_won = cut_part_of_str(&comp, GAMES_WON_STR, WIN_PERC_STR);
+
+            loop{
+                match find_next_hero(&games_won){
+                    (Hero::None, ..) => {break;}
+                    (hero, hero_data, next_data) => {
+
+                        let hdat = find_description(hero_data.as_str());
+
+                        let mut hero_stats = HeroStats::new(hero);
+                        hero_stats.games_won = Some(hdat.parse::<u32>().unwrap());
+
+                        b_data.hero_data(hero_stats);
+
+                        if next_data.is_empty(){
+                            break;
+                        }
+                            else {
+                                games_won = next_data;
+                            }
+                    }
+                }
+            }
+        }
+        if req.win_perc{
+            win_perc = cut_part_of_str(&comp, WIN_PERC_STR, AIM_STR);
+
+            loop{
+                match find_next_hero(&win_perc){
+                    (Hero::None, ..) => {break;}
+                    (hero, hero_data, next_data) => {
+
+                        let hdat = find_description(hero_data.as_str());
+
+                        let mut hero_stats = HeroStats::new(hero);
+                        hero_stats.win_perc = Some(hdat.trim_matches('%').parse::<u16>().unwrap());
+
+                        b_data.hero_data(hero_stats);
+
+                        if next_data.is_empty(){
+                            break;
+                        }
+                            else {
+                                win_perc = next_data;
+                            }
+                    }
+                }
+            }
+        }
+        if req.aim{
+            aim = cut_part_of_str(&comp, AIM_STR, KILLS_PER_LIVE_STR);
+            loop{
+                match find_next_hero(&aim){
+                    (Hero::None, ..) => {break;}
+                    (hero, hero_data, next_data) => {
+
+                        let hdat = find_description(hero_data.as_str());
+
+                        let mut hero_stats = HeroStats::new(hero);
+                        hero_stats.aim = Some(hdat.trim_matches('%').parse::<u16>().unwrap());
+
+                        b_data.hero_data(hero_stats);
+
+                        if next_data.is_empty(){
+                            break;
+                        }
+                            else {
+                                aim = next_data;
+                            }
+                    }
+                }
+            }
+        }
+        if req.kills_per_live{
+            kills_per_live = cut_part_of_str(&comp,
+                                             KILLS_PER_LIVE_STR,
+                                             BEST_MULTIPLE_KILLS_STR);
+            loop{
+                match find_next_hero(&kills_per_live){
+                    (Hero::None, ..) => {break;}
+                    (hero, hero_data, next_data) => {
+
+                        let hdat = find_description(hero_data.as_str());
+
+                        let mut hero_stats = HeroStats::new(hero);
+                        hero_stats.kills_per_live = Some(hdat.parse::<f32>().unwrap());
+
+                        b_data.hero_data(hero_stats);
+
+                        if next_data.is_empty(){
+                            break;
+                        }
+                            else {
+                                kills_per_live = next_data;
+                            }
+                    }
+                }
+            }
+        }
+        if req.best_multiple_kills{
+            best_multiple_kills = cut_part_of_str(&comp,
+                                                  BEST_MULTIPLE_KILLS_STR,
+                                                  OBJ_KILLS_STR);
+            loop{
+                match find_next_hero(&best_multiple_kills){
+                    (Hero::None, ..) => {break;}
+                    (hero, hero_data, next_data) => {
+
+                        let hdat = find_description(hero_data.as_str());
+
+                        let mut hero_stats = HeroStats::new(hero);
+                        hero_stats.best_multiple_kills = Some(hdat.parse::<u32>().unwrap());
+
+                        b_data.hero_data(hero_stats);
+
+                        if next_data.is_empty(){
+                            break;
+                        }
+                            else {
+                                best_multiple_kills = next_data;
+                            }
+                    }
+                }
+            }
+        }
+        if req.obj_kills{
+            obj_kills = cut_part_of_str(&comp,
+                                        OBJ_KILLS_STR,
+                                        ACHIVMENT_STR);
+            loop{
+                match find_next_hero(&obj_kills){
+                    (Hero::None, ..) => {break;}
+                    (hero, hero_data, next_data) => {
+
+                        let hdat = find_description(hero_data.as_str());
+
+                        let mut hero_stats = HeroStats::new(hero);
+                        hero_stats.obj_kills = Some(hdat.parse::<u32>().unwrap());
+
+                        b_data.hero_data(hero_stats);
+
+                        if next_data.is_empty(){
+                            break;
+                        }
+                            else {
+                                obj_kills = next_data;
+                            }
+                    }
+                }
             }
         }
 
+        if mode_debug{
+            println!("End: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
+        }
+        return Some(b_data);
+
+    }
+    else{
+        if mode_debug{
+            println!("End None: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
+        }
+        return None;
     }
 
+}
 
-    return Some(b_data);
+fn find_description(string: &str) -> String //class="description">
+{
+    let description_patern = "class=\"description\">";
+    match string.find(description_patern){ //Ищем URL аватара
+        Some(start_pos) => {
+            let mut answer = String::new();
+            let mut pos = start_pos + description_patern.len();
+            loop{
+                let c = string.index(pos..pos+1).chars().next().unwrap();
+
+                if c == '<'{
+                    break;
+                }
+                    else {
+                        pos += 1;
+                        answer.push(c);
+                        continue;
+                    }
+
+            }
+            answer
+        }
+        None => {
+            String::new()
+        }
+    }
+}
+
+fn find_next_hero(string: &String) -> (Hero, String, String) //берёт целевую строку, возвращает имя героя + его блок + остаток
+{
+    static hero_start: &str = "data-hero-guid=\"0x02E0000000000";
+    let mut answer = (Hero::None, String::new(), String::new());
+
+    let start = match string.find(hero_start) {
+        Some(x) => {x+hero_start.chars().count()}
+        None => {return answer;}
+    };
+
+    let mut hero_str = String::new();
+
+    unsafe{
+        answer.1 = string.slice_unchecked(start, string.chars().count()).to_string();
+        hero_str = answer.1.slice_unchecked(0, 3).to_owned();
+    }
+
+    answer.0 = Hero::get_from_bliz_str(hero_str.as_str());
+
+
+    let end = match answer.1.find(hero_start) {
+        Some(x) => {x}
+        None => {0}
+    };
+
+    if end > 0{
+        unsafe{
+            answer.2 = answer.1.slice_unchecked(end, answer.1.chars().count()).to_string();
+            answer.1 = answer.1.slice_unchecked(0, end).to_string();
+        }
+    }
+
+    return answer;
+
+}
+
+fn cut_part_of_str(main: &String, wall_1: &str, wall_2: &str) -> String
+{
+
+    let start = match main.find(wall_1){
+        Some(x) => {x}
+        None => { return String::new();}
+    };
+    let end = match main.find(wall_2){
+        Some(x) => {x+wall_2.len()}
+        None => {return String::new();}
+    };
+
+    unsafe {
+        return main.slice_unchecked(start, end+1).to_owned();
+    }
 }
 
 fn add_to_db(user: User) //Добавление Нового профиля в БД
@@ -1063,8 +1371,9 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
     }
 }
 
-
-fn scrim_starter(mut mes: &str, autor: discord::model::User) //Отправная функция по всем запросам касательно скримов
+//Отправная функция по всем запросам касательно скримов
+/*
+fn scrim_starter(mut mes: &str, autor: discord::model::User)
 {
     lazy_static! {
         static ref REG_RTG: Regex = Regex::new(r"^([0-9]{1,3}|[1-4][0-9]{1,3}|5000)$").unwrap();
@@ -1196,8 +1505,9 @@ fn scrim_starter(mut mes: &str, autor: discord::model::User) //Отправна�
         }
         Err(e) => { println!("[CreatingChanelErr] {:?}", e) }
     }
-}
+}*/
 
+/*
 fn scrim_queue(scrim: &Scrim) {
     let mut conn = POOL.get_conn().unwrap();
     let command = format!("SELECT COUNT(*) FROM scrim_queue");
@@ -1279,8 +1589,9 @@ fn scrim_queue(scrim: &Scrim) {
 
         let _ = DIS.send_message(DIS.create_private_channel(discord::model::UserId(founded.user)).unwrap().id, botmess.as_str(), "", false);
     }
-}
+}*/
 
+/*
 fn add_to_scrim_queue(scrim: &Scrim) {
     let time_str = format!("{:?}:{:?}:{:?}", scrim.live_time / 3600, (scrim.live_time / 60) % 60, scrim.live_time % 60);
     println!("[time_str] {}", time_str);
@@ -1317,6 +1628,7 @@ fn add_to_scrim_queue(scrim: &Scrim) {
     let mut conn = POOL.get_conn().unwrap();
     let _ = conn.query(call);
 }
+*/
 
 fn insert(name: &str, var: &String) {
     let mut call = format!("INSERT INTO variables (name,var) VALUES(");
@@ -1978,9 +2290,9 @@ fn main() {
                                 wsstats(mes_split.clone(), mes.author.id, message.channel_id);
                             }
 
-                            "!wsscrim" => {
-                                scrim_starter(mes.content.as_str(), mes.author.clone());
-                            }
+//                            "!wsscrim" => {
+//                                scrim_starter(mes.content.as_str(), mes.author.clone());
+//                            }
 
                             "!wstour" => {
                                 DB.send_embed("tourneys",message.channel_id);
@@ -2087,6 +2399,50 @@ fn main() {
                                     let string = format!("==Конец списка==");
                                     let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
 
+                                }
+                                "!debug" => {
+                                    if mes_split.len() > 1{
+                                        match mes_split[1].to_lowercase().as_str(){
+                                            "on" => {
+                                                DEBUG.store(true, Ordering::Relaxed);
+                                                let _ = DIS.send_message(message.channel_id, "Debug Включен", "", false);
+                                            }
+                                            "off" => {
+                                                DEBUG.store(false, Ordering::Relaxed);
+                                                let _ = DIS.send_message(message.channel_id, "Debug Выключен", "", false);
+                                            }
+                                            _ => {
+                                                let string = format!("Debug статус: {}", DEBUG.load(Ordering::Relaxed));
+                                                let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                            }
+                                        }
+                                    }
+                                        else {
+                                            let string = format!("Debug статус: {}", DEBUG.load(Ordering::Relaxed));
+                                            let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                        }
+                                }
+                                "!new_net" => {
+                                    if mes_split.len() > 1{
+                                        match mes_split[1].to_lowercase().as_str(){
+                                            "on" => {
+                                                SWITCH_NET.store(true, Ordering::Relaxed);
+                                                let _ = DIS.send_message(message.channel_id, "new_net Включен", "", false);
+                                            }
+                                            "off" => {
+                                                SWITCH_NET.store(false, Ordering::Relaxed);
+                                                let _ = DIS.send_message(message.channel_id, "new_net Выключен", "", false);
+                                            }
+                                            _ => {
+                                                let string = format!("new_net статус: {}", SWITCH_NET.load(Ordering::Relaxed));
+                                                let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                            }
+                                        }
+                                    }
+                                        else {
+                                            let string = format!("new_net статус: {}", SWITCH_NET.load(Ordering::Relaxed));
+                                            let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                        }
                                 }
                                 _=>{}
                             }
