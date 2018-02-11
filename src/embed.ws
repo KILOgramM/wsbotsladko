@@ -10,12 +10,12 @@
         "inline": true
         },
         {
-          "name": "*Наши друзья*",
-          "value": "[Новости](https://vk.com/cyberathleticow)\n[Стрим турниров](https://go.twitch.tv/tengu_ow)",
+          "name": "*Функции*",
+          "value": "Просмотр статистики\nПоиск тиммейтов\nСписки турниров",
         "inline": true
         },
         {
-          "name": "*Список команд*",
+          "name": "*Список команд* - !wsstats теперь обновляет роль по рейтингу на сервере WinSpirit",
           "value": "```!wsreg BattleTag#1234 - регистрация для включения всех функций\n!wsstats - вывод статистики(если не вводил wsreg то необходимо указать BattleTag#1234)\n!wscmd - вывод полного списка команд\n!wshelp - вывод помощи и справочной информации```"
         },
         {
@@ -23,8 +23,8 @@
           "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-europe/2018-overwatch-open-division-season-1-europe) - открытый турнир от Blizzard\n[Еженельник от ESL](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - европейский еженедельник с призовыми\n[MeatGrinder](http://winspirit.org/tourneys) - Еженедельник от WinSpirit"
         },
         {
-          "name": "*Ищем таланты*",
-          "value": "```Админов для проведения регулярных миксов.\nИ вообще если вы хотите помочь, то пишите KILOgramM'у в личку. Задачь на всех хватит!```"
+          "name": "*На масло и улучшения*",
+          "value": "PayPal - https://www.paypal.me/akseliter\nЯндекс кошелек - 410012775495087"
         }
         ,
         {
