@@ -617,7 +617,7 @@ pub enum Chat{
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct LFG{
-    did: u64,
+    pub did: u64,
     btag: String,
     reg: String,
     plat: String,
@@ -625,12 +625,16 @@ pub struct LFG{
     description: String,
 }
 impl LFG{
-    fn def_table() -> Vec<(String, String,bool)>{
+    pub fn def_table(debug: bool) -> Vec<(String, String,bool)>{
         let mut lfg_list: Vec<LFG> = DB.get_lfg_list();
         let mut fields:Vec<(String, String,bool)> = Vec::new();
         for i in 0..25{
             if let Some(lfg) = lfg_list.pop(){
-                let (string, mut des) = lfg.to_line();
+
+                let (string, mut des) = match debug {
+                    true => {lfg.to_line_debug()}
+                    false => {lfg.to_line()}
+                };
                 let num = if i+1<10{
                     format!("0{}",i+1)
                 }
@@ -656,6 +660,20 @@ impl LFG{
         return (format!("\u{FEFF}"),
                 format!("<@{}> | [{}](https://playoverwatch.com/en-us/career/{}/{}/{}) | {} SR {}",
                 self.did, self.btag, self.plat.to_lowercase(), self.reg.to_lowercase(), self.btag.replace("#", "-"), self.rating, des));
+
+    }
+    pub fn to_line_debug(&self) -> (String,String){
+
+        let des = if self.description.is_empty(){
+            String::new()
+        }
+            else {
+                format!("\n```\n{}\n```",self.description)
+            };
+        let u:User = load_by_id(self.did).unwrap();
+        return (format!("{}", self.did),
+                format!("<@{}> | [{}](https://playoverwatch.com/en-us/career/{}/{}/{}) | {} SR {}",
+                        self.did, self.btag, self.plat.to_lowercase(), self.reg.to_lowercase(), self.btag.replace("#", "-"), self.rating, des));
 
     }
 }
@@ -776,7 +794,7 @@ fn lfg_none(mes: Message){
     let _ = mes_data.remove(0);
 
     if mes_data.is_empty() && des.is_empty(){
-        let fields:Vec<(String,String,bool)> = LFG::def_table();
+        let fields:Vec<(String,String,bool)> = LFG::def_table(false);
         let title = "Список игроков:";
         if fields.is_empty(){
             DB.send_embed("lfg_list_empty",mes.channel_id);
@@ -790,7 +808,7 @@ fn lfg_none(mes: Message){
             }
     }
     else {
-        
+
 //        let was_private_c = match DIS.get_channel(mes.channel_id) {
 //            Ok(Channel::Private(_)) => {true}
 //            _ => {false}

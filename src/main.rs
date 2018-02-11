@@ -170,7 +170,7 @@ impl User {
 fn build_opts() -> mysql::Opts //Конструктор для БД
 {
     let mut builder = mysql::OptsBuilder::new();
-    builder.user(Some("bot")).pass(Some("1234")).db_name(Some("wsowbot")); //wsowbot
+    builder.user(Some("bot")).pass(Some("1234")).db_name(Some("ows")); //wsowbot
     return mysql::Opts::from(builder);
 }
 
@@ -2444,6 +2444,110 @@ fn main() {
                                             let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
                                         }
                                 }
+
+                                "!lfg" => {
+                                    use addon::LFG;
+                                    let color = 0;
+                                    let mut rem = false;
+                                    let mut remall = false;
+                                    let mut id = None;
+                                    let mut first_element = true;
+                                    for mes in mes_split{
+                                         if first_element{
+                                             first_element = false;
+                                             continue;
+                                         }
+                                        match mes.to_lowercase().as_str(){
+                                            "remall" | "delall" => {
+                                                remall = true;
+                                            }
+                                            "rem" | "del" => {
+                                                rem = true;
+                                            }
+                                            x => {
+                                                if let Ok(num) = x.parse::<u64>(){
+                                                    id = Some(num);
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    match (remall, rem, id) {
+                                        (true, _, _) => {
+                                            let lfg_list = DB.get_lfg_list();
+                                            for lfg in lfg_list{
+                                                let mut call = format!("DELETE FROM lfg WHERE did={}",lfg.did);
+                                                let mut conn = POOL.get_conn().unwrap();
+                                                if let Err(e) = conn.query(call){
+                                                    println!("lfg_rem Err: {}", e);
+                                                }
+                                                DB.remove_lfg(lfg.did);
+                                            }
+                                            let _ = DIS.send_message(message.channel_id, "Список LFG очищен", "", false);
+                                        }
+
+                                        (false,true,Some(did)) => {
+                                            match DB.get_lfg(did){
+                                                Some(lfg) => {
+                                                    let title = "Объявление удалено:";
+                                                    let (tstring, dstring) = lfg.to_line_debug();
+                                                    if let Err(e) = embed(message.channel_id,"",title,"",String::new(),color,
+                                                                          (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
+                                                        println!("Message Error: {:?}", e);
+                                                    }
+                                                    let mut call = format!("DELETE FROM lfg WHERE did={}",did);
+                                                    let mut conn = POOL.get_conn().unwrap();
+                                                    if let Err(e) = conn.query(call){
+                                                        println!("lfg_rem Err: {}", e);
+                                                    }
+                                                    DB.remove_lfg(did);
+                                                }
+                                                None => {
+                                                    let _ = DIS.send_message(message.channel_id, "По указаному DID не найдено", "", false);
+                                                    return;
+                                                }
+                                            }
+                                        }
+
+                                        (false,false,Some(did)) => {
+                                            match DB.get_lfg(did){
+                                                Some(lfg) => {
+
+                                                    let (tstring, dstring) = lfg.to_line_debug();
+                                                    if let Err(e) = embed(message.channel_id,"","","",String::new(),color,
+                                                                          (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
+                                                        println!("Message Error: {:?}", e);
+                                                    }
+                                                }
+                                                None => {
+                                                    let _ = DIS.send_message(message.channel_id, "По указаному DID не найдено", "", false);
+                                                    return;
+                                                }
+                                            }
+                                        }
+
+
+                                        (false, _, None) => {
+                                            let fields:Vec<(String,String,bool)> = LFG::def_table(true);
+                                            let title = "Список игроков:";
+                                            if fields.is_empty(){
+                                                DB.send_embed("lfg_list_empty",message.channel_id);
+                                                return;
+                                            }
+                                                else {
+                                                    if let Err(e) = embed(message.channel_id,"",title,"",String::new(),color,
+                                                                          (String::new(),""),fields.clone(),("","",""),String::new(),String::new()){
+                                                        println!("Message Error [!wslfg]: \n{:?}\nFields: \n{:?}\n", e, fields);
+                                                    }
+                                                }
+                                        }
+
+                                    }
+
+
+
+                                }
+
                                 _=>{}
                             }
                         }
