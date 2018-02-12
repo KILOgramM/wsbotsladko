@@ -170,7 +170,7 @@ impl User {
 fn build_opts() -> mysql::Opts //Конструктор для БД
 {
     let mut builder = mysql::OptsBuilder::new();
-    builder.user(Some("bot")).pass(Some("1234")).db_name(Some("ows")); //wsowbot
+    builder.user(Some("bot")).pass(Some("1234")).db_name(Some("wsowbot")); //wsowbot
     return mysql::Opts::from(builder);
 }
 
