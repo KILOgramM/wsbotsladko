@@ -170,7 +170,7 @@ impl User {
 fn build_opts() -> mysql::Opts //Конструктор для БД
 {
     let mut builder = mysql::OptsBuilder::new();
-    builder.user(Some("bot")).pass(Some("1234")).db_name(Some("ows")); //wsowbot
+    builder.user(Some("bot")).pass(Some("1234")).db_name(Some("wsowbot")); //wsowbot
     return mysql::Opts::from(builder);
 }
 
@@ -1025,6 +1025,7 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::
     let mut rating: u16 = 0;
     let mut unnone = false;
     let mut botmess: String = String::new();
+    let mut roleruler = String::new();
 
     if reg_str.capacity() > 1 {
         reg_str.remove(0);
@@ -1080,7 +1081,7 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::
                 rating = an.rating;
                 //println!("rating: {}", rating);
                 thumbnail = an.avatar_url.clone();
-                role_ruler(discord::model::ServerId(WSSERVER),
+                roleruler = role_ruler_text(discord::model::ServerId(WSSERVER),
                            autor.id,
                            RoleR::rating(rating));
             }
@@ -1108,8 +1109,11 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::
                 des = "Мы не смогли найти ваш профиль Overwtach по заданным параметрам.\nВозможно вы ошиблись или указали недостаточно данных.";
                 footer = "Вы можете указать корректные данные позже с помощью комманды !wsreg";
             } else {
-                if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
-                footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
+                if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false));}
+
+                    footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
+
+
             }
         } else {
             if acc_not_found {
@@ -1124,7 +1128,9 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::
                 fields.push(("Регион".to_string(), region.clone(), false));
                 fields.push(("Платформа".to_string(), platform.clone(), false));
                 if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
-                footer ="Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
+
+                    footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
+
             }
         }
 
@@ -1156,8 +1162,12 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::
 
         add_to_db(temp_user);
     }
+    if roleruler.is_empty(){
+        roleruler = footer.to_string();
+    }
+
     if let Err(e) = embed(chan, "",title,des,thumbnail,color,
-                          (String::new(),footer),fields,("","",""),
+                          (String::new(),roleruler.as_str()),fields,("","",""),
                           String::new(), String::new()){
         println!("Message Error: {:?}", e);
     }
@@ -1180,6 +1190,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
     let mut footer = "";
     let mut fields: Vec<(String, String, bool)> = Vec::new();
     let color: u64 = 37595;
+    let mut roleruler = String::new();
 
     if reg_str.capacity() > 1 {
         reg_str.remove(0);
@@ -1283,7 +1294,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
                         rating = an.rating;
                         //println!("rating: {}", rating);
                         thumbnail = an.avatar_url.clone();
-                        role_ruler(discord::model::ServerId(WSSERVER),
+                        roleruler = role_ruler_text(discord::model::ServerId(WSSERVER),
                                    autor.id,
                                    RoleR::rating(rating));
                     }
@@ -1344,7 +1355,11 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
                         fields.push(("Регион".to_string(), region.clone(), false));
                         fields.push(("Платформа".to_string(), platform.clone(), false));
                         if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
-                        footer = "Убедитесь, что верно ввели парамтры на изменение ваших данных";
+
+                            footer = "Убедитесь, что верно ввели парамтры на изменение ваших данных";
+
+
+
 
                     }
                 }
@@ -1355,6 +1370,9 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
                 fields.push(("Регион".to_string(), region.clone(), false));
                 fields.push(("Платформа".to_string(), platform.clone(), false));
                 if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
+
+
+
             }
         }
 
@@ -1364,8 +1382,11 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
     }
     if footer.is_empty(){footer = "!wsreg {Ваш BTag} {Регион EU|US|KR} {Платформа PC|P4|XB}";}
 
+    if roleruler.is_empty(){
+        roleruler = footer.to_string();
+    }
     if let Err(e) = embed(chan, "",title,des,thumbnail,color,
-                          (String::new(),footer),fields,("","",""),
+                          (String::new(),roleruler.as_str()),fields,("","",""),
                           String::new(), String::new()){
         println!("Message Error: {:?}", e);
     }
@@ -1777,6 +1798,8 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
     req.best_multiple_kills = false;
     req.obj_kills = false;
 
+    let mut roleruler = String::new();
+
     if mes.capacity() > 1 {
         m = get_arg_from_mes(mes);
         u = match load_by_id(autor_id.0) {
@@ -1848,7 +1871,7 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
             u.rtg = answer.clone().unwrap().rating;
         }
         if update {
-            role_ruler(discord::model::ServerId(WSSERVER),
+            roleruler = role_ruler_text(discord::model::ServerId(WSSERVER),
                        autor_id,
                        RoleR::rating(u.rtg));
             update_in_db(u.clone()); }
@@ -1866,14 +1889,70 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
             //KILOgramM#2947 EU PC Рейтинг отсутствует
             let botmess = format!("{} {} {} Рейтинг отсутствует", u.btag, u.reg, u.plat);
             let des = format!("[Ссылка на профиль]({})", aun.url);
-            let _ = DIS.send_embed(chanel, "", |e| e.title(botmess.as_str()).description(des.as_str()).color(color));
+            let _ = DIS.send_embed(chanel, "", |e| e.title(botmess.as_str()).description(des.as_str()).color(color).footer(|f| f.text(roleruler.as_str())));
 
         } else {
             let aun:BtagData = answer.unwrap();
             let botmess = format!("{} {} {} Рейтинг {}", u.btag, u.reg, u.plat, aun.rating);
             let des = format!("[Ссылка на профиль]({})", aun.url);
 
-            let _ = DIS.send_embed(chanel, "",|e| return embed_builder(e, botmess.as_str(), des.as_str(),color,aun, hero_list_titles));
+            let mut fields_vec: Vec<(String, String , bool)> = Vec::new();
+            if hero_list_titles.len()>aun.heroes.len(){}
+            else{
+                for (enumerat,l) in hero_list_titles.iter().enumerate(){
+
+                    let ref an = aun.heroes[enumerat];
+                    let mut itre = an.clone().hero.name_rus();
+                    let name = format!("{} {}",l,itre);
+
+                    let mut value = String::new();
+                    let mut f = true;
+                    if let Some(ref x) = aun.heroes[enumerat].time_played{
+                        match x{
+                            &Time::Hours(t) => {
+                                if !f{value = format!("{},",value)}
+                                    else{f=false}
+                                value = format!("{}ч.",t);}
+                            &Time::Min(t) => {
+                                if !f{value = format!("{},",value)}
+                                    else{f=false}
+                                value = format!("{}мин.",t);}
+                            &Time::Sec(t) => {
+                                if !f{value = format!("{},",value)}
+                                    else{f=false}
+                                value = format!("{}сек.",t);}
+                            &Time::None => {}
+                        }
+                    }
+                    if let Some(x)= aun.heroes[enumerat].win_perc{
+                        if !f{value = format!("{},",value)}
+                            else{f=false}
+
+                        value = format!("{} {}% побед",value,x);
+                    }
+
+                    if let Some(x)= aun.heroes[enumerat].games_won{
+                        if !f{value = format!("{},",value)}
+                            else{f=false}
+
+                        value = format!("{} {} побед(а)",value,x);
+                    }
+
+                    fields_vec.push((name, value, false));
+                }
+            }
+
+
+
+
+
+            if let Err(e) = embed(chanel,"",botmess.as_str(),
+                                  des.as_str(),aun.avatar_url,color,(String::new(),roleruler.as_str()),
+                                  fields_vec,("","",""),String::new(),String::new()){
+                println!("Message Error: {:?}", e);
+            }
+
+//            let _ = DIS.send_embed(chanel, "",|e| return embed_builder(e, botmess.as_str(), des.as_str(),color,aun, hero_list_titles));
 
 
         }
@@ -1893,14 +1972,16 @@ pub fn embed(chanel: discord::model::ChannelId, text: &str, title: &str, des: &s
         if !thumbnail.is_empty() {a = a.thumbnail(thumbnail.as_str());}
         if !url.is_empty() {a = a.url(url.as_str());}
         if !image.is_empty() {a = a.image(image.as_str());}
-        if !footer.0.is_empty() || !footer.1.is_empty() {
-            a = a.footer(|f| {
-                let mut foo = f;
-                if !footer.0.is_empty(){foo=foo.icon_url(footer.0.as_str());}
-                if !footer.0.is_empty(){foo=foo.text(footer.1);}
-                foo
-            });
-        }
+
+        if !footer.0.is_empty() || !footer.1.is_empty()
+            {
+                a = a.footer(|f| {
+                    let mut foo = f;
+                    if !footer.0.is_empty() { foo = foo.icon_url(footer.0.as_str()); }
+                    if !footer.1.is_empty() { foo = foo.text(footer.1); }
+                    foo
+                });
+            }
         if !author.0.is_empty() || !author.1.is_empty() || !author.2.is_empty()
             {a = a.author(|au| {
                 let mut aut = au;
@@ -2116,7 +2197,115 @@ enum RoleR{
     rating(u16),
 }
 
-fn role_ruler(server_id: discord::model::ServerId, user_id: discord::model::UserId, cmd: RoleR){
+enum RoleChange{
+    add(String),
+    rem(String)
+}
+
+fn role_ruler_text(server_id: discord::model::ServerId, user_id: discord::model::UserId, cmd: RoleR) -> String{
+    let mut answer = String::new();
+    let mut removed = Vec::new();
+    let mut added = Vec::new();
+    for role in role_ruler(server_id, user_id, cmd){
+        match role {
+            RoleChange::add(s) =>{
+                added.push(s);
+            }
+            RoleChange::rem(s) =>{
+                removed.push(s);
+            }
+        };
+    }
+    answer = match removed.len() {
+        0 =>{
+            match added.len() {
+                0 =>{
+                    String::new()
+                }
+                1 =>{
+                    format!("Добавлена роль \'{}\'", added[0])
+                }
+                _ =>{
+                    let mut temp = "Добавлены роли".to_string();
+                    let mut first = true;
+                    for r in added{
+                        if first {first = false;}
+                        else {temp = format!("{},",temp);}
+                        temp = format!("{} \'{}\'", temp, r);
+                    }
+                    temp
+                }
+            }
+        }
+        1 =>{
+            match added.len() {
+                0 =>{
+                    format!("Роль \'{}\' убрана", removed[0])
+                }
+                1 =>{
+                    format!("Смена ролей: с \'{}\' на \'{}\'", removed[0], added[0])
+                }
+                _ =>{
+                    let mut temp = format!("Роль \'{}\' заменена ролями", removed[0]);
+                    let mut first = true;
+                    for r in added{
+                        if first {first = false;}
+                            else {temp = format!("{},",temp);}
+                        temp = format!("{} \'{}\'", temp, r);
+                    }
+                    temp
+                }
+            }
+        }
+        _ =>{
+            match added.len() {
+                0 =>{
+                    let mut temp = format!("Роли");
+                    let mut first = true;
+                    for r in removed.clone(){
+                        if first {first = false;}
+                            else {temp = format!("{},",temp);}
+                        temp = format!("{} \'{}\'", temp, r);
+                    }
+                    temp = format!("{} убраны",temp);
+                    temp
+                }
+                1 =>{
+                    let mut temp = format!("Роли");
+                    let mut first = true;
+                    for r in removed.clone(){
+                        if first {first = false;}
+                            else {temp = format!("{},",temp);}
+                        temp = format!("{} \'{}\'", temp, r);
+                    }
+                    temp = format!("{} заменены ролью \'{}\'", temp, added[0]);
+                    temp
+                }
+                _ =>{
+
+                    let mut temp = format!("Роли");
+                    let mut first = true;
+                    for r in removed.clone(){
+                        if first {first = false;}
+                            else {temp = format!("{},",temp);}
+                        temp = format!("{} \'{}\'", temp, r);
+                    }
+                    temp = format!("{} заменены ролями", temp);
+                    let mut first = true;
+                    for r in added.clone(){
+                        if first {first = false;}
+                            else {temp = format!("{},",temp);}
+                        temp = format!("{} \'{}\'", temp, r);
+                    }
+                    temp
+                }
+            }
+        }
+    };
+    return answer;
+}
+
+fn role_ruler(server_id: discord::model::ServerId, user_id: discord::model::UserId, cmd: RoleR) -> Vec<RoleChange>{
     lazy_static! {
         static ref ROLES: Vec<String> = vec![
             String::from("4500+"),
@@ -2127,6 +2316,7 @@ fn role_ruler(server_id: discord::model::ServerId, user_id: discord::model::User
             String::from("2500-")
             ];
     }
+    let mut answer: Vec<RoleChange> = Vec::new();
     if let Ok(member) = DIS.get_member(server_id,user_id){
         let mut state_cloned = None;
         {
@@ -2150,6 +2340,7 @@ fn role_ruler(server_id: discord::model::ServerId, user_id: discord::model::User
                         RoleR::rating(r) => {
                             let mut find_role = String::new();
                             let mut done = false;
+                            let mut change = false;
                             let mut new_roles = Vec::new();
 
                             match r{
@@ -2162,8 +2353,8 @@ fn role_ruler(server_id: discord::model::ServerId, user_id: discord::model::User
                                 _ =>{}
                             }
 
-                            for roleid in member.roles{
-                                for role in ser.clone().roles{
+                            'outer: for roleid in member.roles{
+                                'inner: for role in ser.clone().roles{
                                     if role.id.0 == roleid.0{
                                         let mut is_find = false;
                                         for ROLE in ROLES.clone(){
@@ -2171,22 +2362,33 @@ fn role_ruler(server_id: discord::model::ServerId, user_id: discord::model::User
                                                 is_find = true;
                                                 if role.name == find_role{
                                                     done = true;
+                                                    new_roles.push(roleid);
                                                 }
+                                                else {
+                                                    change = true;
+                                                    answer.push(RoleChange::rem(ROLE));
+                                                }
+
                                             }
                                         }
                                         if is_find == false{
                                             new_roles.push(roleid);
                                         }
-                                        break;
+                                        break 'inner;
                                     }
                                 }
                             }
-                            if done == false{
-                                for role in ser.clone().roles{
-                                    if find_role == role.name{
-                                        new_roles.push(role.id);
+                            if !done || change {
+                                if !done{
+                                    for role in ser.clone().roles{
+                                        if find_role == role.name{
+                                            answer.push(RoleChange::add(find_role));
+                                            new_roles.push(role.id);
+                                            break;
+                                        }
                                     }
                                 }
+
                                 if let Err(e) = DIS.edit_member_roles(server_id,
                                                                       user_id, new_roles.as_slice()){
                                     println!("[role_ruler] Error while edit_member_roles: {}", e);
@@ -2201,8 +2403,10 @@ fn role_ruler(server_id: discord::model::ServerId, user_id: discord::model::User
                     }
             }
 
+
         }
     }
+    return answer;
 }
 
 fn main() {
