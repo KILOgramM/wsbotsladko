@@ -20,11 +20,11 @@
         },
         {
           "name": "*Регулярные турниры*",
-          "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-europe/2018-overwatch-open-division-season-1-europe) - открытый турнир от Blizzard\n[Еженельник от ESL](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - европейский еженедельник с призовыми\n[MeatGrinder](http://winspirit.org/tourneys) - Еженедельник от WinSpirit"
+          "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-europe/2018-overwatch-open-division-season-1-europe) - открытый турнир от Blizzard\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - европейский еженедельник с призовыми\n[MeatGrinder](http://winspirit.org/tourneys) - Еженедельник от WinSpirit"
         },
         {
           "name": "*На масло и улучшения*",
-          "value": "PayPal - https://www.paypal.me/akseliter\nЯндекс кошелек - 410012775495087"
+          "value": "PayPal - https://www.paypal.me/akseliter\nЯндекс кошелек - 41001266249359"
         }
         ,
         {
