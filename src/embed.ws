@@ -20,7 +20,12 @@
         },
         {
           "name": "*Регулярные турниры*",
-          "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-europe/2018-overwatch-open-division-season-1-europe) - открытый турнир от Blizzard\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - европейский еженедельник с призовыми\n[MeatGrinder](http://winspirit.org/tourneys) - Еженедельник от WinSpirit"
+          "value": "[Battlefy.com](https://battlefy.com/browse/overwatch?region=Global&platform=PC) - площадка для проведения турниров\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - европейский еженедельник с призовыми\n[MeatGrinder](http://winspirit.org/tourneys) - Еженедельник от WinSpirit"
+        },
+        {
+          "name": "*Инструментарий*",
+          "value": "1. Совместный просмотр видео с возможностью рисовать - <https://visor.gg>\n2. Общие таблицы для ведения статистики - <https://docs.google.com/>\n3. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n4. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>"
+
         },
         {
           "name": "*На масло и улучшения*",
@@ -229,31 +234,35 @@
     },
     "fields": [
       {
-        "name": "Получение статистики",
+        "name": "*Получение статистики*",
         "value": "Я могу брать статистику\nс [playoverwatch.com](https://playoverwatch.com/en-us/)",
         "inline": true
       },
       {
-        "name": "Поиск тиммейтов и команд",
+        "name": "*Поиск тиммейтов и команд*",
         "value": "А также союзников для игры\nв аркады, рейтинг и быстрые игры",
         "inline": true
       },
       {
-        "name": "Оповещение о турнирах",
+        "name": "*Оповещение о турнирах*",
         "value": "Актуальная информация\nо турнирах открытых\nдля участия",
         "inline": true
       },
       {
-        "name": "Помощь в развитии",
+        "name": "*Помощь в развитии*",
         "value": "Личных навыков, командной игры,\nбаза знаний, конференции с\nпрофессиональными игроками",
         "inline": true
       },
       {
-        "name": "Ты можешь посетить наши ресурсы:",
+        "name": "*Инструментарий*",
+        "value": "1. Совместный просмотр видео с возможностью рисовать - <https://visor.gg>\n2. Общие таблицы для ведения статистики - <https://docs.google.com/>\n3. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n4. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>"
+                      },
+      {
+        "name": "*Ты можешь посетить наши ресурсы:*",
         "value": "http://winspirit.org/\nhttps://vk.com/winspiritow\n"
       },
       {
-        "name": "Краткий список команд",
+        "name": "*Краткий список команд*",
         "value": "!wscmd - полный и подробный список команд.\n!wsreg - внесение данных в БД для доступа к полному функционалу\n!wsstats - запрос статистики текущего соревновательного сезона"
       }
     ]
