@@ -20,7 +20,7 @@
         },
         {
           "name": "*Регулярные турниры*",
-          "value": "[Battlefy.com](https://battlefy.com/browse/overwatch?region=Global&platform=PC) - площадка для проведения турниров\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - европейский еженедельник с призовыми\n[MeatGrinder](http://winspirit.org/tourneys) - Еженедельник от WinSpirit"
+          "value": "[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - площадка для проведения турниров\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - европейский еженедельник с призовыми\n[MeatGrinder](http://winspirit.org/tourneys) - Еженедельник от WinSpirit"
         },
         {
           "name": "*Инструментарий*",
