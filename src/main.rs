@@ -211,6 +211,7 @@ pub enum Hero{
     Ana,
     Orisa,
     Moira,
+    //Brigitte,
 }
 impl Hero{
     fn get_from_bliz_str(s: &str) -> Hero{
@@ -241,6 +242,7 @@ impl Hero{
             "13B" => {return Hero::Ana;}
             "13E" => {return Hero::Orisa;}
             "1A2" => {return Hero::Moira;}
+            //"" => {return Hero::Brigitte;}
             _ => {{return Hero::None;}}
         }
     }
@@ -272,6 +274,7 @@ impl Hero{
              &Hero::Ana => {return String::from("Ana");}
              &Hero::Orisa => {return String::from("Orisa");}
              &Hero::Moira => {return String::from("Moira");}
+             //&Hero::Brigitte => {return String::from("Brigitte");}
              &Hero::None => {return String::new();}
         }
     }
@@ -303,6 +306,7 @@ impl Hero{
             Hero::Ana => {return String::from("Ана");}
             Hero::Orisa => {return String::from("Ориса");}
             Hero::Moira => {return String::from("Мойра");}
+            //Hero::Brigitte => {return String::from("Бригитта");}
             Hero::None => {return String::new();}
         }
     }
@@ -2694,7 +2698,7 @@ fn main() {
                                             match DB.get_lfg(did){
                                                 Some(lfg) => {
                                                     let title = "Объявление удалено:";
-                                                    let (tstring, dstring) = lfg.to_line_debug();
+                                                    let (tstring, dstring) = lfg.to_line_debug(message.channel_id);
                                                     if let Err(e) = embed(message.channel_id,"",title,"",String::new(),color,
                                                                           (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
                                                         println!("Message Error: {:?}", e);
@@ -2717,7 +2721,7 @@ fn main() {
                                             match DB.get_lfg(did){
                                                 Some(lfg) => {
 
-                                                    let (tstring, dstring) = lfg.to_line_debug();
+                                                    let (tstring, dstring) = lfg.to_line_debug(message.channel_id);
                                                     if let Err(e) = embed(message.channel_id,"","","",String::new(),color,
                                                                           (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
                                                         println!("Message Error: {:?}", e);
@@ -2732,7 +2736,7 @@ fn main() {
 
 
                                         (false, _, None) => {
-                                            let fields:Vec<(String,String,bool)> = LFG::def_table(true);
+                                            let fields:Vec<(String,String,bool)> = LFG::def_table(true,message.channel_id);
                                             let title = "Список игроков:";
                                             if fields.is_empty(){
                                                 DB.send_embed("lfg_list_empty",message.channel_id);

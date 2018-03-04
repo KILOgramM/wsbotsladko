@@ -23,6 +23,7 @@ use {Hero,
 use discord::model::Message;
 use discord::model::Channel;
 use discord::model::ChannelId;
+use discord;
 use std::sync::RwLock;
 use mysql::from_row;
 use std::fmt::Debug;
@@ -625,15 +626,15 @@ pub struct LFG{
     description: String,
 }
 impl LFG{
-    pub fn def_table(debug: bool) -> Vec<(String, String,bool)>{
+    pub fn def_table(debug: bool, chanel: ChannelId) -> Vec<(String, String,bool)>{
         let mut lfg_list: Vec<LFG> = DB.get_lfg_list();
         let mut fields:Vec<(String, String,bool)> = Vec::new();
         for i in 0..25{
             if let Some(lfg) = lfg_list.pop(){
 
                 let (string, mut des) = match debug {
-                    true => {lfg.to_line_debug()}
-                    false => {lfg.to_line()}
+                    true => {lfg.to_line_debug(chanel)}
+                    false => {lfg.to_line(chanel)}
                 };
                 let num = if i+1<10{
                     format!("0{}",i+1)
@@ -648,7 +649,7 @@ impl LFG{
         }
         return fields;
     }
-    fn to_line(&self) -> (String,String){
+    fn to_line(&self, chanel: ChannelId) -> (String,String){
 
         let des = if self.description.is_empty(){
             String::new()
@@ -658,11 +659,11 @@ impl LFG{
         };
         let u:User = load_by_id(self.did).unwrap();
         return (format!("\u{FEFF}"),
-                format!("<@{}> | [{}](https://playoverwatch.com/en-us/career/{}/{}/{}) | {} SR {}",
-                self.did, self.btag, self.plat.to_lowercase(), self.reg.to_lowercase(), self.btag.replace("#", "-"), self.rating, des));
+                format!("{} | [{}](https://playoverwatch.com/en-us/career/{}/{}/{}) | {} SR {}",
+                        match_merge(chanel, self.did), self.btag, self.plat.to_lowercase(), self.reg.to_lowercase(), self.btag.replace("#", "-"), self.rating, des));
 
     }
-    pub fn to_line_debug(&self) -> (String,String){
+    pub fn to_line_debug(&self, chanel: ChannelId) -> (String,String){
 
         let des = if self.description.is_empty(){
             String::new()
@@ -672,8 +673,8 @@ impl LFG{
             };
         let u:User = load_by_id(self.did).unwrap();
         return (format!("{}", self.did),
-                format!("<@{}> | [{}](https://playoverwatch.com/en-us/career/{}/{}/{}) | {} SR {}",
-                        self.did, self.btag, self.plat.to_lowercase(), self.reg.to_lowercase(), self.btag.replace("#", "-"), self.rating, des));
+                format!("{} | [{}](https://playoverwatch.com/en-us/career/{}/{}/{}) | {} SR {}",
+                        match_merge(chanel, self.did), self.btag, self.plat.to_lowercase(), self.reg.to_lowercase(), self.btag.replace("#", "-"), self.rating, des));
 
     }
 }
@@ -712,7 +713,7 @@ pub fn lfg(mes: Message, stage: Stage_LFG){
                         match DB.get_lfg(mes.author.id.0){
                             Some(lfg) => {
                                 let title = "Объявление осталось на месте:";
-                                let (tstring, dstring) = lfg.to_line();
+                                let (tstring, dstring) = lfg.to_line(mes.channel_id);
                                 if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
                                                       (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
                                     println!("Message Error: {:?}", e);
@@ -744,7 +745,7 @@ pub fn lfg(mes: Message, stage: Stage_LFG){
                         match DB.get_lfg(mes.author.id.0){
                             Some(lfg) => {
                                 let title = "Объявление осталось преждним:";
-                                let (tstring, dstring) = lfg.to_line();
+                                let (tstring, dstring) = lfg.to_line(mes.channel_id);
                                 if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
                                                       (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
                                     println!("Message Error: {:?}", e);
@@ -761,7 +762,7 @@ pub fn lfg(mes: Message, stage: Stage_LFG){
                         lfg_add(lfg.clone());
 
                         let title = "Ваше объявление обновлено:";
-                        let (tstring, dstring) = lfg.to_line();
+                        let (tstring, dstring) = lfg.to_line(mes.channel_id);
                         if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
                                               (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
                             println!("Message Error: {:?}", e);
@@ -794,7 +795,7 @@ fn lfg_none(mes: Message){
     let _ = mes_data.remove(0);
 
     if mes_data.is_empty() && des.is_empty(){
-        let fields:Vec<(String,String,bool)> = LFG::def_table(false);
+        let fields:Vec<(String,String,bool)> = LFG::def_table(false,mes.channel_id);
         let title = "Список игроков:";
         if fields.is_empty(){
             DB.send_embed("lfg_list_empty",mes.channel_id);
@@ -919,7 +920,7 @@ fn lfg_none(mes: Message){
 			lfg_add(old_lfg.clone());
 
 			let title = "Ваше объявление обновлено:";
-            let (tstring, dstring) = old_lfg.to_line();
+            let (tstring, dstring) = old_lfg.to_line(mes.channel_id);
 			if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
 								  (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
 				println!("Message Error: {:?}", e);
@@ -998,7 +999,7 @@ fn lfg_none(mes: Message){
                 lfg_add(lfg.clone());
 
                 let title = "Ваше объявление добавлено в базу:";
-                let (tstring, dstring) = lfg.to_line();
+                let (tstring, dstring) = lfg.to_line(mes.channel_id);
                 if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
                                       (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
                     println!("Message Error: {:?}", e);
@@ -1015,7 +1016,7 @@ fn lfg_rem(chanel: ChannelId,id: u64){
     match DB.get_lfg(id){
         Some(lfg) => {
             let title = "Ваше объявление удалено:";
-            let (tstring, dstring) = lfg.to_line();
+            let (tstring, dstring) = lfg.to_line(chanel);
             if let Err(e) = embed(chanel,"",title,"",String::new(),color,
                                   (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
                 println!("Message Error: {:?}", e);
@@ -1091,4 +1092,82 @@ fn lfg_add(lfg: LFG){
     }
 
     DB.push_lfg(lfg);
+}
+
+fn match_merge(chanel: ChannelId, did: u64) -> String{
+
+    let user = match DIS.create_private_channel(discord::model::UserId(did)){
+        Ok(x) => {
+            x.recipient
+        }
+        _ => {return format!("<@{}>",did);}
+    };
+    if let Ok(chan) = DIS.get_channel(chanel){
+        match chan{
+            Channel::Group(chan_group) => {
+                let servers = match DIS.get_servers() {
+                    Ok(x) => {x}
+                    _ => {return format!("{}#{}", user.name, user.discriminator);}
+                };
+                let mut users_id = Vec::new();
+                for u in chan_group.recipients{
+                    users_id.push(u.id);
+                }
+                users_id.push(user.id);
+                //users_id.push(chan_group.owner_id);
+                let mut br = false;
+                'outer: for server in servers{
+                    br = false;
+                    'inner: for id in users_id.clone(){
+                        match DIS.get_member(server.id,id){
+                            Ok(_) =>{continue;
+                            }
+                            _ => {br = true; break 'inner;
+                            }
+                        }
+                    }
+                    if !br{
+                        return format!("<@{}>",did);
+                    }
+                }
+                return format!("{}#{}", user.name, user.discriminator);
+            }
+            Channel::Private(chan_private) => {
+                let servers = match DIS.get_servers() {
+                    Ok(x) => {x}
+                    _ => {return format!("{}#{}", user.name, user.discriminator);}
+                };
+                let mut users_id = Vec::new();
+                users_id.push(user.id);
+                users_id.push(chan_private.recipient.id);
+                let mut br = false;
+                'outer: for server in servers{
+                    br = false;
+                    'inner: for id in users_id.clone(){
+                        match DIS.get_member(server.id,id){
+                            Ok(_) =>{continue;
+                            }
+                            _ => {br = true; break 'inner;
+                            }
+                        }
+                    }
+                    if !br{
+                        return format!("<@{}>",did);
+                    }
+                }
+                return format!("{}#{}", user.name, user.discriminator);
+            }
+            Channel::Public(chan_public) => {
+                match DIS.get_member(chan_public.server_id,user.id){
+                    Ok(_) =>{return format!("<@{}>",did);
+                    }
+                    _ => {return format!("{}#{}", user.name, user.discriminator);
+                    }
+                }
+            }
+        }
+    }
+    else {
+        return format!("{}#{}", user.name, user.discriminator);
+    }
 }
