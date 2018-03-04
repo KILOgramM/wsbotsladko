@@ -19,10 +19,12 @@ use {Hero,
      User,
      HeroInfoReq,
      BtagData,
-     load_btag_data};
+     load_btag_data,
+     WSSERVER};
 use discord::model::Message;
 use discord::model::Channel;
 use discord::model::ChannelId;
+use discord::model::ServerId;
 use discord;
 use std::sync::RwLock;
 use mysql::from_row;
@@ -1114,23 +1116,39 @@ fn match_merge(chanel: ChannelId, did: u64) -> String{
                     users_id.push(u.id);
                 }
                 users_id.push(user.id);
-                //users_id.push(chan_group.owner_id);
+                let server = ServerId(WSSERVER);
                 let mut br = false;
-                'outer: for server in servers{
-                    br = false;
-                    'inner: for id in users_id.clone(){
-                        match DIS.get_member(server.id,id){
-                            Ok(_) =>{continue;
-                            }
-                            _ => {br = true; break 'inner;
-                            }
+                for id in users_id{
+                    match DIS.get_member(server,id){
+                        Ok(_) =>{continue;
+                        }
+                        _ => {br = true; break;
                         }
                     }
-                    if !br{
+                }
+                if br{
+                    return format!("{}#{}", user.name, user.discriminator);
+                }
+                    else {
                         return format!("<@{}>",did);
                     }
-                }
-                return format!("{}#{}", user.name, user.discriminator);
+                //users_id.push(chan_group.owner_id);
+//                let mut br = false;
+//                'outer: for server in servers{
+//                    br = false;
+//                    'inner: for id in users_id.clone(){
+//                        match DIS.get_member(server.id,id){
+//                            Ok(_) =>{continue;
+//                            }
+//                            _ => {br = true; break 'inner;
+//                            }
+//                        }
+//                    }
+//                    if !br{
+//                        return format!("<@{}>",did);
+//                    }
+//                }
+//                return format!("{}#{}", user.name, user.discriminator);
             }
             Channel::Private(chan_private) => {
                 let servers = match DIS.get_servers() {
@@ -1140,22 +1158,41 @@ fn match_merge(chanel: ChannelId, did: u64) -> String{
                 let mut users_id = Vec::new();
                 users_id.push(user.id);
                 users_id.push(chan_private.recipient.id);
+
+                let server = ServerId(WSSERVER);
                 let mut br = false;
-                'outer: for server in servers{
-                    br = false;
-                    'inner: for id in users_id.clone(){
-                        match DIS.get_member(server.id,id){
-                            Ok(_) =>{continue;
-                            }
-                            _ => {br = true; break 'inner;
-                            }
+                for id in users_id{
+                    match DIS.get_member(server,id){
+                        Ok(_) =>{continue;
+                        }
+                        _ => {br = true; break;
                         }
                     }
-                    if !br{
-                        return format!("<@{}>",did);
-                    }
                 }
-                return format!("{}#{}", user.name, user.discriminator);
+                if br{
+                    return format!("{}#{}", user.name, user.discriminator);
+                }
+                else {
+                    return format!("<@{}>",did);
+                }
+
+
+//                let mut br = false;
+//                'outer: for server in servers{
+//                    br = false;
+//                    'inner: for id in users_id.clone(){
+//                        match DIS.get_member(server.id,id){
+//                            Ok(_) =>{continue;
+//                            }
+//                            _ => {br = true; break 'inner;
+//                            }
+//                        }
+//                    }
+//                    if !br{
+//                        return format!("<@{}>",did);
+//                    }
+//                }
+
             }
             Channel::Public(chan_public) => {
                 match DIS.get_member(chan_public.server_id,user.id){

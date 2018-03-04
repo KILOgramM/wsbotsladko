@@ -21,6 +21,7 @@ extern crate futures;
 use discord::{Discord, ChannelRef, State};
 use discord::model::Event;
 use discord::builders::EmbedBuilder;
+use discord::model::ServerId;
 use regex::Regex;
 use std::io::Read;
 use std::io::Write;
@@ -53,7 +54,7 @@ lazy_static! {
     static ref REG_TIME: Regex = Regex::new(r"(?P<n>\d){1,4} ?(?i)(?P<ntype>m|min|h|hour)").expect("Regex btag error");
     static ref STATE: RwLock<Option<State>> = RwLock::new(None);
 }
-static WSSERVER: u64 = 351798277756420098; //351798277756420098
+pub static WSSERVER: u64 = 351798277756420098; //351798277756420098
 static SWITCH_NET: AtomicBool = ATOMIC_BOOL_INIT;
 static DEBUG: AtomicBool = ATOMIC_BOOL_INIT;
 
