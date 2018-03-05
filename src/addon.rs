@@ -1102,36 +1102,59 @@ fn match_merge(chanel: ChannelId, did: u64) -> String{
         Ok(x) => {
             x.recipient
         }
-        _ => {return format!("<@{}>",did);}
+        _ => {
+            let servers = match DIS.get_servers() {
+                    Ok(x) => {x}
+                    _ => {return format!("<@{}>",discord::model::UserId(did));}
+                };
+            let mut u = None;
+            for server in servers{
+                match DIS.get_member(server.id,discord::model::UserId(did)){
+                        Ok(x) =>{u = Some(x.user); break;
+                        }
+                        _ => {continue;
+                        }
+                }
+            }
+            if let Some(x) = u{
+                x
+            }
+            else{
+                return format!("<@{}>",did);
+            }
+
+        }
     };
     if let Ok(chan) = DIS.get_channel(chanel){
         match chan{
             Channel::Group(chan_group) => {
-                let servers = match DIS.get_servers() {
-                    Ok(x) => {x}
-                    _ => {return format!("{}#{}", user.name, user.discriminator);}
-                };
-                let mut users_id = Vec::new();
-                for u in chan_group.recipients{
-                    users_id.push(u.id);
-                }
-                users_id.push(user.id);
-                let server = ServerId(WSSERVER);
-                let mut br = false;
-                for id in users_id{
-                    match DIS.get_member(server,id){
-                        Ok(_) =>{continue;
-                        }
-                        _ => {br = true; break;
-                        }
-                    }
-                }
-                if br{
-                    return format!("{}#{}", user.name, user.discriminator);
-                }
-                    else {
-                        return format!("<@{}>",did);
-                    }
+                return format!("{}#{}", user.name, user.discriminator);
+
+//                let servers = match DIS.get_servers() {
+//                    Ok(x) => {x}
+//                    _ => {return format!("{}#{}", user.name, user.discriminator);}
+//                };
+//                let mut users_id = Vec::new();
+//                for u in chan_group.recipients{
+//                    users_id.push(u.id);
+//                }
+//                users_id.push(user.id);
+//                let server = ServerId(WSSERVER);
+//                let mut br = false;
+//                for id in users_id{
+//                    match DIS.get_member(server,id){
+//                        Ok(_) =>{continue;
+//                        }
+//                        _ => {br = true; break;
+//                        }
+//                    }
+//                }
+//                if br{
+//                    return format!("{}#{}", user.name, user.discriminator);
+//                }
+//                    else {
+//                        return format!("<@{}>",did);
+//                    }
                 //users_id.push(chan_group.owner_id);
 //                let mut br = false;
 //                'outer: for server in servers{
@@ -1151,30 +1174,32 @@ fn match_merge(chanel: ChannelId, did: u64) -> String{
 //                return format!("{}#{}", user.name, user.discriminator);
             }
             Channel::Private(chan_private) => {
-                let servers = match DIS.get_servers() {
-                    Ok(x) => {x}
-                    _ => {return format!("{}#{}", user.name, user.discriminator);}
-                };
-                let mut users_id = Vec::new();
-                users_id.push(user.id);
-                users_id.push(chan_private.recipient.id);
+                return format!("{}#{}", user.name, user.discriminator);
 
-                let server = ServerId(WSSERVER);
-                let mut br = false;
-                for id in users_id{
-                    match DIS.get_member(server,id){
-                        Ok(_) =>{continue;
-                        }
-                        _ => {br = true; break;
-                        }
-                    }
-                }
-                if br{
-                    return format!("{}#{}", user.name, user.discriminator);
-                }
-                else {
-                    return format!("<@{}>",did);
-                }
+//                let servers = match DIS.get_servers() {
+//                    Ok(x) => {x}
+//                    _ => {return format!("{}#{}", user.name, user.discriminator);}
+//                };
+//                let mut users_id = Vec::new();
+//                users_id.push(user.id);
+//                users_id.push(chan_private.recipient.id);
+//
+//                let server = ServerId(WSSERVER);
+//                let mut br = false;
+//                for id in users_id{
+//                    match DIS.get_member(server,id){
+//                        Ok(_) =>{continue;
+//                        }
+//                        _ => {br = true; break;
+//                        }
+//                    }
+//                }
+//                if br{
+//                    return format!("{}#{}", user.name, user.discriminator);
+//                }
+//                else {
+//                    return format!("<@{}>",did);
+//                }
 
 
 //                let mut br = false;

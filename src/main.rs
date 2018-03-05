@@ -17,6 +17,7 @@ extern crate hyper_tls; //Используется в net
 extern crate native_tls; //Используется в net
 extern crate futures;
 
+extern crate time as extime;
 //https://discordapp.com/api/oauth2/authorize?client_id=316281967375024138&scope=bot&permissions=0
 use discord::{Discord, ChannelRef, State};
 use discord::model::Event;
@@ -53,6 +54,7 @@ lazy_static! {
     pub static ref REG_BTAG: Regex = Regex::new(r"^.{2,16}#[0-9]{2,6}$").expect("Regex btag error");
     static ref REG_TIME: Regex = Regex::new(r"(?P<n>\d){1,4} ?(?i)(?P<ntype>m|min|h|hour)").expect("Regex btag error");
     static ref STATE: RwLock<Option<State>> = RwLock::new(None);
+    static ref START_TIME: extime::Tm = extime::now();
 }
 pub static WSSERVER: u64 = 351798277756420098; //351798277756420098
 static SWITCH_NET: AtomicBool = ATOMIC_BOOL_INIT;
@@ -2137,7 +2139,7 @@ pub fn embed_from_value(chanel: discord::model::ChannelId, val: serde_json::Valu
 }
 
 fn broadcast_info(tog_id: u32) {
-    extern crate time;
+
     thread::spawn(move || {
         let string = get_db("broadcast_date");
 
@@ -2158,7 +2160,7 @@ fn broadcast_info(tog_id: u32) {
         }
 
         loop{
-            let now = time::now();
+            let now = extime::now();
             if now.tm_hour == 21 && now.tm_mday != date && now.tm_min < 3 && DB.get_temp(tog_id).unwrap().is_true(){
                 date = now.tm_mday;
                 let date_string = format!("{}",date);
@@ -2421,6 +2423,7 @@ fn main() {
     DB.ini_chat();
     DB.ini_embeds_s();
     println!("[Status] Ready");
+    println!("{}", START_TIME.ctime());
     let broadcatst_bool = DB.new_temp(TempData::None);
     broadcast_info(broadcatst_bool);
     loop {
@@ -2755,6 +2758,77 @@ fn main() {
 
 
 
+                                }
+
+                                "!shver" => {
+                                    use std::ops::Add;
+                                    use std::ops::Sub;
+                                    let start_clone:extime::Tm = START_TIME.clone();
+
+                                    let cur_time = extime::now();
+                                    let start_day = match START_TIME.tm_mday{
+                                        0...9 =>{ format!("0{}",START_TIME.tm_mday)}
+                                        _ => {format!("{}",START_TIME.tm_mday)}
+                                    };
+                                    let start_mon = match START_TIME.tm_mon+1{
+                                        0...9 =>{ format!("0{}",START_TIME.tm_mon+1)}
+                                        _ => {format!("{}",START_TIME.tm_mon+1)}
+                                    };
+                                    let start_h = match START_TIME.tm_hour{
+                                        0...9 =>{ format!("0{}",START_TIME.tm_hour)}
+                                        _ => {format!("{}",START_TIME.tm_hour)}
+                                    };
+                                    let start_m = match START_TIME.tm_min{
+                                        0...9 =>{ format!("0{}",START_TIME.tm_min)}
+                                        _ => {format!("{}",START_TIME.tm_min)}
+                                    };
+                                    let start_s = match START_TIME.tm_sec{
+                                        0...9 =>{ format!("0{}",START_TIME.tm_sec)}
+                                        _ => {format!("{}",START_TIME.tm_sec)}
+                                    };
+
+                                    let dur_time = cur_time - start_clone;
+                                    let mut dif_time = dur_time.num_seconds();
+
+
+
+                                    let up_d = dif_time / 86400;
+                                    dif_time = dif_time - (up_d * 86400);
+
+
+                                    let up_h = dif_time / 3600;
+                                    dif_time = dif_time - (up_h * 3600);
+                                    let up_hour = match up_h{
+                                        0...9 =>{ format!("0{}",up_h)}
+                                        _ => {format!("{}",up_h)}
+                                    };
+
+                                    let up_m = dif_time / 60;
+                                    dif_time = dif_time - (up_m * 60);
+                                    let up_min = match up_m{
+                                        0...9 =>{ format!("0{}",up_m)}
+                                        _ => {format!("{}",up_m)}
+                                    };
+
+                                    let up_sec = match dif_time{
+                                        0...9 =>{ format!("0{}",dif_time)}
+                                        _ => {format!("{}",dif_time)}
+                                    };
+
+
+                                    let title = "Bot Info";
+                                    let ver = env!("CARGO_PKG_VERSION");
+                                    let mut des = format!("Ver: {}\n",ver);
+                                    des = format!("{}Start time: {}:{}:{} {}.{}.{}\n",des,
+                                                  start_h,start_m,start_s,
+                                                  start_day,start_mon,START_TIME.tm_year+1900,);
+                                    des = format!("{}Up time: {}:{}:{}:{}\n",des,
+                                                  up_d, up_hour, up_min, up_sec);
+                                    if let Err(e) = embed(message.channel_id,"",title,
+                                                          des.as_str(),String::new(),0,(String::new(),""),
+                                                          Vec::new(),("","",""),String::new(),String::new()){
+                                        println!("Message Error: {:?}", e);
+                                    }
                                 }
 
                                 _=>{}
