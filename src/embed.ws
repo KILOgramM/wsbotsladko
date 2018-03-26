@@ -19,9 +19,15 @@
           "value": "```!wsreg BattleTag#1234 - регистрация для включения всех функций\n!wsstats - вывод статистики(если не вводил wsreg то необходимо указать BattleTag#1234)\n!wscmd - вывод полного списка команд\n!wshelp - вывод помощи и справочной информации```"
         },
         {
-          "name": "*Регулярные турниры*",
-          "value": "[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - площадка для проведения турниров\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - европейский еженедельник с призовыми\n[MeatGrinder](http://winspirit.org/tourneys) - Еженедельник от WinSpirit"
+          "name": "*Регулярные RU турниры*",
+          "value": "[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир"
+          "inline": true
         },
+        {
+                  "name": "*Регулярные EU турниры*",
+                  "value": "[Toornament.com](https://www.toornament.com/games/overwatch) - турнирная площадка\n[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - турнирная площадка\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - еженедельник с призовыми"
+                  "inline": true
+                },
         {
           "name": "*Инструментарий*",
           "value": "1. Совместный просмотр видео с возможностью рисовать - <https://visor.gg>\n2. Простой совместный просмоторщик видео - <https://andchill.tv>\n3. Общие таблицы для ведения статистики - <https://docs.google.com/>\n4. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n5. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>\n6. Энциклопедия овервотч - <https://overwiki.ru/>"
