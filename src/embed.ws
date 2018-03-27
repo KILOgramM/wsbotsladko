@@ -20,12 +20,12 @@
         },
         {
           "name": "*Регулярные RU турниры*",
-          "value": "[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир"
+          "value": "[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир\n[PR1ME](https://vk.com/pr1mevk) - Турниры от стримеров",
           "inline": true
         },
         {
                   "name": "*Регулярные EU турниры*",
-                  "value": "[Toornament.com](https://www.toornament.com/games/overwatch) - турнирная площадка\n[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - турнирная площадка\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - еженедельник с призовыми"
+                  "value": "[Toornament.com](https://www.toornament.com/games/overwatch) - турнирная площадка\n[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - турнирная площадка\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - еженедельник с призовыми",
                   "inline": true
                 },
         {
