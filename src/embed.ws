@@ -25,7 +25,7 @@
         },
         {
                   "name": "*Регулярные EU турниры*",
-                  "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-north-america/2018-overwatch-open-division-season-2-north-america/5ab2ee031241030350c7cb1e/info?infoTab=details) - OpenDivision EU season 2 2018\n[Toornament.com](https://www.toornament.com/games/overwatch) - турнирная площадка\n[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - турнирная площадка\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - еженедельник с призовыми",
+                  "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-europe/2018-overwatch-open-division-season-2-europe/5ab2ee6f126cba034a112993/info?infoTab=details) - OpenDivision EU season 2 2018\n[Toornament.com](https://www.toornament.com/games/overwatch) - турнирная площадка\n[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - турнирная площадка\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - еженедельник с призовыми",
                   "inline": true
                 },
         {
