@@ -379,7 +379,7 @@ impl EventData{
     }
 
     fn calc_next(&mut self) -> Option<String>{
-        use extime::{now,
+        use extime::{now_utc,
                      empty_tm,
                      get_time,
                      Duration};
@@ -441,10 +441,11 @@ impl EventData{
                 new
             }
             None => {
-                now()
+                now_utc()
             }
         };
-        let time_zone = time.tm_utcoff;
+
+
 
         let mut check = false;
 
@@ -567,6 +568,9 @@ impl EventData{
             }
 
             if let Some(hour) = self.req.hour{
+                let mut hour = hour+24;
+                hour = hour-3;
+                if hour>23{hour = hour-24;}
                 if time.tm_hour != hour as i32{
 
                     time = time.add(Duration::seconds(60 - time.tm_sec as i64));
@@ -621,8 +625,10 @@ impl EventData{
                 check = false;
             }
         }
-        time.tm_utcoff = time_zone; //костыль слёта часового пояса
+
+        time = time.to_local();
         let nex_event_time = time.to_timespec().sec;
+
         self.next_activ = Some(TmAlt::from(time));
 
         if get_time().sec < nex_event_time{
