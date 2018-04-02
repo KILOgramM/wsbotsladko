@@ -381,13 +381,15 @@ impl EventData{
     fn calc_next(&mut self) -> Option<String>{
         use extime::{now,
                      empty_tm,
+                     get_time,
                      Duration};
+        use std::cmp::Ordering;
 
 
         if let Some(ref next) = self.next_activ{
             self.last_activ = Some(next.clone());
         }
-        /*
+
         let mut time = match self.last_activ {
             Some(ref last) => {
                 if self.req.once {
@@ -441,8 +443,7 @@ impl EventData{
             None => {
                 now()
             }
-        };*/
-        let mut time = now();
+        };
         let time_zone = time.tm_utcoff;
 
         let mut check = false;
@@ -614,14 +615,33 @@ impl EventData{
                     check = true;
                 }
             }
+
             if !check {break;}
             else{
                 check = false;
             }
         }
         time.tm_utcoff = time_zone; //костыль слёта часового пояса
+        let nex_event_time = time.to_timespec().sec;
         self.next_activ = Some(TmAlt::from(time));
-        return None;
+
+        if get_time().sec > nex_event_time{
+            return None;
+        }
+        else {
+            return self.calc_next();
+        }
+
+//        match get_time().sec.cmp(&nex_event_time) {
+//            Ordering::Greater => {
+//                return None;
+//            }
+//
+//            _ => {
+//                return self.calc_next();
+//            }
+//        }
+
     }
 }
 
