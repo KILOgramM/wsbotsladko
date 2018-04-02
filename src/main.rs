@@ -17,6 +17,8 @@ extern crate hyper_tls; //Используется в net
 extern crate native_tls; //Используется в net
 extern crate futures;
 
+extern crate indexmap;
+
 extern crate time as extime;
 //https://discordapp.com/api/oauth2/authorize?client_id=316281967375024138&scope=bot&permissions=0
 use discord::{Discord, ChannelRef, State};
@@ -35,7 +37,8 @@ use std::ops::Index;
 pub mod addon;
 pub mod net;
 //pub mod tournaments;
-
+pub mod event;
+use event::{EventChanel, EventH, EventReq, EventChanelBack, EventType};
 use addon::{DB, Chat, lfg, Stage_LFG, Global, TempData};
 use net::Net;
 
@@ -55,8 +58,9 @@ lazy_static! {
     static ref REG_TIME: Regex = Regex::new(r"(?P<n>\d){1,4} ?(?i)(?P<ntype>m|min|h|hour)").expect("Regex btag error");
     static ref STATE: RwLock<Option<State>> = RwLock::new(None);
     static ref START_TIME: extime::Tm = extime::now();
+    static ref EVENT: EventH = EventH::create();
 }
-pub static WSSERVER: u64 = 351798277756420098; //351798277756420098
+pub static WSSERVER: u64 = 351798277756420098; //ws = 351798277756420098 //bs = 316394947513155598
 static SWITCH_NET: AtomicBool = ATOMIC_BOOL_INIT;
 static DEBUG: AtomicBool = ATOMIC_BOOL_INIT;
 
@@ -78,6 +82,7 @@ impl Preset_Scrim {
         }
     }
 }
+
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct Preset_Rtg {
@@ -173,7 +178,7 @@ impl User {
 fn build_opts() -> mysql::Opts //Конструктор для БД
 {
     let mut builder = mysql::OptsBuilder::new();
-    builder.user(Some("bot")).pass(Some("1234")).db_name(Some("wsowbot")); //wsowbot
+    builder.user(Some("bot")).pass(Some("1234")).db_name(Some("wsowbot")); //wsowbot //ows
     return mysql::Opts::from(builder);
 }
 
@@ -1968,6 +1973,42 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
     }
 }
 
+struct EmbedStruct<'a>{
+    text: &'a str,
+    title: &'a str,
+    des: &'a str,
+    thumbnail: String,
+    col: u64,
+    footer: (String, &'a str),
+    fields: Vec<(String, String , bool)>,
+    author: (&'a str,&'a str,&'a str),
+    url: String,
+    image: String,
+}
+impl<'a> EmbedStruct<'a> {
+    fn empty() -> EmbedStruct<'a> {
+        EmbedStruct{
+            text: "",
+            title: "",
+            des: "",
+            thumbnail: String::new(),
+            col: 0,
+            footer: (String::new(), ""),
+            fields: Vec::new(),
+            author: ("","",""),
+            url: String::new(),
+            image: String::new(),
+        }
+    }
+    fn send(&self, chanel: discord::model::ChannelId){
+        if let Err(e) = embed(chanel, self.text.clone(), self.title.clone(), self.des.clone(), self.thumbnail.clone(),
+              self.col.clone(), self.footer.clone(), self.fields.clone(), self.author.clone(),
+              self.url.clone(), self.image.clone()){
+            println!("Message Error: {:?}", e);
+        }
+    }
+}
+
 pub fn embed(chanel: discord::model::ChannelId, text: &str, title: &str, des: &str,
          thumbnail: String, col: u64, footer: (String, &str), fields: Vec<(String, String , bool)>,
              author: (&str,&str,&str), url: String, image: String) -> discord::Result<discord::model::Message>{
@@ -2138,67 +2179,6 @@ pub fn embed_from_value(chanel: discord::model::ChannelId, val: serde_json::Valu
 
 }
 
-fn broadcast_info(tog_id: u32) {
-
-    thread::spawn(move || {
-        let string = get_db("broadcast_date");
-
-        let mut date = if string.is_empty() {
-            0
-        }
-            else{
-                string.as_str().parse::<i32>().unwrap()
-            };
-
-        let string = get_db("broadcast_toggle");
-
-        if string.eq("true") {
-            DB.set_temp(tog_id, TempData::Bool(true));
-        }
-        else{
-            DB.set_temp(tog_id, TempData::Bool(false));
-        }
-
-        loop{
-            let now = extime::now();
-            if now.tm_hour == 21 && now.tm_mday != date && now.tm_min < 3 && DB.get_temp(tog_id).unwrap().is_true(){
-                date = now.tm_mday;
-                let date_string = format!("{}",date);
-                insert("broadcast_date",&date_string);
-
-                if let Some(v) = DB.get_embed("broadcast"){
-                    match DIS.get_servers() {
-                        Ok(list) => {
-                            for serv in list{
-                                if serv.id.0 == WSSERVER {
-                                    if let Ok(chnels) = DIS.get_server_channels(serv.id){
-                                        for c in chnels{
-                                            if c.name.as_str() == "main-chat"{
-                                                embed_from_value(c.id,v.clone());
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                                //else{
-                                //    if let Err(e) = embed(serv.id.main(), "","","",thumbnail.to_string()
-                                //                         ,color,"",fields.clone(),(author_name.clone(),author_url.clone(),author_icon_url.clone())){
-                                //        println!("Message Error: {:?}", e);
-                                //    }
-                                //}
-
-                            }
-                        }
-                        Err(e) => {println!("get_servers err: {}", e)}
-                    }
-                }
-            }
-                else {
-                    std::thread::sleep(std::time::Duration::from_secs(60));
-                }
-        }
-    });
-}
 
 enum RoleR{
     rating(u16),
@@ -2419,13 +2399,13 @@ fn role_ruler(server_id: discord::model::ServerId, user_id: discord::model::User
 fn main() {
     let (mut connection, ready) = DIS.connect().expect("connect failed");
     let mut state_t = State::new(ready);
+    DB.ini_embeds_s();
     DB.ini_lfg();
     DB.ini_chat();
-    DB.ini_embeds_s();
+    EVENT.send(EventChanel::Check);
     println!("[Status] Ready");
     println!("{}", START_TIME.ctime());
-    let broadcatst_bool = DB.new_temp(TempData::None);
-    broadcast_info(broadcatst_bool);
+
     loop {
         let event = match connection.recv_event() {
             Ok(event) => event,
@@ -2454,31 +2434,6 @@ fn main() {
 
         match event {
             Event::MessageCreate(message) => {
-                /*                    match state_t.find_channel(message.channel_id) {
-                //
-                //                        Some(ChannelRef::Public(server, channel)) => {
-                //
-                //                            let  mes = format!("[{} #{}] {}: {}", server.name, channel.name, message.author.name, message.content);
-                //                            //println!();
-                //                            tx.send(
-                //                                Container{
-                //                                message: mes.to_string(),
-                //                                chanel_id: message.channel_id}
-                //                            ).unwrap();
-                //
-                //                        }
-                //                        Some(ChannelRef::Group(group)) => {
-                //                            println!("[Group {}] {}: {}", group.name(), message.author.name, message.content);
-                //                        }
-                //                        Some(ChannelRef::Private(channel)) => {
-                //                            if message.author.name == channel.recipient.name {
-                //                                println!("[Private] {}: {}", message.author.name, message.content);
-                //                            } else {
-                //                                println!("[Private] To {}: {}", channel.recipient.name, message.content);
-                //                            }
-                //                        }
-                //                        None => println!("[Unknown Channel] {}: {}", message.author.name, message.content),
-                //                    }*/
                 let state_clone = state_t.clone();
                 let mut mes: discord::model::Message = message.clone();
                 thread::spawn(move || {
@@ -2502,10 +2457,6 @@ fn main() {
                                 wsstats(mes_split.clone(), mes.author.id, message.channel_id);
                             }
 
-//                            "!wsscrim" => {
-//                                scrim_starter(mes.content.as_str(), mes.author.clone());
-//                            }
-
                             "!wstour" => {
                                 DB.send_embed("tourneys",message.channel_id);
                             }
@@ -2527,6 +2478,356 @@ fn main() {
 
                         if mes.author.id.0 == 193759349531869184 || mes.author.id.0 == 222781446971064320{
                             match mes_split[0].to_lowercase().as_str() {
+                                "!ahelp" => {
+                                    DB.send_embed("admin_commands",message.channel_id);
+                                }
+
+                                "!event" =>{
+
+                                    match mes_split.get(1){
+                                        Some(&"add") =>{
+                                            //11
+
+                                            let mut data = mes.content.clone();
+
+                                            if data.len() > 11{
+                                                let mut event_name = String::new();
+                                                let mut server: Option<String> = None;
+                                                let mut server_id: Option<u64> = None;
+                                                let mut room: String = String::new();
+                                                let mut chanel: Option<u64> = None;
+                                                let mut embed: String = String::new();
+                                                let mut req = EventReq::empty();
+
+                                                let mut data = data.split_off(11);
+                                                let mut buf: Vec<(String,String)> = Vec::new();
+
+                                                let mut push = false;
+                                                let mut switch = false;
+                                                let mut space_check = false;
+                                                let mut no_chars = false;
+                                                let mut long_param = false;
+
+                                                let mut option = String::new();
+                                                let mut option_rez = String::new();
+                                                let mut settings = String::new();
+                                                let mut num_elements = data.len() - 1;
+
+                                                for (i, c) in data.as_str().chars().enumerate(){
+
+                                                    match c{
+                                                        '=' | ':' => {
+                                                            if !long_param{
+                                                                switch = true;
+                                                                no_chars = true;
+                                                                space_check = false;
+                                                            }
+                                                                else{
+                                                                    if switch {
+                                                                        settings.push(c);
+                                                                    }
+                                                                        else{
+                                                                            option.push(c);
+                                                                        }
+                                                                }
+                                                        }
+
+                                                        ' ' => {
+                                                            if !no_chars && !long_param{
+                                                                if switch {push = true;
+                                                                }
+                                                                    else {
+                                                                        space_check = true;
+                                                                    }
+                                                            }
+                                                            if long_param{
+                                                                    if switch {
+                                                                        settings.push(c);
+                                                                    }
+                                                                        else{
+                                                                            option.push(c);
+                                                                        }
+                                                                }
+                                                        }
+
+                                                        '"' => {
+                                                            if long_param {long_param = false;}
+                                                            else { long_param = true;}
+                                                        }
+
+                                                        ',' | '|' => {
+                                                            if !long_param{
+                                                                push = true;
+                                                            }
+                                                            else{
+                                                                if switch {
+                                                                    settings.push(c);
+                                                                }
+                                                                    else{
+                                                                        option.push(c);
+                                                                    }
+                                                            }
+                                                        }
+
+                                                        '\n' | '\r' => {
+                                                            if long_param{
+                                                                long_param = false;
+                                                            }
+                                                            push = true;
+                                                        }
+
+                                                        x => {
+                                                            if space_check{
+                                                                option_rez.push(x);
+                                                                push = true;
+                                                            }
+                                                            else {
+                                                                if switch {
+                                                                    settings.push(x);
+                                                                }
+                                                                else{
+                                                                    option.push(x);
+                                                                }
+                                                            }
+                                                            no_chars = false;
+
+                                                        }
+                                                    }
+                                                    if push || (i == num_elements){
+                                                        push = false;
+                                                        switch = false;
+                                                        no_chars = true;
+                                                        space_check = false;
+                                                        if option.is_empty() &&
+                                                            option_rez.is_empty() &&
+                                                            settings.is_empty(){
+                                                            continue;
+                                                        }
+                                                        buf.push((option, settings));
+                                                        option = option_rez;
+                                                        option_rez = String::new();
+                                                        settings = String::new();
+                                                    }
+                                                }
+
+                                                for (opt_namer, opt_par) in buf{
+                                                    if opt_namer.is_empty(){
+                                                        continue;
+                                                    }
+                                                    match opt_namer.as_str(){
+                                                        "once" => {
+                                                            match opt_par.as_str(){
+                                                                "false" => { req.once = false;}
+                                                                _ => { req.once = true;}
+                                                            }
+                                                        }
+                                                        "name" => {
+                                                            event_name = opt_par;
+                                                        }
+
+                                                        "embed" => {
+                                                            embed = opt_par;
+                                                        }
+
+                                                        "room" => {
+                                                            room = opt_par;
+                                                        }
+
+                                                        "server" => {
+                                                            match opt_par.parse::<u64>(){
+                                                                Ok(x) => { server_id = Some(x);}
+                                                                Err(_) => { server = Some(opt_par);}
+                                                            }
+                                                        }
+
+                                                        "year" | "y" => {
+                                                            if let Ok(n) = opt_par.parse::<u16>(){
+                                                                req.year = Some(n);
+                                                            }
+                                                        }
+
+                                                        "month" | "mon" => {
+                                                            match opt_par.as_str(){
+                                                                "янв" | "январь"  => { req.month = Some(0);}
+                                                                "фев" | "ферваль"  => { req.month = Some(1);}
+                                                                "мар" | "март"  => { req.month = Some(2);}
+                                                                "апр" | "апрель"  => { req.month = Some(3);}
+                                                                "май"  => { req.month = Some(4);}
+                                                                "июн" | "июнь"  => { req.month = Some(5);}
+                                                                "июл" | "июль"  => { req.month = Some(6);}
+                                                                "авг" | "август"  => { req.month = Some(7);}
+                                                                "сен" | "сентябрь"  => { req.month = Some(8);}
+                                                                "окт" | "октябрь"  => { req.month = Some(9);}
+                                                                "ноя" | "ноябрь"  => { req.month = Some(10);}
+                                                                "дек" | "декабрь"  => { req.month = Some(11);}
+                                                                x => { if let Ok(n) = x.parse::<u8>(){
+                                                                        if n < 13{
+                                                                            req.month = Some(n-1);
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        "day_of_mouth" | "mday" => {
+                                                            if let Ok(n) = opt_par.parse::<u8>(){
+                                                                if n < 32{
+                                                                    req.day_of_mouth = Some(n);
+                                                                }
+                                                            }
+                                                        }
+
+                                                        "day_of_week" | "wday" => {
+                                                            match opt_par.as_str(){
+                                                                "пн" | "понедельник"  => { req.day_of_week = Some(1);}
+                                                                "вт" | "вторник"  => { req.day_of_week = Some(2);}
+                                                                "ср" | "среда"  => { req.day_of_week = Some(3);}
+                                                                "чт" | "четверг"  => { req.day_of_week = Some(4);}
+                                                                "пт" | "пятница"  => { req.day_of_week = Some(5);}
+                                                                "сб" | "суббота"  => { req.day_of_week = Some(6);}
+                                                                "вс" | "воскресенье"  => { req.day_of_week = Some(7);}
+                                                                x => { if let Ok(n) = x.parse::<u8>(){
+                                                                        if n < 8{
+                                                                            req.day_of_week = Some(n);
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        "hour" | "h" | "hours" => {
+                                                            if let Ok(n) = opt_par.parse::<u8>(){
+                                                                req.hour = Some(n);
+                                                            }
+                                                        }
+                                                        "min" | "minute" | "minutes"=> {
+                                                            if let Ok(n) = opt_par.parse::<u8>(){
+                                                                req.min = Some(n);
+                                                            }
+                                                        }
+                                                        "sec" | "s" | "second" | "seconds"=> {
+                                                            if let Ok(n) = opt_par.parse::<u8>(){
+                                                                req.sec = Some(n);
+                                                            }
+                                                        }
+                                                        _ => {}
+                                                    }
+                                                }
+
+                                                let event_type = EventType::CustomEmbed {
+                                                    server,
+                                                    server_id,
+                                                    room,
+                                                    chanel,
+                                                    embed
+                                                };
+
+                                                EVENT.send(EventChanel::AddEvent {
+                                                    name: event_name,
+                                                    event_type,
+                                                    req,
+                                                });
+                                                EVENT.send(EventChanel::GetList);
+                                                match EVENT.recive(){
+                                                    EventChanelBack::Error =>{
+                                                        let mut embed = EmbedStruct::empty();
+                                                        let field_name = format!("\u{FEFF}");
+                                                        let mut field_text = format!("Unexpected Reciver Error");
+                                                        embed.fields.push((field_name, field_text, false));
+                                                        embed.send(message.channel_id);
+                                                    }
+                                                    EventChanelBack::List(list) =>{
+                                                        let mut embed = EmbedStruct::empty();
+                                                        let field_name = format!("Event List");
+                                                        let mut field_text = format!("```\n");
+                                                        let mut max_len = 0;
+                                                        for (name, _) in list.clone(){
+                                                            if name.len() > max_len{
+                                                                max_len = name.len();
+                                                            }
+                                                        }
+                                                        for (name, tmalt) in list{
+                                                            field_text = format!("{}{}",field_text,name);
+                                                            for _ in 0..(max_len - name.len()){
+                                                                field_text.push(' ');
+                                                            }
+                                                            field_text = format!("{}: {}\n",field_text,tmalt.to_tm().ctime());
+                                                        }
+                                                        field_text = format!("{}```\n",field_text);
+                                                        embed.fields.push((field_name, field_text, false));
+                                                        embed.send(message.channel_id);
+                                                    }
+                                                }
+                                            }
+
+                                        }
+                                        Some(&"recalc") =>{
+                                            match mes_split.get(2){
+                                                Some(name) =>{
+                                                    EVENT.send(EventChanel::RecalcEvent(name.to_string()));
+                                                }
+                                                _ =>{
+
+                                                }
+                                            }
+                                        }
+                                        Some(&"rem") =>{
+                                            match mes_split.get(2){
+                                                Some(name) =>{
+                                                    EVENT.send(EventChanel::RemEvent(name.to_string()));
+                                                    let mut embed = EmbedStruct::empty();
+                                                    let field_name = format!("Удаление эвента");
+                                                    let mut field_text = format!("Эвент `{}` удалён", name);
+                                                    embed.fields.push((field_name, field_text, false));
+                                                    embed.send(message.channel_id);
+                                                }
+                                                _ =>{
+                                                    let mut embed = EmbedStruct::empty();
+                                                    let field_name = format!("Удаление эвента");
+                                                    let mut field_text = format!("Имя не указано");
+                                                    embed.fields.push((field_name, field_text, false));
+                                                    embed.send(message.channel_id);
+                                                }
+                                            }
+                                        }
+                                        _ =>{
+                                            EVENT.send(EventChanel::GetList);
+                                            match EVENT.recive(){
+                                                EventChanelBack::Error =>{
+                                                    let mut embed = EmbedStruct::empty();
+                                                    let field_name = format!("\u{FEFF}");
+                                                    let mut field_text = format!("Unexpected Reciver Error");
+                                                    embed.fields.push((field_name, field_text, false));
+                                                    embed.send(message.channel_id);
+                                                }
+                                                EventChanelBack::List(list) =>{
+                                                    let mut embed = EmbedStruct::empty();
+                                                    let field_name = format!("Event List");
+                                                    let mut field_text = format!("```\n");
+                                                    let mut max_len = 0;
+                                                    for (name, _) in list.clone(){
+                                                        if name.len() > max_len{
+                                                            max_len = name.len();
+                                                        }
+                                                    }
+                                                    for (name, tmalt) in list{
+                                                        field_text = format!("{}{}",field_text,name);
+                                                        for _ in 0..(max_len - name.len()){
+                                                            field_text.push(' ');
+                                                        }
+                                                        println!("{:?}",tmalt.to_tm());
+                                                        field_text = format!("{}: {}\n",field_text,tmalt.to_tm().ctime());
+                                                    }
+                                                    field_text = format!("{}```\n",field_text);
+                                                    embed.fields.push((field_name, field_text, false));
+                                                    embed.send(message.channel_id);
+                                                }
+                                            }
+
+                                        }
+                                    }
+                                }
+
                                 "!test" => {
                                     let mut test_user: User = User::empty();
                                     test_user.did = mes.author.id.0;
@@ -2536,6 +2837,10 @@ fn main() {
                                 }
                                 "!test2" => {
                                     delete_user(mes.author.id);
+                                }
+                                "!test3" =>{
+
+
                                 }
                                 "!ini" =>{
                                     if mes_split.len() > 1{
@@ -2562,30 +2867,6 @@ fn main() {
                                         let _ = DIS.send_message(message.channel_id, "Перезагрузить embed, lfg или chat", "", false);
                                     }
 
-                                }
-                                "!broadcast" => {
-                                    if mes_split.len() > 1{
-                                        match mes_split[1].to_lowercase().as_str(){
-                                            "on" => {
-                                                DB.set_temp(broadcatst_bool,TempData::Bool(true));
-                                                insert("broadcast_toggle",&"true".to_string());
-                                                let _ = DIS.send_message(message.channel_id, "Broadcast Включен", "", false);
-                                            }
-                                            "off" => {
-                                                DB.set_temp(broadcatst_bool,TempData::Bool(false));
-                                                insert("broadcast_toggle",&"false".to_string());
-                                                let _ = DIS.send_message(message.channel_id, "Broadcast Выключен", "", false);
-                                            }
-                                            _ => {
-                                                let string = format!("Broadcast статус: {:?} DB: {}", DB.get_temp(broadcatst_bool).unwrap().is_true(),get_db("broadcast_toggle"));
-                                                let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
-                                            }
-                                        }
-                                    }
-                                    else {
-                                        let string = format!("Broadcast статус: {:?} DB: {}", DB.get_temp(broadcatst_bool).unwrap().is_true(),get_db("broadcast_toggle"));
-                                        let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
-                                    }
                                 }
                                 "!serverlist" => {
                                     let string = format!("==Начало списка==");
@@ -2883,3 +3164,6 @@ fn main() {
         }
     }
 }
+
+
+
