@@ -625,7 +625,7 @@ impl EventData{
         let nex_event_time = time.to_timespec().sec;
         self.next_activ = Some(TmAlt::from(time));
 
-        if get_time().sec > nex_event_time{
+        if get_time().sec < nex_event_time{
             return None;
         }
         else {
