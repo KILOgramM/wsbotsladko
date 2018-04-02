@@ -14,19 +14,27 @@
           "value": "Просмотр статистики\nПоиск тиммейтов\nСписки турниров",
         "inline": true
         },
+
         {
-          "name": "*Список команд* - !wsstats теперь обновляет роль по рейтингу на сервере WinSpirit",
-          "value": "```!wsreg BattleTag#1234 - регистрация для включения всех функций\n!wsstats - вывод статистики(если не вводил wsreg то необходимо указать BattleTag#1234)\n!wscmd - вывод полного списка команд\n!wshelp - вывод помощи и справочной информации```"
+          "name": "*Регулярные RU турниры*",
+          "value": "[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир\n[PR1ME](https://vk.com/pr1mevk) - Турниры от стримеров",
+          "inline": true
         },
         {
-          "name": "*Регулярные турниры*",
-          "value": "[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - площадка для проведения турниров\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - европейский еженедельник с призовыми\n[MeatGrinder](http://winspirit.org/tourneys) - Еженедельник от WinSpirit"
-        },
+                  "name": "*Регулярные EU турниры*",
+                  "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-europe/2018-overwatch-open-division-season-2-europe/5ab2ee6f126cba034a112993/info?infoTab=details) - OpenDivision EU s2 2018\n[Toornament.com](https://www.toornament.com/games/overwatch) - турнирная площадка\n[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - турнирная площадка\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - еженедельник с призовыми",
+                  "inline": true
+                },
         {
           "name": "*Инструментарий*",
-          "value": "1. Совместный просмотр видео с возможностью рисовать - <https://visor.gg>\n2. Общие таблицы для ведения статистики - <https://docs.google.com/>\n3. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n4. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>"
+          "value": "1. Совместный просмотр видео с возможностью рисовать - <https://visor.gg>\n2. Простой совместный просмоторщик видео - <https://andchill.tv>\n3. Общие таблицы для ведения статистики - <https://docs.google.com/>\n4. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n5. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>\n6. Энциклопедия овервотч - <https://overwiki.ru/>"
 
         },
+        {
+                  "name": "*Записи игр | VODS*",
+                  "value": "Первая команда WS  - [100 часов, вид сверху, общение команды](https://www.youtube.com/channel/UCjMqWcQsXAXhI247M7knRYQ/playlists?view_as=subscriber)\nOWL и Contenders - [Официальные записи игр](https://vk.com/videos-39230591)"
+
+                },
         {
           "name": "*На масло и улучшения*",
           "value": "PayPal - https://www.paypal.me/akseliter\nЯндекс кошелек - 41001266249359"
@@ -35,7 +43,11 @@
         {
           "name": "__Важная информация обо мне__",
           "value": "Все списки поиска общие для всех серверов, так что вы можете установить меня к себе на сервер и пользоваться всеми моими плюшками с комфортом для себя =)\n[Ссылка для установки меня к вам на сервер!](https://discordapp.com/api/oauth2/authorize?client_id=291380685392838657&scope=bot&permissions=1)"
-        }
+        },
+        {
+                  "name": "*Список команд* - !wsstats теперь обновляет роль по рейтингу на сервере WinSpirit",
+                  "value": "```!wsreg BattleTag#1234 - регистрация для включения всех функций\n!wsstats - вывод статистики(если не вводил wsreg то необходимо указать BattleTag#1234)\n!wscmd - вывод полного списка команд\n!wshelp - вывод помощи и справочной информации```"
+                }
       ]
 
     }
