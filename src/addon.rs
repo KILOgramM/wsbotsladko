@@ -1,5 +1,5 @@
 
-extern crate time;
+use extime::get_time;
 
 #[macro_use]
 use serde_json;
@@ -32,6 +32,9 @@ use std::fmt::Debug;
 use regex::Regex;
 use std::thread;
 use mysql;
+
+
+
 
 lazy_static!{
     pub static ref DB: Global = Global::new();
@@ -80,13 +83,53 @@ impl Global{
             }
             Ok(mut stmt) => {
                 for row in stmt.execute(()).unwrap() {
-                    let (did, string) = from_row::<(u64, String)>(row.unwrap());
-                    match serde_json::from_str(string.as_str()){
-                        Ok(ls) => {l.push(ls);}
-                        Err(e) => {
-                            println!("DB>ini>LFG>serde Error on [{}]: {:?}", did, e);
+                    let (did, mut string) = from_row::<(u64, String)>(row.unwrap());
+
+                    let v: Value = serde_json::from_str(string.as_str()).unwrap();
+
+                    match v.get("time") {
+                        Some(_) => {
+                            match serde_json::from_str(string.as_str()){
+                                Ok(ls) => {
+                                    l.push(ls);
+                                }
+                                Err(e) => {
+                                    println!("DB>ini>LFG>serde Error on [{}]: {:?}", did, e);
+                                }
+                            }
+                        }
+                        None => {
+                            let time:i64 = get_time().sec-172800;
+                            let lfg = LFG{
+                                did: v.get("did").unwrap().as_u64().unwrap(),
+                                btag: v.get("btag").unwrap().as_str().unwrap().to_string(),
+                                reg: v.get("reg").unwrap().as_str().unwrap().to_string(),
+                                plat: v.get("plat").unwrap().as_str().unwrap().to_string(),
+                                rating: v.get("rating").unwrap().as_u64().unwrap() as u16,
+                                description: v.get("description").unwrap().as_str().unwrap().to_string(),
+                                time,
+                            };
+                            let json = serde_json::to_string(&lfg).unwrap();
+                            let mut call = format!("INSERT INTO lfg (");
+
+                            call = format!("{} did", call);
+                            call = format!("{}, data", call);
+
+                            call = format!("{}) VALUES (", call);
+
+                            call = format!("{} {}", call, lfg.did);
+                            call = format!("{}, '{}'", call, json.clone());
+
+                            call = format!("{}) ON DUPLICATE KEY UPDATE", call);
+                            call = format!("{} data='{}'", call, json);
+                            let mut conn = POOL.get_conn().unwrap();
+                            if let Err(e) = conn.query(call){
+                                println!("ini_lfg>lfg_edit Err: {}", e);
+                            }
+                            l.push(lfg);
                         }
                     }
+
                 }
             }
         }
@@ -626,6 +669,7 @@ pub struct LFG{
     plat: String,
     rating: u16,
     description: String,
+    pub time: i64,
 }
 impl LFG{
     pub fn def_table(debug: bool, chanel: ChannelId) -> Vec<(String, String,bool)>{
@@ -996,6 +1040,7 @@ fn lfg_none(mes: Message){
                     plat,
                     reg,
                     description: des,
+                    time: get_time().sec,
                 };
 
                 lfg_add(lfg.clone());
