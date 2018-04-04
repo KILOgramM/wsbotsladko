@@ -2727,44 +2727,24 @@ fn main() {
                                                     event_type,
                                                     req,
                                                 });
-                                                EVENT.send(EventChanel::GetList);
-                                                match EVENT.recive(){
-                                                    EventChanelBack::Error =>{
-                                                        let mut embed = EmbedStruct::empty();
-                                                        let field_name = format!("\u{FEFF}");
-                                                        let mut field_text = format!("Unexpected Reciver Error");
-                                                        embed.fields.push((field_name, field_text, false));
-                                                        embed.send(message.channel_id);
-                                                    }
-                                                    EventChanelBack::List(list) =>{
-                                                        let mut embed = EmbedStruct::empty();
-                                                        let field_name = format!("Event List");
-                                                        let mut field_text = format!("```\n");
-                                                        let mut max_len = 0;
-                                                        for (name, _) in list.clone(){
-                                                            if name.len() > max_len{
-                                                                max_len = name.len();
-                                                            }
-                                                        }
-                                                        for (name, tmalt) in list{
-                                                            field_text = format!("{}{}",field_text,name);
-                                                            for _ in 0..(max_len - name.len()){
-                                                                field_text.push(' ');
-                                                            }
-                                                            field_text = format!("{}: {}\n",field_text,tmalt.to_tm().ctime());
-                                                        }
-                                                        field_text = format!("{}```\n",field_text);
-                                                        embed.fields.push((field_name, field_text, false));
-                                                        embed.send(message.channel_id);
-                                                    }
-                                                }
+
                                             }
 
                                         }
-                                        Some(&"recalc") =>{
+                                        Some(&"retime") =>{
                                             match mes_split.get(2){
                                                 Some(name) =>{
-                                                    EVENT.send(EventChanel::RecalcEvent(name.to_string()));
+                                                    EVENT.send(EventChanel::RecalcEventTime(name.to_string()));
+                                                }
+                                                _ =>{
+
+                                                }
+                                            }
+                                        }
+                                        Some(&"rechan") =>{
+                                            match mes_split.get(2){
+                                                Some(name) =>{
+                                                    EVENT.send(EventChanel::RecalcEventChanel(name.to_string()));
                                                 }
                                                 _ =>{
 
@@ -2791,39 +2771,41 @@ fn main() {
                                             }
                                         }
                                         _ =>{
-                                            EVENT.send(EventChanel::GetList);
-                                            match EVENT.recive(){
-                                                EventChanelBack::Error =>{
-                                                    let mut embed = EmbedStruct::empty();
-                                                    let field_name = format!("\u{FEFF}");
-                                                    let mut field_text = format!("Unexpected Reciver Error");
-                                                    embed.fields.push((field_name, field_text, false));
-                                                    embed.send(message.channel_id);
-                                                }
-                                                EventChanelBack::List(list) =>{
-                                                    let mut embed = EmbedStruct::empty();
-                                                    let field_name = format!("Event List");
-                                                    let mut field_text = format!("```\n");
-                                                    let mut max_len = 0;
-                                                    for (name, _) in list.clone(){
-                                                        if name.len() > max_len{
-                                                            max_len = name.len();
-                                                        }
-                                                    }
-                                                    for (name, tmalt) in list{
-                                                        field_text = format!("{}{}",field_text,name);
-                                                        for _ in 0..(max_len - name.len()){
-                                                            field_text.push(' ');
-                                                        }
-                                                        println!("{:?}",tmalt.to_tm());
-                                                        field_text = format!("{}: {}\n",field_text,tmalt.to_tm().ctime());
-                                                    }
-                                                    field_text = format!("{}```\n",field_text);
-                                                    embed.fields.push((field_name, field_text, false));
-                                                    embed.send(message.channel_id);
+
+
+                                        }
+                                    }
+
+                                    EVENT.send(EventChanel::GetList);
+                                    match EVENT.recive(){
+                                        EventChanelBack::Error =>{
+                                            let mut embed = EmbedStruct::empty();
+                                            let field_name = format!("\u{FEFF}");
+                                            let mut field_text = format!("Unexpected Reciver Error");
+                                            embed.fields.push((field_name, field_text, false));
+                                            embed.send(message.channel_id);
+                                        }
+                                        EventChanelBack::List(list) =>{
+                                            let mut embed = EmbedStruct::empty();
+                                            let field_name = format!("Event List");
+                                            let mut field_text = format!("```\n");
+                                            let mut max_len = 0;
+                                            for (name, _) in list.clone(){
+                                                if name.len() > max_len{
+                                                    max_len = name.len();
                                                 }
                                             }
-
+                                            for (name, tmalt) in list{
+                                                field_text = format!("{}{}",field_text,name);
+                                                for _ in 0..(max_len - name.len()){
+                                                    field_text.push(' ');
+                                                }
+                                                //println!("{:?}",tmalt.to_tm());
+                                                field_text = format!("{}: {}\n",field_text,tmalt.to_tm().ctime());
+                                            }
+                                            field_text = format!("{}```\n",field_text);
+                                            embed.fields.push((field_name, field_text, false));
+                                            embed.send(message.channel_id);
                                         }
                                     }
                                 }
