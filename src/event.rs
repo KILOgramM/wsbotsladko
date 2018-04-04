@@ -92,7 +92,8 @@ pub enum EventChanel {
         event_type: EventType,
         req: EventReq,
     },
-    RecalcEvent(String),
+    RecalcEventTime(String),
+    RecalcEventChanel(String),
     RemEvent(String),
     Check,
     GetList,
@@ -233,7 +234,7 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
                         if let Err(e) = conn.query(call){
                             println!("Event>Add MySQL Err: {}", e);
                         }
-
+                        let _ = list.remove(&name);
                         let _ = list.insert(name.clone(), eventdata);
                     }
 
@@ -251,7 +252,13 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
                         println!("Event>Check done");
                     }
 
-                    EventChanel::RecalcEvent(name) =>{
+                    EventChanel::RecalcEventTime(name) =>{
+                        if let Some(ref mut event) = list.get_mut(&name){
+                            event.calc_next();
+                        }
+                    }
+
+                    EventChanel::RecalcEventChanel(name) =>{
                         if let Some(ref mut event) = list.get_mut(&name){
                             event.calc_chanel_id();
                         }
@@ -294,7 +301,7 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
 
         for (key, event) in list.iter_mut(){
             if let Some(next) = event.next_activ.clone(){
-                if next.to_timespec() <= cur_time{
+                if next.to_timespec().sec <= cur_time.sec{
                     if let Some(name) = event.start(){
                         remove_list.push(name);
                     }
@@ -346,7 +353,13 @@ impl EventData{
     }
 
     fn start(&mut self) -> Option<String>{
-        println!("Start Event {}", &self.name);
+        println!("-----------");
+        println!("Start Event: {}", self.name);
+        println!("-         -");
+        println!("Plan time: {}", extime::now().ctime());
+        self.next_activ.as_ref().map(|n| println!("Start time: {}", n.to_tm().ctime()));
+        println!("Info: {:?}", &self.event_type);
+        println!("-----------");
         let event_type = self.event_type.clone();
         let name = self.name.clone();
         let _ = thread::spawn(move || match_func(name, event_type));
@@ -395,50 +408,56 @@ impl EventData{
                 if self.req.once {
                     return Some(self.name.clone());
                 }
-                let mut new = last.to_tm();
-                if let Some(_) = self.req.sec{
-                    new = new.add(Duration::seconds(1));
+
+                if get_time().sec < last.sec{
+                    now_utc()
                 }
-                    else if let Some(_) = self.req.min {
-                        new = new.add(Duration::seconds((60 - new.tm_sec) as i64));
+                else {
+                    let mut new = last.to_tm().to_utc();
+                    if let Some(_) = self.req.sec{
+                        new = new.add(Duration::seconds(1));
                     }
-                        else if let Some(_) = self.req.hour {
-                            new = new.add(Duration::minutes((60 - new.tm_min) as i64));
+                        else if let Some(_) = self.req.min {
                             new = new.add(Duration::seconds((60 - new.tm_sec) as i64));
                         }
-                            else {
-                                match (self.req.day_of_mouth, self.req.day_of_week) {
-                                    (None,None) =>{
-                                        if let Some(_) = self.req.month{
-                                            let cur_month = new.tm_mon;
-                                            new = new.add(Duration::seconds(60 - new.tm_sec as i64));
-                                            new = new.add(Duration::minutes(60 - new.tm_min as i64));
-                                            new = new.add(Duration::hours(24 - new.tm_hour as i64));
-                                            if new.tm_mon == cur_month{
-                                                let day_duration = Duration::days(1);
-                                                loop{
-                                                    new = new.add(day_duration);
-                                                    if new.tm_mon != cur_month{
-                                                        break;
+                            else if let Some(_) = self.req.hour {
+                                new = new.add(Duration::minutes((60 - new.tm_min) as i64));
+                                new = new.add(Duration::seconds((60 - new.tm_sec) as i64));
+                            }
+                                else {
+                                    match (self.req.day_of_mouth, self.req.day_of_week) {
+                                        (None,None) =>{
+                                            if let Some(_) = self.req.month{
+                                                let cur_month = new.tm_mon;
+                                                new = new.add(Duration::seconds(60 - new.tm_sec as i64));
+                                                new = new.add(Duration::minutes(60 - new.tm_min as i64));
+                                                new = new.add(Duration::hours(24 - new.tm_hour as i64));
+                                                if new.tm_mon == cur_month{
+                                                    let day_duration = Duration::days(1);
+                                                    loop{
+                                                        new = new.add(day_duration);
+                                                        if new.tm_mon != cur_month{
+                                                            break;
+                                                        }
                                                     }
                                                 }
                                             }
+                                                else if let Some(_) = self.req.year {
+                                                    new = new.add(Duration::seconds(60 - new.tm_sec as i64));
+                                                    new = new.add(Duration::minutes(60 - new.tm_min as i64));
+                                                    new = new.add(Duration::hours(24 - new.tm_hour as i64));
+                                                    new = new.add(Duration::days(365 - new.tm_yday as i64));
+                                                }
                                         }
-                                        else if let Some(_) = self.req.year {
-                                            new = new.add(Duration::seconds(60 - new.tm_sec as i64));
-                                            new = new.add(Duration::minutes(60 - new.tm_min as i64));
+                                        _ =>{
                                             new = new.add(Duration::hours(24 - new.tm_hour as i64));
-                                            new = new.add(Duration::days(365 - new.tm_yday as i64));
+                                            new = new.add(Duration::minutes(60 - new.tm_min as i64));
+                                            new = new.add(Duration::seconds(60 - new.tm_sec as i64));
                                         }
-                                    }
-                                    _ =>{
-                                        new = new.add(Duration::hours(24 - new.tm_hour as i64));
-                                        new = new.add(Duration::minutes(60 - new.tm_min as i64));
-                                        new = new.add(Duration::seconds(60 - new.tm_sec as i64));
                                     }
                                 }
-                            }
-                new
+                    new
+                }
             }
             None => {
                 now_utc()
@@ -632,6 +651,23 @@ impl EventData{
         self.next_activ = Some(TmAlt::from(time));
 
         if get_time().sec < nex_event_time{
+            let json = serde_json::to_string(&self).unwrap();
+            let mut call = format!("INSERT INTO events (");
+
+            call = format!("{} name", call);
+            call = format!("{}, data", call);
+
+            call = format!("{}) VALUES (", call);
+
+            call = format!("{} '{}'", call, self.name);
+            call = format!("{}, '{}'", call, json.clone());
+
+            call = format!("{}) ON DUPLICATE KEY UPDATE", call);
+            call = format!("{} data='{}'", call, json);
+            let mut conn = POOL.get_conn().unwrap();
+            if let Err(e) = conn.query(call){
+                println!("Event>Add MySQL Err: {}", e);
+            }
             return None;
         }
         else {
