@@ -16,8 +16,8 @@
         },
 
         {
-          "name": "*Регулярные RU турниры*",
-          "value": "[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир\n[PR1ME](https://vk.com/pr1mevk) - Турниры от стримеров",
+          "name": "*Регулярные RU турниры и события*",
+          "value": "[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир\n[PR1ME](https://vk.com/pr1mevk) - Турниры от стримеров"\n[МИКСЫ](https://discord.gg/rDjtM59) - пон, сред, пятн. 20-00 МСК",
           "inline": true
         },
         {
