@@ -17,7 +17,7 @@
 
         {
           "name": "*Регулярные RU турниры и события*",
-          "value": "[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир\n[PR1ME](https://vk.com/pr1mevk) - Турниры от стримеров"\n[МИКСЫ](https://discord.gg/rDjtM59) - пон, сред, пятн. 20-00 МСК",
+          "value": "[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир\n[PR1ME](https://vk.com/pr1mevk) - Турниры от стримеров\n[МИКСЫ](https://discord.gg/rDjtM59) - пон, сред, пятн. 20-00 МСК\n[ЛФГ сайт](http://oversearch.ru) - много игроков, гибкий фильтр",
           "inline": true
         },
         {
@@ -203,8 +203,7 @@
 {
   "embed": {
    "color": 37595,
-    "description": "На все турниры в списке открыта регистрация\n====================================",
-    "timestamp": "2017-10-16T23:36:52.898Z",
+    "description": "На все турниры в списке свободная регистрация\n====================================",
     "footer": {
       "text": "WinSpirit™"
     },
@@ -219,16 +218,20 @@
       },
     "fields": [
       {
-        "name": "# Open Division",
+        "name": "EU # Open Division",
         "value": "Открытый турнир от Blizzard\n[подробнее...](https://battlefy.com/overwatch-open-division-europe)"
       },
-      {
-         "name": "# Meatgrinder",
-        "value": "Еженедельник от WinSpirit\n[подробнее...](http://winspirit.org/tourneys)"
+            {
+        "name": "EU # ESL Go4Overwatch",
+        "value": "Еженедельный европейский турнир с сильным соперниками и небольшим призовым\n[подробнее...](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe)"
       },
       {
-        "name": "# ESL Go4Overwatch",
-        "value": "Еженедельный европейский турнир с сильным соперниками и небольшим призовым\n[подробнее...](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe)"
+         "name": "RU # Meatgrinder",
+        "value": "Еженедельник от WinSpirit\nскоро..."
+      },
+      {
+         "name": "RU # Cup of Dreamers",
+        "value": "Регулярный турнир от AlexanDream. 2 раза в год. Хороший призовой.\n[подробнее...](https://vk.com/cupofdreamers)"
       }
     ]
   }
@@ -276,6 +279,25 @@
       {
         "name": "*Краткий список команд*",
         "value": "!wscmd - полный и подробный список команд.\n!wsreg - внесение данных в БД для доступа к полному функционалу\n!wsstats - запрос статистики текущего соревновательного сезона"
+      }
+    ]
+  }
+}
+*[mixruow]* Помощь
+{
+  "embed": {
+   "color": 37595,
+   "image": {
+      "url": "https://pp.userapi.com/c834102/v834102304/111107/JiPUknsa2VA.jpg"
+
+    },
+    "author": {
+      "name": "Начались миксы на RU overwatch"
+      },
+    "fields": [
+      {
+        "name": "Каждый понедельник, среду и пятницу в 20-00 по МСК",
+        "value": "Собирается народ, создаёт лобби и набирают 2 команды из пришедших игроков. И катают.\n[Присоединиться](https://battlefy.com/overwatch-open-division-europe)"
       }
     ]
   }
