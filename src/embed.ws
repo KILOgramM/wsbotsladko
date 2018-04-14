@@ -283,7 +283,7 @@
     ]
   }
 }
-*[mixruow]* Помощь
+*[mixruow]* миксы
 {
   "embed": {
    "color": 37595,
