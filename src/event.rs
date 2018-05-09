@@ -1,6 +1,6 @@
 use WSSERVER;
 use embed_from_value;
-use {DIS, POOL, EVENT};
+use {POOL, EVENT, User, load_btag_data, HeroInfoReq};
 use mysql::from_row;
 use mysql;
 use std::thread;
@@ -13,13 +13,12 @@ use extime;
 use std::sync::Mutex;
 
 use addon::DB;
-use discord::model::ServerId;
-use discord::model::ChannelId;
 use std::ops::Sub;
 use std::ops::Add;
 
 use indexmap::map::IndexMap;
 use serde_json;
+use disapi::Discord;
 
 pub struct EventH{
     sender: Mutex<Sender<EventChanel>>,
@@ -72,7 +71,7 @@ impl EventH{
                         }
                         _ => {return EventChanelBack::Error;}
                     }
-                    break;
+
                 }
                 _=>{}
             }
@@ -90,7 +89,7 @@ pub enum EventChanel {
     AddEvent{
         name: String,
         event_type: EventType,
-        req: EventReq,
+        req: Vec<EventReq>,
     },
     RecalcEventTime(String),
     RecalcEventChanel(String),
@@ -109,6 +108,7 @@ pub enum EventType{
         embed: String,
     },
     LFGCleaning,
+    RatingUpdate,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -136,7 +136,20 @@ impl EventReq{
             once: false
         }
     }
+
+    pub fn eq_alt(&self, other: &EventReq) -> bool {
+        if !self.sec.eq(&other.sec){return false;}
+        if !self.min.eq(&other.min){return false;}
+        if !self.hour.eq(&other.hour){return false;}
+        if !self.day_of_week.eq(&other.day_of_week){return false;}
+        if !self.day_of_mouth.eq(&other.day_of_mouth){return false;}
+        if !self.month.eq(&other.month){return false;}
+        if !self.year.eq(&other.year){return false;}
+        if !self.once.eq(&other.once){return false;}
+        return true;
+    }
 }
+
 
 fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
     use std::collections::hash_map::RandomState;
@@ -181,17 +194,25 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
         }
     }
     let mut lfg_clean_found = false;
+    let mut rating_update = false;
+
     for (key , event) in list.iter(){
         match event.event_type {
             EventType::LFGCleaning =>{
-                lfg_clean_found =true;
-                break;
+                lfg_clean_found = true;
+            }
+            EventType::RatingUpdate =>{
+                rating_update = true;
             }
             _ => {
                 continue;
             }
         }
+        if lfg_clean_found && rating_update{
+            break;
+        }
     }
+
     if !lfg_clean_found {
         let mut req = EventReq::empty();
         let name = "LFGCleaner".to_string();
@@ -200,7 +221,21 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
         EVENT.send(EventChanel::AddEvent {
             name,
             event_type: EventType::LFGCleaning,
-            req,
+            req: vec![req],
+        });
+
+    }
+
+    if !rating_update {
+        let mut req = EventReq::empty();
+        let name = "RatingUpdate".to_string();
+        req.hour = Some(3);
+        req.min = Some(45);
+        req.day_of_week = Some(3);
+        EVENT.send(EventChanel::AddEvent {
+            name,
+            event_type: EventType::RatingUpdate,
+            req: vec![req],
         });
 
     }
@@ -333,11 +368,11 @@ struct EventData{
     last_activ: Option<TmAlt>,
     next_activ: Option<TmAlt>,
     event_type: EventType,
-    req: EventReq,
+    req: Vec<EventReq>,
 }
 impl EventData{
 
-    fn create(name: String,event_type: EventType, req: EventReq) ->EventData{
+    fn create(name: String,event_type: EventType, req: Vec<EventReq>) ->EventData{
 
         let mut data = EventData{
             name,
@@ -353,27 +388,37 @@ impl EventData{
     }
 
     fn start(&mut self) -> Option<String>{
-        println!("-----------");
-        println!("Start Event: {}", self.name);
-        println!("-         -");
-        println!("Plan time: {}", extime::now().ctime());
-        self.next_activ.as_ref().map(|n| println!("Start time: {}", n.to_tm().ctime()));
-        println!("Info: {:?}", &self.event_type);
-        println!("-----------");
+
+        let mut output = format!("-----------");
+        output = format!("{}\nStart Event: {}",output, self.name);
+        output = format!("{}\n-         -",output);
+        output = format!("{}\nPlan time: {}",output, extime::now().ctime());
+
+        if let Some(ref next) = self.next_activ{
+            output = format!("{}\nStart time: {}",output, next.to_tm().ctime())
+        }
+
+//        self.next_activ.as_ref().map(|n| println!("Start time: {}", n.to_tm().ctime()));
+
+
         let event_type = self.event_type.clone();
         let name = self.name.clone();
         let _ = thread::spawn(move || match_func(name, event_type));
 
-        if self.req.once{
-            return Some(self.name.clone());
-        }
-        else {
-            if let Some(name) = self.calc_next(){
-                return Some(name);
-            }
-            return None;
-        }
 
+        if let Some(name) = self.calc_next(){
+            output = format!("{}\nInfo: {:?}",output, &self.event_type);
+            output = format!("{}\n-----------",output);
+            println!("{}",output);
+            return Some(name);
+        }
+        if let Some(ref next) = self.next_activ{
+            output = format!("{}\nNext time: {}",output, next.to_tm().ctime())
+        }
+        output = format!("{}\nInfo: {:?}",output, &self.event_type);
+        output = format!("{}\n-----------",output);
+        println!("{}",output);
+        return None;
     }
 
     fn calc_chanel_id(&mut self){
@@ -403,254 +448,250 @@ impl EventData{
             self.last_activ = Some(next.clone());
         }
 
-        let mut time = match self.last_activ {
-            Some(ref last) => {
-                if self.req.once {
-                    return Some(self.name.clone());
-                }
+        let mut time_list:Vec<(TmAlt,bool,usize)> = Vec::new();
 
-                if get_time().sec < last.sec{
-                    now_utc()
-                }
-                else {
-                    let mut new = last.to_tm().to_utc();
-                    if let Some(_) = self.req.sec{
-                        new = new.add(Duration::seconds(1));
-                    }
-                        else if let Some(_) = self.req.min {
+        for (req_num, req) in self.req.iter().enumerate() {
+            let mut time = match self.last_activ {
+                Some(ref last) => {
+                    if get_time().sec < last.sec {
+                        now_utc()
+                    } else {
+                        let mut new = last.to_tm().to_utc();
+                        if let Some(_) = req.sec {
+                            new = new.add(Duration::seconds(1));
+                        } else if let Some(_) = req.min {
                             new = new.add(Duration::seconds((60 - new.tm_sec) as i64));
-                        }
-                            else if let Some(_) = self.req.hour {
-                                new = new.add(Duration::minutes((60 - new.tm_min) as i64));
-                                new = new.add(Duration::seconds((60 - new.tm_sec) as i64));
-                            }
-                                else {
-                                    match (self.req.day_of_mouth, self.req.day_of_week) {
-                                        (None,None) =>{
-                                            if let Some(_) = self.req.month{
-                                                let cur_month = new.tm_mon;
-                                                new = new.add(Duration::seconds(60 - new.tm_sec as i64));
-                                                new = new.add(Duration::minutes(60 - new.tm_min as i64));
-                                                new = new.add(Duration::hours(24 - new.tm_hour as i64));
-                                                if new.tm_mon == cur_month{
-                                                    let day_duration = Duration::days(1);
-                                                    loop{
-                                                        new = new.add(day_duration);
-                                                        if new.tm_mon != cur_month{
-                                                            break;
-                                                        }
-                                                    }
+                        } else if let Some(_) = req.hour {
+                            new = new.add(Duration::minutes((60 - new.tm_min) as i64));
+                            new = new.add(Duration::seconds((60 - new.tm_sec) as i64));
+                        } else {
+                            match (req.day_of_mouth, req.day_of_week) {
+                                (None, None) => {
+                                    if let Some(_) = req.month {
+                                        let cur_month = new.tm_mon;
+                                        new = new.add(Duration::seconds(60 - new.tm_sec as i64));
+                                        new = new.add(Duration::minutes(60 - new.tm_min as i64));
+                                        new = new.add(Duration::hours(24 - new.tm_hour as i64));
+                                        if new.tm_mon == cur_month {
+                                            let day_duration = Duration::days(1);
+                                            loop {
+                                                new = new.add(day_duration);
+                                                if new.tm_mon != cur_month {
+                                                    break;
                                                 }
                                             }
-                                                else if let Some(_) = self.req.year {
-                                                    new = new.add(Duration::seconds(60 - new.tm_sec as i64));
-                                                    new = new.add(Duration::minutes(60 - new.tm_min as i64));
-                                                    new = new.add(Duration::hours(24 - new.tm_hour as i64));
-                                                    new = new.add(Duration::days(365 - new.tm_yday as i64));
-                                                }
                                         }
-                                        _ =>{
-                                            new = new.add(Duration::hours(24 - new.tm_hour as i64));
-                                            new = new.add(Duration::minutes(60 - new.tm_min as i64));
-                                            new = new.add(Duration::seconds(60 - new.tm_sec as i64));
-                                        }
+                                    } else if let Some(_) = req.year {
+                                        new = new.add(Duration::seconds(60 - new.tm_sec as i64));
+                                        new = new.add(Duration::minutes(60 - new.tm_min as i64));
+                                        new = new.add(Duration::hours(24 - new.tm_hour as i64));
+                                        new = new.add(Duration::days(365 - new.tm_yday as i64));
                                     }
                                 }
-                    new
-                }
-            }
-            None => {
-                now_utc()
-            }
-        };
-
-
-
-        let mut check = false;
-
-        loop{
-
-            if let Some(year) = self.req.year{
-                let mut year = year;
-                if year >= 1900{
-                    year = year - 1900;
-                }
-                if time.tm_year > year as i32{
-                    return Some(self.name.clone());
-                }
-                if time.tm_year < year as i32{
-                    time = time.add(Duration::seconds(60 - time.tm_sec as i64));
-                    time = time.add(Duration::minutes(60 - time.tm_min as i64));
-                    time = time.add(Duration::hours(24 - time.tm_hour as i64));
-                    time = time.add(Duration::days(365 - time.tm_yday as i64));
-                }
-            }
-            if let Some(month) = self.req.month{
-                if time.tm_mon > month as i32{
-
-                    time = time.add(Duration::seconds(60 - time.tm_sec as i64));
-                    time = time.add(Duration::minutes(60 - time.tm_min as i64));
-                    time = time.add(Duration::hours(24 - time.tm_hour as i64));
-                    time = time.add(Duration::days(365 - time.tm_yday as i64));
-
-                    check = true;
-                }
-                if time.tm_mon < month as i32{
-
-                    time = time.add(Duration::seconds(60 - time.tm_sec as i64));
-                    time = time.add(Duration::minutes(60 - time.tm_min as i64));
-                    time = time.add(Duration::hours(24 - time.tm_hour as i64));
-
-                    if time.tm_mon != month as i32{
-                        let day_duration = Duration::days(1);
-                        loop{
-                            time = time.add(day_duration);
-                            if time.tm_mon == month as i32{
-                                break;
+                                _ => {
+                                    new = new.add(Duration::hours(24 - new.tm_hour as i64));
+                                    new = new.add(Duration::minutes(60 - new.tm_min as i64));
+                                    new = new.add(Duration::seconds(60 - new.tm_sec as i64));
+                                }
                             }
                         }
+                        new
                     }
-                    check = true;
                 }
-            }
+                None => {
+                    now_utc()
+                }
+            };
 
-            match (self.req.day_of_mouth, self.req.day_of_week){
-                (None,None) =>{}
-                (d_m,d_w) =>{
-                    let mut d_m_bool = false;
-                    let mut d_w_bool = false;
 
-                    if let Some(day_month) = d_m{
-                        if time.tm_mday == day_month as i32{
+            let mut check = false;
+
+            loop {
+                if let Some(year) = req.year {
+                    let mut year = year;
+                    if year >= 1900 {
+                        year = year - 1900;
+                    }
+                    if time.tm_year > year as i32 {
+                        return Some(self.name.clone());
+                    }
+                    if time.tm_year < year as i32 {
+                        time = time.add(Duration::seconds(60 - time.tm_sec as i64));
+                        time = time.add(Duration::minutes(60 - time.tm_min as i64));
+                        time = time.add(Duration::hours(24 - time.tm_hour as i64));
+                        time = time.add(Duration::days(365 - time.tm_yday as i64));
+                    }
+                }
+                if let Some(month) = req.month {
+                    if time.tm_mon > month as i32 {
+                        time = time.add(Duration::seconds(60 - time.tm_sec as i64));
+                        time = time.add(Duration::minutes(60 - time.tm_min as i64));
+                        time = time.add(Duration::hours(24 - time.tm_hour as i64));
+                        time = time.add(Duration::days(365 - time.tm_yday as i64));
+
+                        check = true;
+                    }
+                    if time.tm_mon < month as i32 {
+                        time = time.add(Duration::seconds(60 - time.tm_sec as i64));
+                        time = time.add(Duration::minutes(60 - time.tm_min as i64));
+                        time = time.add(Duration::hours(24 - time.tm_hour as i64));
+
+                        if time.tm_mon != month as i32 {
+                            let day_duration = Duration::days(1);
+                            loop {
+                                time = time.add(day_duration);
+                                if time.tm_mon == month as i32 {
+                                    break;
+                                }
+                            }
+                        }
+                        check = true;
+                    }
+                }
+
+                match (req.day_of_mouth, req.day_of_week) {
+                    (None, None) => {}
+                    (d_m, d_w) => {
+                        let mut d_m_bool = false;
+                        let mut d_w_bool = false;
+
+                        if let Some(day_month) = d_m {
+                            if time.tm_mday == day_month as i32 {
+                                d_m_bool = true;
+                            } else {
+                                d_m_bool = false;
+                            }
+                        } else {
                             d_m_bool = true;
                         }
-                        else {
-                            d_m_bool = false;
-                        }
-                    }
-                    else{
-                        d_m_bool = true;
-                    }
 
-                    if let Some(day_week) = d_w{
-                        if time.tm_wday == day_week as i32{
-                            d_w_bool = true;
-                        }
-                            else {
+                        if let Some(day_week) = d_w {
+                            if time.tm_wday == day_week as i32 {
+                                d_w_bool = true;
+                            } else {
                                 d_w_bool = false;
                             }
-                    }
-                        else{
+                        } else {
                             d_w_bool = true;
                         }
 
 
-                    if !d_w_bool || !d_m_bool{
-
-
-
-                        loop{
-
-                            time = time.add(Duration::seconds(60 - time.tm_sec as i64));
-                            time = time.add(Duration::minutes(60 - time.tm_min as i64));
-                            time = time.add(Duration::hours(24 - time.tm_hour as i64));
-                            if let Some(day_month) = d_m{
-                                if time.tm_mday == day_month as i32{
-                                    d_m_bool = true;
-                                }
-                                    else {
+                        if !d_w_bool || !d_m_bool {
+                            loop {
+                                time = time.add(Duration::seconds(60 - time.tm_sec as i64));
+                                time = time.add(Duration::minutes(60 - time.tm_min as i64));
+                                time = time.add(Duration::hours(24 - time.tm_hour as i64));
+                                if let Some(day_month) = d_m {
+                                    if time.tm_mday == day_month as i32 {
+                                        d_m_bool = true;
+                                    } else {
                                         d_m_bool = false;
                                     }
-                            }
-                                else{
+                                } else {
                                     d_m_bool = true;
                                 }
 
-                            if let Some(day_week) = d_w{
-                                if time.tm_wday == day_week as i32{
-                                    d_w_bool = true;
-                                }
-                                    else {
+                                if let Some(day_week) = d_w {
+                                    if time.tm_wday == day_week as i32 {
+                                        d_w_bool = true;
+                                    } else {
                                         d_w_bool = false;
                                     }
-                            }
-                                else{
+                                } else {
                                     d_w_bool = true;
                                 }
-                            if d_w_bool && d_m_bool{
+                                if d_w_bool && d_m_bool {
+                                    break;
+                                }
+                            }
+                            check = true;
+                        }
+                    }
+                }
+
+                if let Some(hour) = req.hour {
+                    let mut hour = hour + 24;
+                    hour = hour - 3;
+                    if hour > 23 { hour = hour - 24; }
+                    if time.tm_hour != hour as i32 {
+                        time = time.add(Duration::seconds(60 - time.tm_sec as i64));
+                        time = time.add(Duration::minutes(60 - time.tm_min as i64));
+
+                        if time.tm_hour != hour as i32 {
+                            let hour_duration = Duration::hours(1);
+                            loop {
+                                time = time.add(hour_duration);
+                                if time.tm_hour == hour as i32 {
+                                    break;
+                                }
+                            }
+                        }
+                        check = true;
+                    }
+                }
+
+                if let Some(min) = req.min {
+                    if time.tm_min != min as i32 {
+                        let mut add_to_min = Duration::seconds(60 - time.tm_sec as i64);
+                        time = time.add(add_to_min);
+                        if time.tm_min != min as i32 {
+                            let min_duration = Duration::minutes(1);
+                            loop {
+                                time = time.add(min_duration);
+                                if time.tm_min == min as i32 {
+                                    break;
+                                }
+                            }
+                        }
+                        check = true;
+                    }
+                }
+
+                if let Some(sec) = req.sec {
+                    if time.tm_sec != sec as i32 {
+                        let sec_duration = Duration::seconds(1);
+                        loop {
+                            time = time.add(sec_duration);
+                            if time.tm_sec == sec as i32 {
                                 break;
                             }
                         }
                         check = true;
                     }
                 }
-            }
 
-            if let Some(hour) = self.req.hour{
-                let mut hour = hour+24;
-                hour = hour-3;
-                if hour>23{hour = hour-24;}
-                if time.tm_hour != hour as i32{
-
-                    time = time.add(Duration::seconds(60 - time.tm_sec as i64));
-                    time = time.add(Duration::minutes(60 - time.tm_min as i64));
-
-                    if time.tm_hour != hour as i32{
-                        let hour_duration = Duration::hours(1);
-                        loop{
-                            time = time.add(hour_duration);
-                            if time.tm_hour == hour as i32{
-                                break;
-                            }
-                        }
-                    }
-                    check = true;
+                if !check { break; } else {
+                    check = false;
                 }
-
             }
+            time_list.push((TmAlt::from(time.to_local()),req.once, req_num));
+        }
+        let mut time_min = match time_list.get(0){
+            Some(t) => {t.clone()}
+            None => {
+                return Some(self.name.clone())
+            }
+        };
+        loop{
+            let mut check = false;
 
-            if let Some(min) = self.req.min{
-                if time.tm_min != min as i32{
-                    let mut add_to_min = Duration::seconds(60 - time.tm_sec as i64);
-                    time = time.add(add_to_min);
-                    if time.tm_min != min as i32{
-                        let min_duration = Duration::minutes(1);
-                        loop{
-                            time = time.add(min_duration);
-                            if time.tm_min == min as i32{
-                                break;
-                            }
-                        }
-                    }
+            for t in time_list.clone(){
+                if time_min.0.sec > t.0.sec{
+                    time_min = t;
                     check = true;
                 }
             }
 
-            if let Some(sec) = self.req.sec{
-                if time.tm_sec != sec as i32{
-                    let sec_duration = Duration::seconds(1);
-                    loop{
-                        time = time.add(sec_duration);
-                        if time.tm_sec == sec as i32{
-                            break;
-                        }
-                    }
-                    check = true;
-                }
-            }
-
-            if !check {break;}
-            else{
-                check = false;
-            }
+            if !check { break; }
         }
 
-        time = time.to_local();
-        let nex_event_time = time.to_timespec().sec;
 
-        self.next_activ = Some(TmAlt::from(time));
+        self.next_activ = Some(time_min.0.clone());
 
-        if get_time().sec < nex_event_time{
+        if get_time().sec < time_min.0.sec{
+            if time_min.1{
+                let _ = self.req.remove(time_min.2);
+            }
             let json = serde_json::to_string(&self).unwrap();
             let mut call = format!("INSERT INTO events (");
 
@@ -670,20 +711,9 @@ impl EventData{
             }
             return None;
         }
-        else {
-            return self.calc_next();
-        }
-
-//        match get_time().sec.cmp(&nex_event_time) {
-//            Ordering::Greater => {
-//                return None;
-//            }
-//
-//            _ => {
-//                return self.calc_next();
-//            }
-//        }
-
+            else {
+                return self.calc_next();
+            }
     }
 }
 
@@ -699,43 +729,44 @@ fn match_func(name: String, event_type: EventType){
             if let Some(v) = DB.get_embed(embed.as_str()){
 
                 if let Some(c) = chanel{
-                    embed_from_value(ChannelId(c),v.clone());
+                    embed_from_value(c,v.clone());
                 }
                     else {
+                        let room_name = json!(room);
 
                         match server_id{
                             Some(id) =>{
-                                if let Ok(chnels) = DIS.get_server_channels(ServerId(id)){
-                                    for c in chnels{
-                                        if c.name == room{
-                                            embed_from_value(c.id,v.clone());
+                                if let Some(ch) = Discord::get_server_channels(id){
+                                    for c in ch.as_array().unwrap(){
+                                        if c["name"].eq(&room_name){
+                                            embed_from_value(c["id"].as_str().unwrap().parse::<u64>().unwrap(),v.clone());
                                             return;
                                         }
                                     }
                                 }
                             }
                             None => {
-                                if let Some(servername) = server{
-                                    match DIS.get_servers() {
-                                        Ok(list) => {
-                                            for serv in list{
-                                                if serv.name == servername{
-                                                    if let Ok(chnels) = DIS.get_server_channels(serv.id){
-                                                        for c in chnels{
-                                                            if c.name == room{
-                                                                embed_from_value(c.id,v.clone());
-                                                                return;
-                                                            }
+                                if let Some(servern) = server{
+                                    let server_name = json!(servern);
+
+                                    if let Some(list) = Discord::get_servers(){
+                                        for server_val in list.as_array().unwrap(){
+                                            if server_name.eq(&server_val["name"]){
+                                                if let Some(ch) = Discord::get_server_channels(server_val["id"].as_str().unwrap().parse::<u64>().unwrap()){
+                                                    for c in ch.as_array().unwrap(){
+                                                        if c["name"].eq(&room_name){
+                                                            embed_from_value(c["id"].as_str().unwrap().parse::<u64>().unwrap(),v.clone());
+                                                            return;
                                                         }
                                                     }
                                                 }
                                             }
+
                                         }
-                                        Err(e) => {println!("get_servers err: {}", e)}
                                     }
                                 }
                                 else {
-                                    println!("Event>no server data in evet: {}", name);
+                                    println!("Event>no server data in event: {}", name);
                                 }
                             }
                         };
@@ -772,7 +803,73 @@ fn match_func(name: String, event_type: EventType){
             }
             println!("LFG Cleaning End");
         }
+
+        EventType::RatingUpdate => {
+            rating_updater();
+        }
     }
+}
+
+fn rating_updater(){
+
+    let begun_time = extime::get_time().sec;
+
+    let hreq = HeroInfoReq{
+        num: 0,
+        rating: true,
+        time_played: false,
+        games_won: false,
+        win_perc: false,
+        aim: false,
+        kills_per_live: false,
+        best_multiple_kills: false,
+        obj_kills: false,
+    };
+
+    let mut conn = POOL.get_conn().unwrap();
+    let command = format!("SELECT did, btag, plat FROM users");
+    let mut stmt = conn.prepare(command).unwrap();
+
+    let mut counter_all = 0;
+    let mut counter_bad_btag = 0;
+    let mut counter_ok = 0;
+
+    for row in stmt.execute(()).unwrap() {
+        counter_all += 1;
+        let mut row = row.unwrap();
+        let did: u64 = row.take("did").unwrap();
+        let btag: String = row.take("btag").unwrap();
+        let plat: String = row.take("plat").unwrap();
+
+        if let Some(data) = load_btag_data(btag,"EU".to_string(),plat,hreq.clone()){
+            let call = format!("UPDATE users SET rtg={} WHERE did={}",
+                               data.rating,  did);
+            let mut conn = POOL.get_conn().unwrap();
+            let _ = conn.query(call);
+            counter_ok += 1;
+        }
+        else {
+            counter_bad_btag += 1;
+        }
+    }
+
+    let mut taken_time = extime::get_time().sec - begun_time;
+    let hours = taken_time/3600;
+    taken_time = taken_time - (hours*3600);
+    let minutes = taken_time/60;
+    taken_time = taken_time - (minutes*60);
+    let sec = taken_time;
+
+    let mut output = format!("-----------");
+    output = format!("{}\nRating Update Done",output);
+    output = format!("{}\n-         -",output);
+    output = format!("{}\nTime: {}:{}:{}",output, hours, minutes, sec);
+    output = format!("{}\nAll users: {}",output, counter_all);
+    output = format!("{}\nSuccess: {}",output, counter_ok);
+    output = format!("{}\nWrong BTag: {}",output, counter_bad_btag);
+    output = format!("{}\n-----------",output);
+    println!("{}",output);
+
 }
 
 fn get_chanel_id(server: Option<String>, serverId: Option<u64>, chanel: String) -> Option<u64>{
@@ -784,41 +881,38 @@ fn get_chanel_id(server: Option<String>, serverId: Option<u64>, chanel: String) 
         err_str = format!("{}   Srever Id: {}\n",err_str,servid);
     }
     err_str = format!("{}   Room: {}]\n> ",err_str,chanel);
+    let chanel_name = json!(chanel);
 
     if let Some(servid) = serverId{
-        if let Ok(chnels) = DIS.get_server_channels(ServerId(servid)){
-            for c in chnels{
-                if c.name == chanel{
-                    return Some(c.id.0);
+        if let Some(ch) = Discord::get_server_channels(servid){
+            for c in ch.as_array().unwrap(){
+                if c["name"].eq(&chanel_name){
+                    return Some(c["id"].as_str().unwrap().parse::<u64>().unwrap());
                 }
             }
         }
         println!("{}room not found (by server Id)",err_str);
-
     }
 
     if let Some(servername) = server{
-        match DIS.get_servers() {
-            Ok(list) => {
-                for serv in list{
-                    if serv.name == servername {
-                        if let Ok(chnels) = DIS.get_server_channels(serv.id){
-                            for c in chnels{
-                                if c.name == chanel{
-                                    return Some(c.id.0);
-                                }
+        let server_name = json!(servername);
+
+        if let Some(list) = Discord::get_servers(){
+            for server_val in list.as_array().unwrap(){
+                if server_name.eq(&server_val["name"]){
+                    if let Some(ch) = Discord::get_server_channels(server_val["id"].as_str().unwrap().parse::<u64>().unwrap()){
+                        for c in ch.as_array().unwrap(){
+                            if c["name"].eq(&chanel_name){
+                                return Some(c["id"].as_str().unwrap().parse::<u64>().unwrap());
                             }
                         }
-                        println!("{}room not found (by server name)",err_str);
-                        return None;
                     }
+                    println!("{}room not found (by server name)",err_str);
+                    return None;
                 }
                 println!("{}server not found",err_str);
                 return None;
             }
-            Err(e) => {
-                println!("{}get_servers err: {}",err_str, e);
-                return None;}
         }
     }
     return None;

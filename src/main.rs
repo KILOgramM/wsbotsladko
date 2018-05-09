@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate lazy_static;
-extern crate discord;
+
 extern crate regex;
 extern crate reqwest;
 //extern crate rusqlite;
@@ -11,20 +11,14 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 
-extern crate hyper; //Используется в net
-extern crate tokio_core; //Используется в net
-extern crate hyper_tls; //Используется в net
-extern crate native_tls; //Используется в net
-extern crate futures;
-
 extern crate indexmap;
+
+extern crate native_tls;
+extern crate websocket;
 
 extern crate time as extime;
 //https://discordapp.com/api/oauth2/authorize?client_id=316281967375024138&scope=bot&permissions=0
-use discord::{Discord, ChannelRef, State};
-use discord::model::Event;
-use discord::builders::EmbedBuilder;
-use discord::model::ServerId;
+
 use regex::Regex;
 use std::io::Read;
 use std::io::Write;
@@ -35,12 +29,27 @@ use std::ops::Index;
 //use rusqlite::Connection;
 
 pub mod addon;
-pub mod net;
+//pub mod net;
 //pub mod tournaments;
 pub mod event;
+
+pub mod denum;
+pub mod dstruct;
+pub mod dis;
+pub mod disapi;
+
+use disapi::Discord;
+use dstruct::DCShell;
+use denum::Event;
+use denum::OutLink;
+use dstruct::{DMessage,DUser};
+
 use event::{EventChanel, EventH, EventReq, EventChanelBack, EventType};
-use addon::{DB, Chat, lfg, Stage_LFG, Global, TempData};
-use net::Net;
+use addon::{DB, Chat, lfg_none, Stage_LFG, Global, TempData};
+use dstruct::{DiscordMain};
+use serde_json::Value;
+
+//use net::Net;
 
 use std::{thread, time, fmt};
 
@@ -52,13 +61,15 @@ use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 
 lazy_static! {
-    pub static ref DIS: discord::Discord = Discord::from_bot_token(load_settings().as_str()).expect("login failed");
+
     pub static ref POOL: mysql::conn::pool::Pool = mysql::Pool::new(build_opts()).unwrap();
     pub static ref REG_BTAG: Regex = Regex::new(r"^.{2,16}#[0-9]{2,6}$").expect("Regex btag error");
     static ref REG_TIME: Regex = Regex::new(r"(?P<n>\d){1,4} ?(?i)(?P<ntype>m|min|h|hour)").expect("Regex btag error");
-    static ref STATE: RwLock<Option<State>> = RwLock::new(None);
+
     static ref START_TIME: extime::Tm = extime::now();
     static ref EVENT: EventH = EventH::create();
+
+    pub static ref D: DiscordMain = DiscordMain::new(load_settings());
 }
 pub static WSSERVER: u64 = 351798277756420098; //ws = 351798277756420098 //bs = 316394947513155598
 static SWITCH_NET: AtomicBool = ATOMIC_BOOL_INIT;
@@ -74,12 +85,12 @@ struct Preset_Scrim {
 
 impl Preset_Scrim {
     fn new() -> Preset_Scrim {
-        Preset_Scrim {
-            plat: String::new(),
-            live_time: 0,
+	    Preset_Scrim {
+		    plat: String::new(),
+		    live_time: 0,
             btag: String::new(),
-            rtg: 6000,
-        }
+		    rtg: 6000,
+	    }
     }
 }
 
@@ -364,7 +375,7 @@ impl BtagData{
    }
 }
 
-#[derive(Default,Debug)]
+#[derive(Default,Debug,Clone)]
 pub struct HeroInfoReq{
     num: i16,
     rating: bool,
@@ -418,9 +429,13 @@ impl HeroStats{
     }
 }
 
-fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> Option<BtagData> //Проверка существование профил и подгрузка рейтинга при наличее
+pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> Option<BtagData> //Проверка существования профиля и подгрузка рейтинга при наличии
 {
     use std::time::SystemTime;
+
+    if btag.is_empty() || plat.is_empty(){
+        return None;
+    }
 
     let sys_time_old = SystemTime::now();
 
@@ -435,66 +450,32 @@ fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> O
 
     let mut result = None;
     let mut url = String::new();
-    if use_new_net{
-
-        let mut retry_count = 0;
-        let retry_max = 3;
-
+//        url = format!("https://playoverwatch.com/en-us/career/{}/{}/{}", plat.to_lowercase(), reg.to_lowercase(), btag.replace("#", "-"));
         url = format!("https://playoverwatch.com/en-us/career/{}/{}", plat.to_lowercase(), btag.replace("#", "-"));
-        //https://playoverwatch.com/en-us/career/pc/{btag}
-
-        loop{
-            match Net::get(url.clone()){
-                Ok((hyper::StatusCode::Ok, body)) => {
-                    result = Some(body);
-                    break;
-                }
-                Ok((x,_)) => {
-                    println!("Not so Ok code: {}\n", x);
-                    break;
-                }
-                Err(e) => {
-                    match e {
-                        net::NetError::ParceLink(_) => {
-                            println!("{}", e);
-                            break;
-                        }
-                        _ => {
-                            if retry_count < retry_max{
-                                retry_count += 1;
-                                println!("{}\nConnection retry {}", e.get_des(), retry_count);
-                                continue;
-                            }
-                                else{
-                                    println!("{}", e);
-                                    break;
-                                }
-                        }
-                    }
-                }
-            }
-        }//loop end
-
-    }
-    else {
-        url = format!("https://playoverwatch.com/en-us/career/{}/{}/{}", plat.to_lowercase(), reg.to_lowercase(), btag.replace("#", "-"));
-
 
         match reqwest::get(&url){
             Ok(mut resp) => {
-                let mut content = String::new();
-                if let Err(e) = resp.read_to_string(&mut content){
-                    println!("[load_btag_data] Error while reading body:\n{}", e);
+
+                match resp.text(){
+                    Ok(text) =>{result = Some(text);}
+                    Err(e) => {
+                        println!("[load_btag_data] Error while take body:\n{}", e);
+
+                    }
                 }
-                else {
-                    result = Some(content);
-                }
+//                let mut content = String::new();
+//                if let Err(e) = resp.read_to_string(&mut content){
+//                    println!("[load_btag_data] Error while reading body:\n{}", e);
+//                }
+//                else {
+//                    result = Some(content);
+//                }
             }
             Err(e) => {
-                println!("[load_btag_data] Error while get responce from url. Probaly wron url:\n{}", e);
+                println!("[load_btag_data] Error while get responce from url. Probaly wrong url:\n{}", e);
             }
         }
-    }
+
 
 
     if mode_debug{
@@ -978,7 +959,7 @@ pub fn load_settings() -> String //Загрузка DiscordId
 }
 
 
-fn user_exist(id: discord::model::UserId) -> bool //Проверка существования профиля в базе
+fn user_exist(id: u64) -> bool //Проверка существования профиля в базе
 {
     let mut conn = POOL.get_conn().unwrap();
     let command = format!("SELECT EXISTS (SELECT * FROM users WHERE did = {})", &id);
@@ -993,7 +974,7 @@ fn user_exist(id: discord::model::UserId) -> bool //Проверка сущес�
     return answer;
 }
 
-fn delete_user(id: discord::model::UserId) //Удаление рпофиля (пока только для тестов)
+fn delete_user(id: u64) //Удаление рпофиля (пока только для тестов)
 {
     let mut conn = POOL.get_conn().unwrap();
     let command = format!("DELETE FROM users WHERE did = {}", &id);
@@ -1002,7 +983,7 @@ fn delete_user(id: discord::model::UserId) //Удаление рпофиля (п
     let _ = stmt.execute(());
 }
 
-fn reg_check(id: discord::model::UserId) -> bool //Проверка наличия профиля и BattleTag у профиля в БД
+fn reg_check(id: u64) -> bool //Проверка наличия профиля и BattleTag у профиля в БД
 {
     let mut conn = POOL.get_conn().unwrap();
     let command = format!("SELECT EXISTS (SELECT * FROM users WHERE did = {})", &id);
@@ -1017,7 +998,7 @@ fn reg_check(id: discord::model::UserId) -> bool //Проверка наличи
     return exist;
 }
 
-fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::model::ChannelId) //Диалог создания профиля
+fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог создания профиля
 {
     let err_color: u64 = 13369344;
     let err_title = ":no_entry: Упс...";
@@ -1093,7 +1074,7 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::
                 rating = an.rating;
                 //println!("rating: {}", rating);
                 thumbnail = an.avatar_url.clone();
-                roleruler = role_ruler_text(discord::model::ServerId(WSSERVER),
+                roleruler = role_ruler_text(WSSERVER,
                            autor.id,
                            RoleR::rating(rating));
             }
@@ -1148,15 +1129,15 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::
 
         if acc_not_found {
             let mut temp_user = User::empty();
-            temp_user.did = autor.id.0;
-            temp_user.name = autor.name;
-            temp_user.disc = autor.discriminator.to_string();
+            temp_user.did = autor.id;
+            temp_user.name = autor.username;
+            temp_user.disc = autor.discriminator;
             add_to_db(temp_user);
         } else {
             let mut temp_user = User::empty();
-            temp_user.did = autor.id.0;
-            temp_user.name = autor.name;
-            temp_user.disc = autor.discriminator.to_string();
+            temp_user.did = autor.id;
+            temp_user.name = autor.username;
+            temp_user.disc = autor.discriminator;
             temp_user.btag = battletag.to_string();
             temp_user.rtg = rating;
             temp_user.reg = region.to_string();
@@ -1168,9 +1149,9 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::
         des ="Но вы не указали никакой информации. Совсем :worried:";
         footer ="Вы можете добавить её позже с помощью комманды !wsreg";
         let mut temp_user = User::empty();
-        temp_user.did = autor.id.0;
-        temp_user.name = autor.name;
-        temp_user.disc = autor.discriminator.to_string();
+        temp_user.did = autor.id;
+        temp_user.name = autor.username;
+        temp_user.disc = autor.discriminator;
 
         add_to_db(temp_user);
     }
@@ -1178,19 +1159,22 @@ fn reg_user(mut reg_str: Vec<&str>, autor: discord::model::User, chan: discord::
         roleruler = footer.to_string();
     }
 
-    if let Err(e) = embed(chan, "",title,des,thumbnail,color,
-                          (String::new(),roleruler.as_str()),fields,("","",""),
-                          String::new(), String::new()){
-        println!("Message Error: {:?}", e);
-    }
+	EmbedStruct::empty()
+		.title(&title)
+		.des(&des)
+		.thumbnail(&thumbnail)
+		.col(color)
+		.footer((String::new(),&roleruler))
+		.fields(fields)
+		.send(chan);
 }
 
-fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::model::ChannelId) //Диалог на запрос редактирования профиля
+fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на запрос редактирования профиля
 {
     let mut battletag: String = String::new();
     let mut region: String = String::new();
     let mut platform: String = String::new();
-    let user = load_by_id(autor.id.0).unwrap();
+    let user = load_by_id(autor.id).unwrap();
     let mut rating: u16 = 0;
     let mut unnone = false;
     let mut botmess: String = String::new();
@@ -1274,9 +1258,9 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
             if new_data {
                 if battletag.is_empty() {
                     let mut temp_user = User::empty();
-                    temp_user.did = autor.id.0;
-                    temp_user.name = autor.name;
-                    temp_user.disc = autor.discriminator.to_string();
+                    temp_user.did = autor.id;
+                    temp_user.name = autor.username;
+                    temp_user.disc = autor.discriminator;
                     temp_user.btag = battletag.clone();
                     temp_user.rtg = 0;
                     temp_user.reg = region.clone();
@@ -1306,7 +1290,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
                         rating = an.rating;
                         //println!("rating: {}", rating);
                         thumbnail = an.avatar_url.clone();
-                        roleruler = role_ruler_text(discord::model::ServerId(WSSERVER),
+                        roleruler = role_ruler_text(WSSERVER,
                                    autor.id,
                                    RoleR::rating(rating));
                     }
@@ -1318,9 +1302,9 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
                     if acc_not_found {
                         if force {
                             let mut temp_user = User::empty();
-                            temp_user.did = autor.id.0;
-                            temp_user.name = autor.name;
-                            temp_user.disc = autor.discriminator.to_string();
+                            temp_user.did = autor.id;
+                            temp_user.name = autor.username;
+                            temp_user.disc = autor.discriminator;
                             temp_user.btag = battletag.clone();
                             temp_user.rtg = 0;
                             temp_user.reg = region.clone();
@@ -1350,9 +1334,9 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
                         }
                     } else {
                         let mut temp_user = User::empty();
-                        temp_user.did = autor.id.0;
-                        temp_user.name = autor.name;
-                        temp_user.disc = autor.discriminator.to_string();
+                        temp_user.did = autor.id;
+                        temp_user.name = autor.username;
+                        temp_user.disc = autor.discriminator;
                         temp_user.btag = battletag.clone();
                         temp_user.rtg = rating;
                         temp_user.reg = region.clone();
@@ -1397,11 +1381,15 @@ fn edit_user(mut reg_str: Vec<&str>, autor: discord::model::User,chan: discord::
     if roleruler.is_empty(){
         roleruler = footer.to_string();
     }
-    if let Err(e) = embed(chan, "",title,des,thumbnail,color,
-                          (String::new(),roleruler.as_str()),fields,("","",""),
-                          String::new(), String::new()){
-        println!("Message Error: {:?}", e);
-    }
+
+	EmbedStruct::empty()
+		.title(&title)
+		.des(&des)
+		.thumbnail(&thumbnail)
+		.col(color)
+		.footer((String::new(),&roleruler))
+		.fields(fields)
+		.send(chan);
 }
 
 //Отправная функция по всем запросам касательно скримов
@@ -1785,7 +1773,7 @@ fn get_arg_from_mes(mut reg_str: Vec<&str>) -> User{
     return u;
 }
 
-fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::model::ChannelId){
+fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
 
     let mut err_end = false;
 
@@ -1814,7 +1802,7 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
 
     if mes.capacity() > 1 {
         m = get_arg_from_mes(mes);
-        u = match load_by_id(autor_id.0) {
+        u = match load_by_id(autor_id) {
             Some(u) => { u }
             _ => { User::empty() }
         };
@@ -1822,8 +1810,12 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
 
             //Ошибка: Вы не указали BTag при регистрации и в сообщении.
             let botmess = "Вы не указали BTag при регистрации и в сообщении";
-            let _ = DIS.send_embed(chanel, "", |e| e.title(err_title).description(botmess).color(err_color));
-            err_end = true;
+	        EmbedStruct::empty()
+		        .title(err_title)
+		        .des(botmess)
+		        .col(err_color)
+		        .send(chanel);
+	        err_end = true;
 
         } else if u.btag == m.btag {
             if m.plat.is_empty() { m.plat = "PC".to_string(); }
@@ -1834,7 +1826,11 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
 
                 //Ошибка: Параметры не распознаны.
                 let botmess = "Параметры не распознаны";
-                let _ = DIS.send_embed(chanel, "", |e| e.title(err_title).description(botmess).color(err_color));
+	            EmbedStruct::empty()
+		            .title(err_title)
+		            .des(botmess)
+		            .col(err_color)
+		            .send(chanel);
                 err_end = true;
 
             } else {
@@ -1849,12 +1845,16 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
 
                 //Ошибка: Вы не зарегестрированы и не указали BTag в сообщении.
                 let botmess = "Вы не зарегестрированы и не указали BTag в сообщении";
-                let _ = DIS.send_embed(chanel, "", |e| e.title(err_title).description(botmess).color(err_color));
+	            EmbedStruct::empty()
+		            .title(err_title)
+		            .des(botmess)
+		            .col(err_color)
+		            .send(chanel);
                 err_end = true;
             }
             true => {
 
-                u = match load_by_id(autor_id.0) {
+                u = match load_by_id(autor_id) {
                     Some(u) => { u }
                     _ => { User::empty() }
                 };
@@ -1862,7 +1862,11 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
 
                     //Ошибка: Вы не указали BTag при регистрации и в сообщении.
                     let botmess = "Вы не указали BTag при регистрации и в сообщении";
-                    let _ = DIS.send_embed(chanel, "", |e| e.title(err_title).description(botmess).color(err_color));
+	                EmbedStruct::empty()
+		                .title(err_title)
+		                .des(botmess)
+		                .col(err_color)
+		                .send(chanel);
                     err_end = true;
 
                 } else { update = true; }
@@ -1883,7 +1887,7 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
             u.rtg = answer.clone().unwrap().rating;
         }
         if update {
-            roleruler = role_ruler_text(discord::model::ServerId(WSSERVER),
+            roleruler = role_ruler_text(WSSERVER,
                        autor_id,
                        RoleR::rating(u.rtg));
             update_in_db(u.clone()); }
@@ -1894,14 +1898,22 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
 
             //Ошибка: Такой игрок не найден.
             let botmess = "Такой игрок не найден";
-            let _ = DIS.send_embed(chanel, "", |e| e.title(err_title).description(botmess).color(err_color));
-
+	        EmbedStruct::empty()
+		        .title(err_title)
+		        .des(botmess)
+		        .col(err_color)
+		        .send(chanel);
         } else if u.rtg == 0 {
             let aun:BtagData = answer.unwrap();
             //KILOgramM#2947 EU PC Рейтинг отсутствует
             let botmess = format!("{} {} {} Рейтинг отсутствует", u.btag, u.reg, u.plat);
             let des = format!("[Ссылка на профиль]({})", aun.url);
-            let _ = DIS.send_embed(chanel, "", |e| e.title(botmess.as_str()).description(des.as_str()).color(color).footer(|f| f.text(roleruler.as_str())));
+	        EmbedStruct::empty()
+		        .title(&botmess)
+		        .des(&des)
+		        .col(color)
+		        .footer((String::new(),&roleruler))
+		        .send(chanel);
 
         } else {
             let aun:BtagData = answer.unwrap();
@@ -1954,18 +1966,14 @@ fn wsstats(mes: Vec<&str>, autor_id: discord::model::UserId, chanel: discord::mo
                 }
             }
 
-
-
-
-
-            if let Err(e) = embed(chanel,"",botmess.as_str(),
-                                  des.as_str(),aun.avatar_url,color,(String::new(),roleruler.as_str()),
-                                  fields_vec,("","",""),String::new(),String::new()){
-                println!("Message Error: {:?}", e);
-            }
-
-//            let _ = DIS.send_embed(chanel, "",|e| return embed_builder(e, botmess.as_str(), des.as_str(),color,aun, hero_list_titles));
-
+	        EmbedStruct::empty()
+		        .title(&botmess)
+		        .des(&des)
+		        .thumbnail(&aun.avatar_url)
+		        .col(color)
+		        .footer((String::new(),&roleruler))
+		        .fields(fields_vec)
+		        .send(chanel);
 
         }
 
@@ -2000,16 +2008,132 @@ impl<'a> EmbedStruct<'a> {
             image: String::new(),
         }
     }
-    fn send(&self, chanel: discord::model::ChannelId){
-        if let Err(e) = embed(chanel, self.text.clone(), self.title.clone(), self.des.clone(), self.thumbnail.clone(),
-              self.col.clone(), self.footer.clone(), self.fields.clone(), self.author.clone(),
-              self.url.clone(), self.image.clone()){
-            println!("Message Error: {:?}", e);
-        }
+	fn text(self, text: &'a str) -> Self{
+		let mut s = self;
+		s.text = text;
+		s
+	}
+	fn title(self, title: &'a str) -> Self{
+		let mut s = self;
+		s.title = title;
+		s
+	}
+	fn des(self, des: &'a str) -> Self{
+		let mut s = self;
+		s.des = des;
+		s
+	}
+	fn thumbnail(self, thumbnail: &str) -> Self{
+		let mut s = self;
+		s.thumbnail = thumbnail.into();
+		s
+	}
+	fn col(self, col: u64) -> Self{
+		let mut s = self;
+		s.col = col;
+		s
+	}
+	fn footer(self, footer: (String, &'a str)) -> Self{
+		let mut s = self;
+		s.footer = footer;
+		s
+	}
+	fn fields(self, fields: Vec<(String, String , bool)>) -> Self{
+		let mut s = self;
+		s.fields = fields;
+		s
+	}
+	fn author(self, author: (&'a str,&'a str,&'a str)) -> Self{
+		let mut s = self;
+		s.author = author;
+		s
+	}
+	fn url(self, url: &str) -> Self{
+		let mut s = self;
+		s.url = url.into();
+		s
+	}
+	fn image(self, image: &str) -> Self{
+		let mut s = self;
+		s.image = image.into();
+		s
+	}
+    fn send(self, chanel: u64){
+	    use serde_json::Map;
+        let mut json = Map::new();
+	    if !self.text.is_empty(){
+		    let text:&str = if self.text.len()>2000{
+			    &self.text[0..2000]
+		    }
+		    else{
+			    self.text
+		    };
+		    json.insert("content".into(), json!(text));
+	    }
+	    let mut embed = Map::new();
+
+	    if !self.title.is_empty(){
+		    embed.insert("title".into(), json!(&self.title));
+	    }
+	    if !self.des.is_empty(){
+		    embed.insert("description".into(), json!(&self.des));
+	    }
+	    if !self.thumbnail.is_empty(){
+		    embed.insert("thumbnail".into(), json!({"url":&self.thumbnail}));
+	    }
+
+        embed.insert("color".into(), json!(&self.col));
+
+	    if !self.footer.0.is_empty() || !self.footer.1.is_empty(){
+		    let mut footer = Map::new();
+		    if !self.footer.0.is_empty(){
+			    footer.insert("icon_url".into(), json!(&self.footer.0));
+		    }
+		    if !self.footer.1.is_empty(){
+			    footer.insert("text".into(), json!(&self.footer.1));
+		    }
+		    embed.insert("footer".into(), json!(footer));
+	    }
+	    if !self.image.is_empty(){
+		    embed.insert("image".into(), json!({"url":&self.image}));
+	    }
+	    if !self.url.is_empty(){
+		    embed.insert("url".into(), json!(&self.url));
+	    }
+	    if !self.author.0.is_empty() || !self.author.1.is_empty() || !self.author.2.is_empty(){
+		    let mut author = Map::new();
+		    if !self.author.0.is_empty(){
+			    author.insert("name".into(), json!(&self.author.0));
+		    }
+		    if !self.author.1.is_empty(){
+			    author.insert("url".into(), json!(&self.author.1));
+		    }
+		    if !self.author.2.is_empty(){
+			    author.insert("icon_url".into(), json!(&self.author.2));
+		    }
+		    embed.insert("author".into(), json!(author));
+	    }
+	    if !self.fields.is_empty() {
+		    let mut fields = Vec::new();
+		    for (name, text, inline) in self.fields {
+			    let mut field = Map::new();
+			    if !name.is_empty() {
+				    field.insert("name".into(), json!(name));
+			    }
+			    if !text.is_empty() {
+				    field.insert("value".into(), json!(text));
+			    }
+			    field.insert("inline".into(), json!(inline));
+			    fields.push(json!(field));
+		    }
+		    embed.insert("fields".into(), json!(fields));
+	    }
+	    json.insert("embed".into(), json!(embed));
+	    Discord::send_embed(chanel,json!(json));
     }
 }
-
-pub fn embed(chanel: discord::model::ChannelId, text: &str, title: &str, des: &str,
+/*
+pub fn embed(chanel: u64, text: &str, title: &str, des: &str,
          thumbnail: String, col: u64, footer: (String, &str), fields: Vec<(String, String , bool)>,
              author: (&str,&str,&str), url: String, image: String) -> discord::Result<discord::model::Message>{
 
@@ -2098,85 +2222,9 @@ fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagDat
     }
     return zz;
 }
-
-pub fn embed_from_value(chanel: discord::model::ChannelId, val: serde_json::Value){
-
-    let mut text = "";
-    let mut title = "";
-    let mut des = "";
-    let mut url = String::new();
-    let mut thumbnail = String::new();
-    let mut col: u64 = 37595;
-    let mut footer = (String::new(),"");
-    let mut fields = Vec::new();
-    let mut author = ("","","");
-    let mut image = String::new();
-    if let Some(content) = val.get("content"){
-        text = content.as_str().unwrap();
-    }
-    if let Some(e) = val.get("embed"){
-        if let Some(v) = e.get("color"){
-            col = v.as_u64().unwrap();
-        }
-        if let Some(v) = e.get("title"){
-            title = v.as_str().unwrap();
-        }
-        if let Some(v) = e.get("description"){
-            des = v.as_str().unwrap();
-        }
-        if let Some(v) = e.get("url"){
-            url = v.as_str().unwrap().to_string();
-        }
-        if let Some(v) = e.get("footer"){
-            if let Some(icon_url) = v.get("icon_url"){
-                footer.0 = icon_url.as_str().unwrap().to_string();
-            }
-            if let Some(text) = v.get("text"){
-                footer.1 = text.as_str().unwrap();
-            }
-        }
-        if let Some(v) = e.get("thumbnail"){
-            thumbnail = v.get("url").unwrap().as_str().unwrap().to_string();
-        }
-        if let Some(v) = e.get("image"){
-            image = v.get("url").unwrap().as_str().unwrap().to_string();
-        }
-        if let Some(v) = e.get("author"){
-            if let Some(icon_url) = v.get("icon_url"){
-                author.2 = icon_url.as_str().unwrap();
-            }
-            if let Some(name) = v.get("name"){
-                author.0 = name.as_str().unwrap();
-            }
-            if let Some(url) = v.get("url"){
-                author.1 = url.as_str().unwrap();
-            }
-        }
-        if let Some(v) = e.get("fields"){
-            for val in v.as_array().unwrap(){
-                let mut field = (String::new(), String::new(), false);
-                if let Some(name) = val.get("name"){
-                    field.0 = name.as_str().unwrap().to_string();
-                }
-                if let Some(value) = val.get("value"){
-                    field.1 = value.as_str().unwrap().to_string();
-                }
-                if let Some(inline) = val.get("inline"){
-                    field.2 = inline.as_bool().unwrap();
-                }
-                fields.push(field);
-            }
-        }
-
-        if let Err(e) = embed(chanel,text,title,des,thumbnail,col,footer,fields,author,url,image){
-            println!("Message Error: {:?}", e);
-        }
-    }
-    else {
-        println!("Wrong embed");
-    }
-
-
+*/
+pub fn embed_from_value(chanel: u64, val: Value){
+    Discord::send_embed(chanel,val);
 }
 
 
@@ -2189,7 +2237,7 @@ enum RoleChange{
     rem(String)
 }
 
-fn role_ruler_text(server_id: discord::model::ServerId, user_id: discord::model::UserId, cmd: RoleR) -> String{
+fn role_ruler_text(server_id: u64, user_id: u64, cmd: RoleR) -> String{
     let mut answer = String::new();
     let mut removed = Vec::new();
     let mut added = Vec::new();
@@ -2292,7 +2340,7 @@ fn role_ruler_text(server_id: discord::model::ServerId, user_id: discord::model:
     return answer;
 }
 
-fn role_ruler(server_id: discord::model::ServerId, user_id: discord::model::UserId, cmd: RoleR) -> Vec<RoleChange>{
+fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
     lazy_static! {
         static ref ROLES: Vec<String> = vec![
             String::from("4500+"),
@@ -2304,171 +2352,136 @@ fn role_ruler(server_id: discord::model::ServerId, user_id: discord::model::User
             ];
     }
     let mut answer: Vec<RoleChange> = Vec::new();
-    if let Ok(member) = DIS.get_member(server_id,user_id){
-        let mut state_cloned = None;
-        {
 
-            loop{
-                match STATE.try_read(){
-                    Ok(state) => {
-                        let state = state.deref();
-                        if let &Some(ref s) = state{
-                            state_cloned = Some(s.clone());
-                        }
-                        break;
+
+	if let Some(member) = Discord::get_member(server_id,user_id){
+		if let Some(roles) = Discord::get_roles_list(server_id){
+			match cmd{
+				RoleR::rating(r) => {
+					let mut find_role = String::new();
+					let mut done = false;
+					let mut change = false;
+					let mut new_roles:Vec<Value> = Vec::new();
+
+
+                    match r{
+                        1...2499 =>{ find_role = ROLES.get(5).unwrap().to_string()}
+                        2500...2999 =>{ find_role = ROLES.get(4).unwrap().to_string()}
+                        3000...3499 =>{ find_role = ROLES.get(3).unwrap().to_string()}
+                        3500...3999 =>{ find_role = ROLES.get(2).unwrap().to_string()}
+                        4000...4499 =>{ find_role = ROLES.get(1).unwrap().to_string()}
+                        4500...5000 =>{ find_role = ROLES.get(0).unwrap().to_string()}
+                        _ =>{}
                     }
-                    _=>{}
-                }
-            }
-
-            if let Some(state) = state_cloned{
-                if let Some(ser) = state.find_server(server_id){
-                    match cmd{
-                        RoleR::rating(r) => {
-                            let mut find_role = String::new();
-                            let mut done = false;
-                            let mut change = false;
-                            let mut new_roles = Vec::new();
-
-                            match r{
-                                1...2499 =>{ find_role = String::from("2500-")}
-                                2500...2999 =>{ find_role = String::from("2500+")}
-                                3000...3499 =>{ find_role = String::from("3000+")}
-                                3500...3999 =>{ find_role = String::from("3500+")}
-                                4000...4499 =>{ find_role = String::from("4000+")}
-                                4500...5000 =>{ find_role = String::from("4500+")}
-                                _ =>{}
-                            }
-
-                            'outer: for roleid in member.roles{
-                                'inner: for role in ser.clone().roles{
-                                    if role.id.0 == roleid.0{
-                                        let mut is_find = false;
-                                        for ROLE in ROLES.clone(){
-                                            if ROLE == role.name{
-                                                is_find = true;
-                                                if role.name == find_role{
-                                                    done = true;
-                                                    new_roles.push(roleid);
-                                                }
-                                                else {
-                                                    change = true;
-                                                    answer.push(RoleChange::rem(ROLE));
-                                                }
-
-                                            }
-                                        }
-                                        if is_find == false{
-                                            new_roles.push(roleid);
-                                        }
-                                        break 'inner;
-                                    }
-                                }
-                            }
-                            if !done || change {
-                                if !done{
-                                    for role in ser.clone().roles{
-                                        if find_role == role.name{
-                                            answer.push(RoleChange::add(find_role));
-                                            new_roles.push(role.id);
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if let Err(e) = DIS.edit_member_roles(server_id,
-                                                                      user_id, new_roles.as_slice()){
-                                    println!("[role_ruler] Error while edit_member_roles: {}", e);
-                                }
-                            }
-
-                        }
-                    }
-                }
-                    else{
-                        println!("[role_ruler] Server ID NOT Found: {}", server_id);
-                    }
-            }
 
 
-        }
-    }
+
+					'outer: for roleid in member["roles"].as_array().unwrap(){
+						'inner: for role in roles.as_array().unwrap(){
+							if roleid.as_str().unwrap().eq(role["id"].as_str().unwrap()){
+								let mut is_find = false;
+								let role_name: &str = role["name"].as_str().unwrap();
+
+								for ROLE in ROLES.clone(){
+									if ROLE.eq(role_name){
+										is_find = true;
+										if find_role.eq(role_name){
+											done = true;
+											new_roles.push(roleid.clone());
+										}
+											else {
+												change = true;
+												answer.push(RoleChange::rem(ROLE));
+											}
+
+									}
+								}
+								if is_find == false{
+									new_roles.push(roleid.clone());
+								}
+								break 'inner;
+							}
+						}
+					}
+					if !done || change {
+						if !done{
+							for role in roles.as_array().unwrap(){
+								let role_name: &str = role["name"].as_str().unwrap();
+								if find_role.eq(role_name){
+									answer.push(RoleChange::add(find_role));
+									new_roles.push(role["id"].clone());
+									break;
+								}
+							}
+						}
+
+						Discord::set_member_roles(server_id,user_id,new_roles);
+
+					}
+
+				}
+			}
+		}
+	}
     return answer;
 }
 
 fn main() {
-    let (mut connection, ready) = DIS.connect().expect("connect failed");
-    let mut state_t = State::new(ready);
+    let dcshell:DCShell = Discord::get_event_reciever();
+
     DB.ini_embeds_s();
     DB.ini_lfg();
     DB.ini_chat();
     EVENT.send(EventChanel::Check);
-    println!("[Status] Ready");
+    println!("[Status] Main loop start");
     println!("{}", START_TIME.ctime());
 
     loop {
-        let event = match connection.recv_event() {
-            Ok(event) => event,
-            Err(discord::Error::Closed(code, body)) => {
-                println!("[Error] Connection closed with status {:?}: {}", code, body);
-                break
-            }
-            Err(err) => {
-                println!("[Warning] Receive error: {:?}", err);
-                continue
-            }
+
+
+        let event = match dcshell.get_wait(){
+            OutLink::Event(e) => {e}
+            OutLink::None => {continue;}
         };
-        state_t.update(&event);
-        let state_clone = state_t.clone();
-        thread::spawn(move || {
-            loop{
-                match STATE.try_write() {
-                    Ok(mut state) => {
-                        *state = Some(state_clone);
-                        break;
-                    }
-                    _ => {}
-                }
-            }
-        });
+
 
         match event {
-            Event::MessageCreate(message) => {
-                let state_clone = state_t.clone();
-                let mut mes: discord::model::Message = message.clone();
+            Event::MessageCreate(mes) => {
+
                 thread::spawn(move || {
+
 
                     if mes.content.as_str().starts_with('!') {
                         let content = mes.content.clone();
                         let mes_split: Vec<&str> = content.as_str().split_whitespace().collect();
                         match mes_split[0].to_lowercase().as_str() {
                             "!wsreg" => {
-                                DIS.broadcast_typing(message.channel_id);
+                                Discord::send_typing(mes.channel_id);
                                 match reg_check(mes.author.id) {
                                     false => {
-                                        reg_user(mes_split.clone(), mes.author.clone(), message.channel_id);
+                                        reg_user(mes_split.clone(), mes.author.clone(), mes.channel_id);
                                     }
-                                    true => { edit_user(mes_split.clone(), mes.author.clone(), message.channel_id); }
+                                    true => { edit_user(mes_split.clone(), mes.author.clone(), mes.channel_id); }
                                 }
                             }
 
                             "!wsstats" => {
-                                DIS.broadcast_typing(message.channel_id);
-                                wsstats(mes_split.clone(), mes.author.id, message.channel_id);
+                                Discord::send_typing(mes.channel_id);
+                                wsstats(mes_split.clone(), mes.author.id, mes.channel_id);
                             }
 
                             "!wstour" => {
-                                DB.send_embed("tourneys",message.channel_id);
+                                DB.send_embed("tourneys",mes.channel_id);
                             }
 
                             "!wshelp" => {
-                                DB.send_embed("help",message.channel_id);
+                                DB.send_embed("help",mes.channel_id);
                             }
                             "!wscmd" => {
-                                DB.send_embed("cmd",message.channel_id);
+                                DB.send_embed("cmd",mes.channel_id);
                             }
                             "!wslfg" => {
-                                lfg(mes.clone(), Stage_LFG::None);
+                                lfg_none(mes.clone());
                             }
                             _ => {}
                         }
@@ -2476,10 +2489,10 @@ fn main() {
 
                         //ADMIN COMMANDS
 
-                        if mes.author.id.0 == 193759349531869184 || mes.author.id.0 == 222781446971064320{
+                        if mes.author.id == 193759349531869184 || mes.author.id == 222781446971064320{
                             match mes_split[0].to_lowercase().as_str() {
                                 "!ahelp" => {
-                                    DB.send_embed("admin_commands",message.channel_id);
+                                    DB.send_embed("admin_commands",mes.channel_id);
                                 }
 
                                 "!event" =>{
@@ -2497,6 +2510,7 @@ fn main() {
                                                 let mut room: String = String::new();
                                                 let mut chanel: Option<u64> = None;
                                                 let mut embed: String = String::new();
+                                                let mut req_list: Vec<EventReq> = Vec::new();
                                                 let mut req = EventReq::empty();
 
                                                 let mut data = data.split_off(11);
@@ -2517,7 +2531,10 @@ fn main() {
 
                                                     match c{
                                                         '=' | ':' => {
-                                                            if !long_param{
+                                                            if switch {
+                                                                settings.push(c);
+                                                            }
+                                                            else if !long_param{
                                                                 switch = true;
                                                                 no_chars = true;
                                                                 space_check = false;
@@ -2710,8 +2727,45 @@ fn main() {
                                                                 req.sec = Some(n);
                                                             }
                                                         }
+
+                                                        "[trig]" =>{
+                                                            if !req.eq_alt(&EventReq::empty()){
+                                                                req_list.push(req);
+                                                                req = EventReq::empty();
+                                                            }
+                                                        }
+                                                        "time" => {
+                                                            let mut hour = String::new();
+                                                            let mut min = String::new();
+                                                            let mut sec = String::new();
+                                                            for c in opt_par.as_str().chars(){
+                                                                match c {
+                                                                    ':' => {
+                                                                        hour = min;
+                                                                        min = sec;
+                                                                        sec = String::new();}
+                                                                    '0'|'1'|'2'|'3'|'4'
+                                                                    |'5'|'6'|'7'|'8'|'9' =>{sec.push(c);}
+                                                                    _ => {
+
+                                                                    }
+                                                                }
+                                                            }
+                                                            if let Ok(n) = hour.parse::<u8>(){
+                                                                req.hour = Some(n);
+                                                            }
+                                                            if let Ok(n) = min.parse::<u8>(){
+                                                                req.min = Some(n);
+                                                            }
+                                                            if let Ok(n) = sec.parse::<u8>(){
+                                                                req.sec = Some(n);
+                                                            }
+                                                        }
                                                         _ => {}
                                                     }
+                                                }
+                                                if !req.eq_alt(&EventReq::empty()){
+                                                    req_list.push(req);
                                                 }
 
                                                 let event_type = EventType::CustomEmbed {
@@ -2725,7 +2779,7 @@ fn main() {
                                                 EVENT.send(EventChanel::AddEvent {
                                                     name: event_name,
                                                     event_type,
-                                                    req,
+                                                    req: req_list,
                                                 });
 
                                             }
@@ -2759,14 +2813,14 @@ fn main() {
                                                     let field_name = format!("Удаление эвента");
                                                     let mut field_text = format!("Эвент `{}` удалён", name);
                                                     embed.fields.push((field_name, field_text, false));
-                                                    embed.send(message.channel_id);
+                                                    embed.send(mes.channel_id);
                                                 }
                                                 _ =>{
                                                     let mut embed = EmbedStruct::empty();
                                                     let field_name = format!("Удаление эвента");
                                                     let mut field_text = format!("Имя не указано");
                                                     embed.fields.push((field_name, field_text, false));
-                                                    embed.send(message.channel_id);
+                                                    embed.send(mes.channel_id);
                                                 }
                                             }
                                         }
@@ -2783,7 +2837,7 @@ fn main() {
                                             let field_name = format!("\u{FEFF}");
                                             let mut field_text = format!("Unexpected Reciver Error");
                                             embed.fields.push((field_name, field_text, false));
-                                            embed.send(message.channel_id);
+                                            embed.send(mes.channel_id);
                                         }
                                         EventChanelBack::List(list) =>{
                                             let mut embed = EmbedStruct::empty();
@@ -2805,16 +2859,16 @@ fn main() {
                                             }
                                             field_text = format!("{}```\n",field_text);
                                             embed.fields.push((field_name, field_text, false));
-                                            embed.send(message.channel_id);
+                                            embed.send(mes.channel_id);
                                         }
                                     }
                                 }
 
                                 "!test" => {
                                     let mut test_user: User = User::empty();
-                                    test_user.did = mes.author.id.0;
-                                    test_user.name = mes.author.name;
-                                    test_user.disc = mes.author.discriminator.to_string();
+                                    test_user.did = mes.author.id;
+                                    test_user.name = mes.author.username;
+                                    test_user.disc = mes.author.discriminator;
                                     add_to_db(test_user);
                                 }
                                 "!test2" => {
@@ -2829,30 +2883,33 @@ fn main() {
                                         match mes_split[1].to_lowercase().as_str(){
                                             "embed" => {
                                                 DB.ini_embeds_s();
-                                                let _ = DIS.send_message(message.channel_id, "Embed-ы инициализированы", "", false);
+                                                Discord::send_mes(mes.channel_id, "Embed-ы инициализированы", "", false);
                                             }
                                             "lfg" => {
                                                 DB.ini_lfg();
-                                                let _ = DIS.send_message(message.channel_id, "Вектор LFG инициализирован", "", false);
+                                                Discord::send_mes(mes.channel_id, "Вектор LFG инициализирован", "", false);
                                             }
                                             "chat" => {
                                                 DB.ini_chat();
-                                                let _ = DIS.send_message(message.channel_id, "Вектор Chat инициализирован", "", false);
+                                                Discord::send_mes(mes.channel_id, "Вектор Chat инициализирован", "", false);
                                             }
                                             _ => {
-                                                let _ = DIS.send_message(message.channel_id, "Опция не определена", "", false);
+                                                Discord::send_mes(mes.channel_id, "Опция не определена", "", false);
                                             }
                                         }
 
                                     }
                                     else {
-                                        let _ = DIS.send_message(message.channel_id, "Перезагрузить embed, lfg или chat", "", false);
+                                        Discord::send_mes(mes.channel_id, "Перезагрузить embed, lfg или chat", "", false);
                                     }
 
                                 }
-                                "!serverlist" => {
+                                /*"!serverlist" => {
                                     let string = format!("==Начало списка==");
-                                    let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                    Discord::send_mes(mes.channel_id, string.as_str(), "", false);
+	                                if let Some(value) = Discord::get_servers(){
+
+	                                }
 
                                     for s in state_clone.servers(){
                                         let thum = match s.icon_url(){
@@ -2865,36 +2922,36 @@ fn main() {
                                         des = format!("{}Region: {}\n",des,s.region);
                                         des = format!("{}Members Count: {}\n",des,s.member_count);
                                         des = format!("{}Joined At: {}",des,s.joined_at);
-                                        if let Err(e) = embed(message.channel_id,"",title.as_str(),
-                                                              des.as_str(),thum,0,(String::new(),""),
-                                                              Vec::new(),("","",""),String::new(),String::new()){
-                                            println!("Message Error: {:?}", e);
-                                        }
+	                                    EmbedStruct::empty()
+		                                    .title(&title)
+		                                    .des(&des)
+		                                    .thumbnail(&thum)
+		                                    .send(mes.channel_id);
                                     }
                                     let string = format!("==Конец списка==");
-                                    let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                    Discord::send_mes(mes.channel_id, string.as_str(), "", false);
 
-                                }
+                                }*/
                                 "!debug" => {
                                     if mes_split.len() > 1{
                                         match mes_split[1].to_lowercase().as_str(){
                                             "on" => {
                                                 DEBUG.store(true, Ordering::Relaxed);
-                                                let _ = DIS.send_message(message.channel_id, "Debug Включен", "", false);
+                                                Discord::send_mes(mes.channel_id, "Debug Включен", "", false);
                                             }
                                             "off" => {
                                                 DEBUG.store(false, Ordering::Relaxed);
-                                                let _ = DIS.send_message(message.channel_id, "Debug Выключен", "", false);
+                                                Discord::send_mes(mes.channel_id, "Debug Выключен", "", false);
                                             }
                                             _ => {
                                                 let string = format!("Debug статус: {}", DEBUG.load(Ordering::Relaxed));
-                                                let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                                Discord::send_mes(mes.channel_id, string.as_str(), "", false);
                                             }
                                         }
                                     }
                                         else {
                                             let string = format!("Debug статус: {}", DEBUG.load(Ordering::Relaxed));
-                                            let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                            Discord::send_mes(mes.channel_id, string.as_str(), "", false);
                                         }
                                 }
                                 "!new_net" => {
@@ -2902,21 +2959,21 @@ fn main() {
                                         match mes_split[1].to_lowercase().as_str(){
                                             "on" => {
                                                 SWITCH_NET.store(true, Ordering::Relaxed);
-                                                let _ = DIS.send_message(message.channel_id, "new_net Включен", "", false);
+                                                Discord::send_mes(mes.channel_id, "new_net Включен", "", false);
                                             }
                                             "off" => {
                                                 SWITCH_NET.store(false, Ordering::Relaxed);
-                                                let _ = DIS.send_message(message.channel_id, "new_net Выключен", "", false);
+                                                Discord::send_mes(mes.channel_id, "new_net Выключен", "", false);
                                             }
                                             _ => {
                                                 let string = format!("new_net статус: {}", SWITCH_NET.load(Ordering::Relaxed));
-                                                let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                                Discord::send_mes(mes.channel_id, string.as_str(), "", false);
                                             }
                                         }
                                     }
                                         else {
                                             let string = format!("new_net статус: {}", SWITCH_NET.load(Ordering::Relaxed));
-                                            let _ = DIS.send_message(message.channel_id, string.as_str(), "", false);
+                                            Discord::send_mes(mes.channel_id, string.as_str(), "", false);
                                         }
                                 }
 
@@ -2958,18 +3015,20 @@ fn main() {
                                                 }
                                                 DB.remove_lfg(lfg.did);
                                             }
-                                            let _ = DIS.send_message(message.channel_id, "Список LFG очищен", "", false);
+                                            Discord::send_mes(mes.channel_id, "Список LFG очищен", "", false);
                                         }
 
                                         (false,true,Some(did)) => {
                                             match DB.get_lfg(did){
                                                 Some(lfg) => {
                                                     let title = "Объявление удалено:";
-                                                    let (tstring, dstring) = lfg.to_line_debug(message.channel_id);
-                                                    if let Err(e) = embed(message.channel_id,"",title,"",String::new(),color,
-                                                                          (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
-                                                        println!("Message Error: {:?}", e);
-                                                    }
+                                                    let (tstring, dstring) = lfg.to_line_debug(mes.channel_id);
+	                                                EmbedStruct::empty()
+		                                                .title(&title)
+		                                                .col(color)
+		                                                .fields(vec![(tstring,dstring,false)])
+		                                                .send(mes.channel_id);
+
                                                     let mut call = format!("DELETE FROM lfg WHERE did={}",did);
                                                     let mut conn = POOL.get_conn().unwrap();
                                                     if let Err(e) = conn.query(call){
@@ -2978,7 +3037,7 @@ fn main() {
                                                     DB.remove_lfg(did);
                                                 }
                                                 None => {
-                                                    let _ = DIS.send_message(message.channel_id, "По указаному DID не найдено", "", false);
+                                                    Discord::send_mes(mes.channel_id, "По указаному DID не найдено", "", false);
                                                     return;
                                                 }
                                             }
@@ -2988,14 +3047,16 @@ fn main() {
                                             match DB.get_lfg(did){
                                                 Some(lfg) => {
 
-                                                    let (tstring, dstring) = lfg.to_line_debug(message.channel_id);
-                                                    if let Err(e) = embed(message.channel_id,"","","",String::new(),color,
-                                                                          (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
-                                                        println!("Message Error: {:?}", e);
-                                                    }
+                                                    let (tstring, dstring) = lfg.to_line_debug(mes.channel_id);
+	                                                EmbedStruct::empty()
+		                                               // .title(&title)
+		                                                .col(color)
+		                                                .fields(vec![(tstring,dstring,false)])
+		                                                .send(mes.channel_id);
+
                                                 }
                                                 None => {
-                                                    let _ = DIS.send_message(message.channel_id, "По указаному DID не найдено", "", false);
+                                                    Discord::send_mes(mes.channel_id, "По указаному DID не найдено", "", false);
                                                     return;
                                                 }
                                             }
@@ -3003,17 +3064,19 @@ fn main() {
 
 
                                         (false, _, None) => {
-                                            let fields:Vec<(String,String,bool)> = LFG::def_table(true,message.channel_id);
+                                            let fields:Vec<(String,String,bool)> = LFG::def_table(true,mes.channel_id);
                                             let title = "Список игроков:";
                                             if fields.is_empty(){
-                                                DB.send_embed("lfg_list_empty",message.channel_id);
+                                                DB.send_embed("lfg_list_empty",mes.channel_id);
                                                 return;
                                             }
                                                 else {
-                                                    if let Err(e) = embed(message.channel_id,"",title,"",String::new(),color,
-                                                                          (String::new(),""),fields.clone(),("","",""),String::new(),String::new()){
-                                                        println!("Message Error [!wslfg]: \n{:?}\nFields: \n{:?}\n", e, fields);
-                                                    }
+	                                                EmbedStruct::empty()
+		                                                .title(&title)
+		                                                .col(color)
+		                                                .fields(fields)
+		                                                .send(mes.channel_id);
+
                                                 }
                                         }
 
@@ -3087,11 +3150,11 @@ fn main() {
                                                   start_day,start_mon,START_TIME.tm_year+1900,);
                                     des = format!("{}Up time: {}:{}:{}:{}\n",des,
                                                   up_d, up_hour, up_min, up_sec);
-                                    if let Err(e) = embed(message.channel_id,"",title,
-                                                          des.as_str(),String::new(),0,(String::new(),""),
-                                                          Vec::new(),("","",""),String::new(),String::new()){
-                                        println!("Message Error: {:?}", e);
-                                    }
+                                    EmbedStruct::empty()
+                                        .title(&title)
+                                        .des(&des)
+                                        .send(mes.channel_id);
+
                                 }
 
                                 _=>{}
@@ -3107,11 +3170,11 @@ fn main() {
                                 }
                             }
                         }*/
-						if let Some(c) = DB.get_chat(mes.author.id.0){
-                                match c{
-                                    Chat::LFG(stage) => {lfg(mes,stage);}
-                                }
-                            }
+//						if let Some(c) = DB.get_chat(mes.author.id){
+//                                match c{
+//                                    Chat::LFG(stage) => {lfg(mes,stage);}
+//                                }
+//                            }
                     }
                 });
             }
@@ -3127,14 +3190,6 @@ fn main() {
                             }
                         }
             */
-
-            Event::Unknown(name, data) => {
-
-
-
-                // log unknown event types for later study
-                println!("[Unknown Event] {}: {:?}", name, data);
-            }
             _ => {}
             //let m: String = format!("{:?}", event);
             //event_eater(m);}
