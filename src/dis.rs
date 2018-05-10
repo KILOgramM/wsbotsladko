@@ -157,7 +157,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
             if let Some(n) = last_seq{
                 *data.get_mut("d").expect("[WebSocket Core] Get data Row in HBeat") = json!(n);
             }
-            let mes = OwnedMessage::Text(serde_json::to_string(&data).expect("[WebSocket Core] Serialize HBeat Message"););
+            let mes = OwnedMessage::Text(serde_json::to_string(&data).expect("[WebSocket Core] Serialize HBeat Message"));
             match client.send_message(&mes) {
                 Ok(()) => {
 //                    println!("[WebSocket Core] Send HBeat");
