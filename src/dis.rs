@@ -186,7 +186,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                         "compress": false
                     }
                 });
-                let mes = OwnedMessage::Text(serde_json::to_string(&data).unwrap());
+                let mes = OwnedMessage::Text(serde_json::to_string(&data).expect("[WebSocket Core] Serialize Identify Message"));
                 match client.send_message(&mes) {
                     Ok(()) => (),
                     Err(e) => {
@@ -208,9 +208,9 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                                         }
                                     });
                     if let Some(n) = last_seq{
-                        *data.get_mut("d").unwrap().get_mut("seq").unwrap() = json!(n);
+                        *data.get_mut("d").expect("[WebSocket Core] Get data in Resume").get_mut("seq").expect("[WebSocket Core] Get Seq in data in Resume") = json!(n);
                     }
-                    let mes = OwnedMessage::Text(serde_json::to_string(&data).unwrap());
+                    let mes = OwnedMessage::Text(serde_json::to_string(&data).expect("[WebSocket Core] Serialize Resume Message"));
                     match client.send_message(&mes) {
                         Ok(()) => {
                             state = Core::ResumeProceed;
@@ -241,9 +241,9 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
             Core::Reconect => {
                 let _ = client.shutdown();
                 client = ClientBuilder::new(gateway.as_str())
-                    .unwrap()
+                    .expect("[WebSocket Core] Make Client Builder for Reconect")
                     .connect_secure(None)
-                    .unwrap();
+                    .expect("[WebSocket Core] Make Connection for Reconect");
                 last_seq = None;
                 session_id = None;
                 println!("[WebSocket Core] Reconection success");
@@ -326,8 +326,8 @@ fn get_gate() -> String {
         Ok(mut resp) => {
             match resp.text(){
                 Ok(text) =>{
-                    let v: Value = serde_json::from_str(&text).unwrap();
-                    return v["url"].as_str().unwrap().to_string();
+                    let v: Value = serde_json::from_str(&text).expect("[WebSocket Core] Serialize gate Respoce");
+                    return v["url"].as_str().expect("[WebSocket Core] Trying Get Gate URL").to_string();
                 }
                 Err(e) => {
                     panic!("[reqwest] Error while take body:\n{}", e);
