@@ -45,10 +45,10 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
     println!("[WebSocket Core] Gate: {}", &gateway);
 
     let mut client = ClientBuilder::new(gateway.as_str())
-        .unwrap()
+        .expect("[WebSocket Core] Make Client Builder")
         .connect_secure(None)
-        .unwrap();
-    client.stream_ref().as_tcp().set_read_timeout(Some(Duration::from_millis(50))).unwrap();
+        .expect("[WebSocket Core] Create Connection from Builder");
+    client.stream_ref().as_tcp().set_read_timeout(Some(Duration::from_millis(50))).expect("[WebSocket Core] Set Read Timeout");
 
 
     let (cha_se, reciv_inner) = channel::<OwnedMessage>();
@@ -75,7 +75,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
 //                        thread::spawn(move||{
 //                            event_eater(mc);
 //                        });
-                        let v: Value = serde_json::from_str(&jtext).unwrap();
+                        let v: Value = serde_json::from_str(&jtext).expect("[WebSocket Core] Serialize Message from WebSocket");
                         match v["op"].as_u64(){
                             Some(0) => {
                                 let _ = dc_shell.send(UniChanel::Responce(v.clone()));
@@ -155,9 +155,9 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                 "d": null
             });
             if let Some(n) = last_seq{
-                *data.get_mut("d").unwrap() = json!(n);
+                *data.get_mut("d").expect("[WebSocket Core] Get data Row in HBeat") = json!(n);
             }
-            let mes = OwnedMessage::Text(serde_json::to_string(&data).unwrap());
+            let mes = OwnedMessage::Text(serde_json::to_string(&data).expect("[WebSocket Core] Serialize HBeat Message"););
             match client.send_message(&mes) {
                 Ok(()) => {
 //                    println!("[WebSocket Core] Send HBeat");
