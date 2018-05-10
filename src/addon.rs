@@ -10,8 +10,6 @@ use serde_derive;
 
 use std::sync::Mutex;
 use {Hero,
-     embed,
-     DIS,
      POOL,
      REG_BTAG,
      load_by_id,
@@ -21,18 +19,17 @@ use {Hero,
      BtagData,
      load_btag_data,
      WSSERVER};
-use discord::model::Message;
-use discord::model::Channel;
-use discord::model::ChannelId;
-use discord::model::ServerId;
-use discord;
+
 use std::sync::RwLock;
 use mysql::from_row;
 use std::fmt::Debug;
 use regex::Regex;
 use std::thread;
 use mysql;
-
+use disapi::Discord;
+use EmbedStruct;
+use dstruct::DMessage;
+use dstruct::DUser;
 
 
 
@@ -63,7 +60,7 @@ impl Global{
     pub fn ini_lfg(&self){
 
         let mut l: Vec<LFG> = Vec::new();
-        let mut call = format!("SELECT * FROM lfg");
+        let call = format!("SELECT * FROM lfg");
         match POOL.prepare(call.as_str()){
             Err(e) => {
                 if let mysql::Error::MySqlError(my)=e{
@@ -359,7 +356,7 @@ impl Global{
         }
         return lfg_main;
     }
-    pub fn send_embed(&self, name: &str, chanel: ChannelId){
+    pub fn send_embed(&self, name: &str, chanel: u64){
         match self.get_embed(name){
             None => {
                 println!("Embed [{}] not found", name);
@@ -581,64 +578,6 @@ impl Global{
         }
     }
 
-    pub fn prep_user(id: u64){
-        thread::spawn( move|| {
-            use std::ops::DerefMut;
-            let mut some_i = None;
-            let mut some_u = User::empty();
-            loop{
-                match DB.users.try_write() {
-                    Ok(mut users) => {
-                        let mut users = users.deref_mut();
-
-                        for (i,l) in users.iter().enumerate(){
-                            if l.did == id{
-                                some_i = Some(i);
-                                some_u = l.clone();
-                                break;
-                            }
-                        }
-                        if let Some(i) = some_i{
-                            users.remove(i);
-                        }
-                        break;
-                    }
-                    _ => {}
-                }
-            }
-            if let None = some_i{
-                match load_by_id(id){
-                    Some(user) =>{
-                        some_u = user.clone();
-                        let mut req = HeroInfoReq::empty();
-                        req.rating = true;
-                        match load_btag_data(user.btag,user.reg,user.plat,req){
-                            None => {
-                            }
-                            Some(data) => {
-                                some_u.rtg = data.rating;
-                            }
-                        }
-                    }
-                    None => {
-
-                    }
-                }
-            }
-            if some_u.did != 0{
-                loop {
-                    match DB.users.try_write() {
-                        Ok(mut users) => {
-                            let mut users = users.deref_mut();
-                            users.push(some_u);
-                            break;
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        });
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -672,7 +611,7 @@ pub struct LFG{
     pub time: i64,
 }
 impl LFG{
-    pub fn def_table(debug: bool, chanel: ChannelId) -> Vec<(String, String,bool)>{
+    pub fn def_table(debug: bool, chanel: u64) -> Vec<(String, String,bool)>{
         let mut lfg_list: Vec<LFG> = DB.get_lfg_list();
         let mut fields:Vec<(String, String,bool)> = Vec::new();
         for i in 0..25{
@@ -695,7 +634,7 @@ impl LFG{
         }
         return fields;
     }
-    fn to_line(&self, chanel: ChannelId) -> (String,String){
+    fn to_line(&self, chanel: u64) -> (String,String){
 
         let des = if self.description.is_empty(){
             String::new()
@@ -709,7 +648,7 @@ impl LFG{
                         match_merge(chanel, self.did), self.btag, self.plat.to_lowercase(), self.reg.to_lowercase(), self.btag.replace("#", "-"), self.rating, des));
 
     }
-    pub fn to_line_debug(&self, chanel: ChannelId) -> (String,String){
+    pub fn to_line_debug(&self, chanel: u64) -> (String,String){
 
         let des = if self.description.is_empty(){
             String::new()
@@ -742,10 +681,10 @@ pub enum Role{
 }
 
 
-pub fn lfg(mes: Message, stage: Stage_LFG){
+pub fn lfg(mes: DMessage, stage: Stage_LFG){
     let color: u64 = 37595;
-    let private_c = DIS.create_private_channel(mes.author.id).unwrap().id;
-    DIS.broadcast_typing(mes.channel_id);
+    //let private_c = DIS.create_private_channel(mes.author.id).unwrap().id;
+	Discord::send_typing(mes.channel_id);
     match stage{
         Stage_LFG::None => { lfg_none(mes)}
         Stage_LFG::ConfirmRemove => {
@@ -756,25 +695,26 @@ pub fn lfg(mes: Message, stage: Stage_LFG){
                 match s.to_uppercase().as_str() {
                     "!WSLFG" => {continue;}
                     "N" | "NO" | "НЕТ" | "ОТМЕНА" => {
-                        match DB.get_lfg(mes.author.id.0){
+                        match DB.get_lfg(mes.author.id){
                             Some(lfg) => {
                                 let title = "Объявление осталось на месте:";
                                 let (tstring, dstring) = lfg.to_line(mes.channel_id);
-                                if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
-                                                      (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
-                                    println!("Message Error: {:?}", e);
-                                }
+	                            EmbedStruct::empty()
+		                            .title(&title)
+		                            .col(color)
+		                            .fields(vec![(tstring,dstring,false)])
+		                            .send(mes.channel_id);
                             }
                             None => {
                                 DB.send_embed("lfg_not_found_WTF",mes.channel_id);
                             }
                         }
-                        DB.rem_chat(mes.author.id.0);
+                        DB.rem_chat(mes.author.id);
                         return;
                     }
                     "YES" | "ДА" | "Y" => {
-                        lfg_rem(mes.channel_id,mes.author.id.0);
-                        DB.rem_chat(mes.author.id.0);
+                        lfg_rem(mes.channel_id,mes.author.id);
+                        DB.rem_chat(mes.author.id);
                         return;
                     }
                     _=>{}
@@ -788,20 +728,21 @@ pub fn lfg(mes: Message, stage: Stage_LFG){
                 match s.to_uppercase().as_str() {
                     "!WSLFG" => {continue;}
                     "N" | "NO" | "НЕТ" | "ОТМЕНА" => {
-                        match DB.get_lfg(mes.author.id.0){
+                        match DB.get_lfg(mes.author.id){
                             Some(lfg) => {
                                 let title = "Объявление осталось преждним:";
                                 let (tstring, dstring) = lfg.to_line(mes.channel_id);
-                                if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
-                                                      (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
-                                    println!("Message Error: {:?}", e);
-                                }
+	                            EmbedStruct::empty()
+		                            .title(&title)
+		                            .col(color)
+		                            .fields(vec![(tstring,dstring,false)])
+		                            .send(mes.channel_id);
                             }
                             None => {
                                 DB.send_embed("lfg_not_found_WTF",mes.channel_id);
                             }
                         }
-                        DB.rem_chat(mes.author.id.0);
+                        DB.rem_chat(mes.author.id);
                         return;
                     }
                     "YES" | "ДА" | "Y" => {
@@ -809,11 +750,12 @@ pub fn lfg(mes: Message, stage: Stage_LFG){
 
                         let title = "Ваше объявление обновлено:";
                         let (tstring, dstring) = lfg.to_line(mes.channel_id);
-                        if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
-                                              (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
-                            println!("Message Error: {:?}", e);
-                        }
-                        DB.rem_chat(mes.author.id.0);
+	                    EmbedStruct::empty()
+		                    .title(&title)
+		                    .col(color)
+		                    .fields(vec![(tstring,dstring,false)])
+		                    .send(mes.channel_id);
+                        DB.rem_chat(mes.author.id);
                         return;
                     }
                     _=>{}
@@ -824,7 +766,7 @@ pub fn lfg(mes: Message, stage: Stage_LFG){
 
 }
 
-fn lfg_none(mes: Message){
+pub fn lfg_none(mes: DMessage){
     let mut user = User::empty();
 
     let err_color: u64 = 13369344;
@@ -833,10 +775,11 @@ fn lfg_none(mes: Message){
     let yellow_color: u64 = 15651330;
     let title = "Ваше объявление будет вглядеть так:".to_string();
 
-    let private_c = DIS.create_private_channel(mes.author.id).unwrap().id;
+    //let private_c = DIS.create_private_channel(mes.author.id).unwrap().id;
 
     
     let (mut mes_data, des) = split_mes(mes.content.clone());
+
 
     let _ = mes_data.remove(0);
 
@@ -848,10 +791,11 @@ fn lfg_none(mes: Message){
             return;
         }
             else {
-                if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
-                                      (String::new(),""),fields.clone(),("","",""),String::new(),String::new()){
-                    println!("Message Error [!wslfg]: \n{:?}\nFields: \n{:?}\n", e, fields);
-                }
+	            EmbedStruct::empty()
+		            .title(&title)
+		            .col(color)
+		            .fields(fields)
+		            .send(mes.channel_id);
             }
     }
     else {
@@ -880,7 +824,7 @@ fn lfg_none(mes: Message){
                 }
                 "DEL" | "REMOVE" | "REM" | "DELETE" => {
 
-					lfg_rem(mes.channel_id,mes.author.id.0);
+					lfg_rem(mes.channel_id,mes.author.id);
                     /*match DB.get_lfg(mes.author.id.0){
                         Some(lfg) => {
 							
@@ -917,7 +861,7 @@ fn lfg_none(mes: Message){
             }
         }
 
-        match load_by_id(mes.author.id.0) {
+        match load_by_id(mes.author.id) {
             None => {
                 DB.send_embed("lfg_user_not_reg",mes.channel_id);
                 return;}
@@ -926,9 +870,7 @@ fn lfg_none(mes: Message){
             }
         }
 
-        if let Some(mut old_lfg) = DB.get_lfg(mes.author.id.0){
-
-
+        if let Some(mut old_lfg) = DB.get_lfg(mes.author.id){
 
             if !btag.is_empty() || !reg.is_empty() || !plat.is_empty(){
 
@@ -967,10 +909,12 @@ fn lfg_none(mes: Message){
 
 			let title = "Ваше объявление обновлено:";
             let (tstring, dstring) = old_lfg.to_line(mes.channel_id);
-			if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
-								  (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
-				println!("Message Error: {:?}", e);
-			}
+	        EmbedStruct::empty()
+		        .title(&title)
+		        .col(color)
+		        .fields(vec![(tstring,dstring,false)])
+		        .send(mes.channel_id);
+
 			/*
             DB.set_chat(mes.author.id.0, Chat::LFG(Stage_LFG::ConfirmUpdate(lfg.clone())));
             let mut vec = Vec::new();
@@ -1034,7 +978,7 @@ fn lfg_none(mes: Message){
                 }
 
                 let lfg = LFG{
-                    did: mes.author.id.0,
+                    did: mes.author.id,
                     rating,
                     btag,
                     plat,
@@ -1047,10 +991,12 @@ fn lfg_none(mes: Message){
 
                 let title = "Ваше объявление добавлено в базу:";
                 let (tstring, dstring) = lfg.to_line(mes.channel_id);
-                if let Err(e) = embed(mes.channel_id,"",title,"",String::new(),color,
-                                      (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
-                    println!("Message Error: {:?}", e);
-                }
+	            EmbedStruct::empty()
+		            .title(&title)
+		            .col(color)
+		            .fields(vec![(tstring,dstring,false)])
+		            .send(mes.channel_id);
+
                 return;
             }
 
@@ -1058,16 +1004,17 @@ fn lfg_none(mes: Message){
 
 }
 
-fn lfg_rem(chanel: ChannelId,id: u64){
+fn lfg_rem(chanel: u64,id: u64){
     let color: u64 = 37595;
     match DB.get_lfg(id){
         Some(lfg) => {
             let title = "Ваше объявление удалено:";
             let (tstring, dstring) = lfg.to_line(chanel);
-            if let Err(e) = embed(chanel,"",title,"",String::new(),color,
-                                  (String::new(),""),vec![(tstring,dstring,false)],("","",""),String::new(),String::new()){
-                println!("Message Error: {:?}", e);
-            }
+	        EmbedStruct::empty()
+		        .title(&title)
+		        .col(color)
+		        .fields(vec![(tstring,dstring,false)])
+		        .send(chanel);
             let mut call = format!("DELETE FROM lfg WHERE did={}",id);
             let mut conn = POOL.get_conn().unwrap();
             if let Err(e) = conn.query(call){
@@ -1141,36 +1088,54 @@ fn lfg_add(lfg: LFG){
     DB.push_lfg(lfg);
 }
 
-fn match_merge(chanel: ChannelId, did: u64) -> String{
+fn match_merge(chanel: u64, did: u64) -> String{
 
-    let user = match DIS.create_private_channel(discord::model::UserId(did)){
-        Ok(x) => {
-            x.recipient
-        }
-        _ => {
-            let servers = match DIS.get_servers() {
-                    Ok(x) => {x}
-                    _ => {return format!("<@{}>",discord::model::UserId(did));}
-                };
-            let mut u = None;
-            for server in servers{
-                match DIS.get_member(server.id,discord::model::UserId(did)){
-                        Ok(x) =>{u = Some(x.user); break;
-                        }
-                        _ => {continue;
-                        }
+//    let user = match DIS.create_private_channel(discord::model::UserId(did)){
+//        Ok(x) => {
+//            x.recipient
+//        }
+//        _ => {
+//            let servers = match DIS.get_servers() {
+//                    Ok(x) => {x}
+//                    _ => {return format!("<@{}>",discord::model::UserId(did));}
+//                };
+//            let mut u = None;
+//            for server in servers{
+//                match DIS.get_member(server.id,discord::model::UserId(did)){
+//                        Ok(x) =>{u = Some(x.user); break;
+//                        }
+//                        _ => {continue;
+//                        }
+//                }
+//            }
+//            if let Some(x) = u{
+//                x
+//            }
+//            else{
+//                return format!("<@{}>",did);
+//            }
+//
+//        }
+//    };
+    if let Some(user) = Discord::get_user(did){
+        if let Some(value) = Discord::get_chanel(chanel){
+            let ty = json!(0);
+            if ty.eq(&value["type"]){
+                if let Some(_) = Discord::get_member(value["guild_id"].as_str().unwrap().parse::<u64>().unwrap(),did){
+                    return format!("<@{}>",did);
                 }
             }
-            if let Some(x) = u{
-                x
-            }
-            else{
-                return format!("<@{}>",did);
-            }
 
         }
-    };
-    if let Ok(chan) = DIS.get_channel(chanel){
+        return format!("{}#{}", user.username, user.discriminator);
+    }
+    else {
+        return format!("<@{}>",did);
+    }
+
+
+/*
+if let Ok(chan) = DIS.get_channel(chanel){
         match chan{
             Channel::Group(chan_group) => {
                 return format!("{}#{}", user.name, user.discriminator);
@@ -1276,5 +1241,5 @@ fn match_merge(chanel: ChannelId, did: u64) -> String{
     }
     else {
         return format!("{}#{}", user.name, user.discriminator);
-    }
+    }*/
 }
