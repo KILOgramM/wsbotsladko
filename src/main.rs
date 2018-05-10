@@ -2343,12 +2343,12 @@ fn role_ruler_text(server_id: u64, user_id: u64, cmd: RoleR) -> String{
 fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
     lazy_static! {
         static ref ROLES: Vec<String> = vec![
-            String::from("4500+"),
-            String::from("4000+"),
-            String::from("3500+"),
-            String::from("3000+"),
-            String::from("2500+"),
-            String::from("2500-")
+            String::from("ТОП500"),
+            String::from("Грандмастер"),
+            String::from("Мастер"),
+            String::from("Алмаз"),
+            String::from("Платина"),
+            String::from("Золото")
             ];
     }
     let mut answer: Vec<RoleChange> = Vec::new();
