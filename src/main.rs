@@ -230,7 +230,7 @@ pub enum Hero{
     Ana,
     Orisa,
     Moira,
-    //Brigitte,
+    Brigitte,
 }
 impl Hero{
     fn get_from_bliz_str(s: &str) -> Hero{
@@ -261,7 +261,7 @@ impl Hero{
             "13B" => {return Hero::Ana;}
             "13E" => {return Hero::Orisa;}
             "1A2" => {return Hero::Moira;}
-            //"" => {return Hero::Brigitte;}
+            "195" => {return Hero::Brigitte;}
             _ => {{return Hero::None;}}
         }
     }
@@ -293,7 +293,7 @@ impl Hero{
              &Hero::Ana => {return String::from("Ana");}
              &Hero::Orisa => {return String::from("Orisa");}
              &Hero::Moira => {return String::from("Moira");}
-             //&Hero::Brigitte => {return String::from("Brigitte");}
+             &Hero::Brigitte => {return String::from("Brigitte");}
              &Hero::None => {return String::new();}
         }
     }
@@ -325,7 +325,7 @@ impl Hero{
             Hero::Ana => {return String::from("Ана");}
             Hero::Orisa => {return String::from("Ориса");}
             Hero::Moira => {return String::from("Мойра");}
-            //Hero::Brigitte => {return String::from("Бригитта");}
+            Hero::Brigitte => {return String::from("Бригитта");}
             Hero::None => {return String::new();}
         }
     }

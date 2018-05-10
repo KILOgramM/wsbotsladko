@@ -7,6 +7,7 @@ use websocket::{Message,
 use websocket::client::ClientBuilder;
 use websocket::stream::sync::AsTcpStream;
 use serde_json::Value;
+use std::io::ErrorKind;
 
 
 use reqwest;
@@ -165,6 +166,20 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                 }
                 Err(e) => {
                     println!("[WebSocket Core] Send Err1: {:?}", e);
+                    if let WebSocketError::IoError(err) = e {
+                        if let ErrorKind::ConnectionAborted = err.kind(){
+                            println!("[WebSocket Core] Try reconect");
+                            let _ = client.shutdown();
+                            client = ClientBuilder::new(gateway.as_str())
+                                .expect("[WebSocket Core] Make Client Builder for Reconect")
+                                .connect_secure(None)
+                                .expect("[WebSocket Core] Make Connection for Reconect");
+                            last_seq = None;
+                            session_id = None;
+                            //println!("[WebSocket Core] Reconection success");
+                            continue;
+                        }
+                    }
                     return;
                 }
             }

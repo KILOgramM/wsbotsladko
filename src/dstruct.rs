@@ -296,7 +296,7 @@ impl HBeat {
         }
     }
     pub fn set(&mut self, interval: u64) {
-        self.interval = interval -100;
+        self.interval = interval - 1000;
         self.switch = true;
         self.time = Instant::now();
     }

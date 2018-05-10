@@ -102,16 +102,30 @@ impl Event{
 				"GUILD_ROLE_UPDATE" => {return Some(Event::GuildRoleUpdate(json) ); }
 				"GUILD_ROLE_DELETE" => {return Some(Event::GuildRoleDelete(json) ); }
 				"MESSAGE_CREATE" => {
+
+					let id = json["id"].as_str().unwrap_or("0").parse::<u64>().unwrap();
+					let channel_id = json["channel_id"].as_str().unwrap_or("0").parse::<u64>().unwrap();
+					let user_id = json["author"]["id"].as_str().unwrap_or("0").parse::<u64>().unwrap();
+					let username = json["author"]["username"].as_str().unwrap_or("").to_string();
+					let discriminator = json["author"]["discriminator"].as_str().unwrap_or("").to_string();
+					let avatar = match json["author"]["avatar"].as_str(){
+						Some(x) => {
+							format!("https://cdn.discordapp.com/avatars/{}/{}",&user_id,x)
+						}
+						None => { String::new()}
+					};
+					let content = json["content"].as_str().unwrap_or("").to_string();
+
 					return Some(Event::MessageCreate(DMessage{
-						id: json["id"].as_str().unwrap().parse::<u64>().unwrap(),
-						channel_id: json["channel_id"].as_str().unwrap().parse::<u64>().unwrap(),
+						id: id,
+						channel_id,
 						author: DUser{
-							id: json["author"]["id"].as_str().unwrap().parse::<u64>().unwrap(),
-							username: json["author"]["username"].as_str().unwrap().to_string(),
-							discriminator: json["author"]["discriminator"].as_str().unwrap().to_string(),
-							avatar: format!("https://cdn.discordapp.com/avatars/{}/{}",json["author"]["id"].as_str().unwrap(),json["author"]["avatar"].as_str().unwrap()),
+							id: user_id,
+							username: username,
+							discriminator: discriminator,
+							avatar: avatar
 						},
-						content: json["content"].as_str().unwrap().to_string(),
+						content: content,
 					}) ); }
 				"MESSAGE_UPDATE" => {return Some(Event::MessageUpdate(json) ); }
 				"MESSAGE_DELETE" => {return Some(Event::MessageDelete(json) ); }
