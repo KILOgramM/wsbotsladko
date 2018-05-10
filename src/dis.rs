@@ -165,6 +165,20 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                 }
                 Err(e) => {
                     println!("[WebSocket Core] Send Err1: {:?}", e);
+                    if let WebSocketError::IoError(err) = e {
+                        if let Some(10053) = err.raw_os_error(){
+                            println!("[WebSocket Core] Try reconect");
+                            let _ = client.shutdown();
+                            client = ClientBuilder::new(gateway.as_str())
+                                .expect("[WebSocket Core] Make Client Builder for Reconect")
+                                .connect_secure(None)
+                                .expect("[WebSocket Core] Make Connection for Reconect");
+                            last_seq = None;
+                            session_id = None;
+                            //println!("[WebSocket Core] Reconection success");
+                            continue;
+                        }
+                    }
                     return;
                 }
             }
