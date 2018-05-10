@@ -169,8 +169,9 @@ impl DiscordMain{
     pub fn new(token: String) -> DiscordMain{
         use std::thread;
         let (dc_sender, dc_reciever) = DoubleChanel::<GlobE>::new();
-
-        thread::spawn(move || shell(dc_reciever));
+	thread::Builder::new()
+            .name("Websocket".to_string())
+            .spawn(move || shell(dc_reciever));
         DiscordMain{
             dc: Mutex::new(dc_sender),
 	        token,
