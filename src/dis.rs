@@ -280,8 +280,9 @@ pub fn shell(dc_global: DoubleChanel<GlobE>){
     //let (dc_local_s, dc_local_r) = DoubleChanel::<LocalLink>::new();
 
     let (dc_core, dc_to_core) = DoubleChanel::<UniChanel>::new();
-
-    thread::spawn(move || core(dc_to_core));
+    thread::Builder::new()
+            .name("Websocket Core".to_string())
+            .spawn(move || core(dc_to_core));
 
     let mut dis_links: Vec<DCShell> = Vec::new();
 
