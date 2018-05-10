@@ -1,56 +1,31 @@
 *[broadcast]* Сообщение для рассылки
 {
-  "embed": {
-      "title": "Важная информация",
-      "color": 37595,
-      "fields": [
-        {
-          "name": "*WinSpirit*",
-          "value": "[Группа ВК](https://vk.com/winspiritow)\n[Сайт](http://winspirit.org/)",
-        "inline": true
-        },
-        {
-          "name": "*Функции*",
-          "value": "Просмотр статистики\nПоиск тиммейтов\nСписки турниров",
-        "inline": true
-        },
-
-        {
-          "name": "*Регулярные RU турниры и события*",
-          "value": "[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир\n[PR1ME](https://vk.com/pr1mevk) - Турниры от стримеров\n[МИКСЫ](https://discord.gg/rDjtM59) - пон, сред, пятн. 20-00 МСК\n[ЛФГ сайт](http://oversearch.ru) - много игроков, гибкий фильтр",
-          "inline": true
-        },
-        {
-                  "name": "*Регулярные EU турниры*",
-                  "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-europe/2018-overwatch-open-division-season-2-europe/5ab2ee6f126cba034a112993/info?infoTab=details) - EU season 2 2018\n[Toornament.com](https://www.toornament.com/games/overwatch) - турнирная площадка\n[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - турнирная площадка\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - еженедельник с призовыми",
-                  "inline": true
-                },
-        {
-          "name": "*Инструментарий*",
-          "value": "1. Совместный просмотр видео с возможностью рисовать - <https://visor.gg>\n2. Простой совместный просмоторщик видео - <https://andchill.tv>\n3. Общие таблицы для ведения статистики - <https://docs.google.com/>\n4. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n5. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>\n6. Энциклопедия овервотч - <https://overwiki.ru/>"
-
-        },
-        {
-          "name": "*Записи игр | VODS*",
-           "value": "Первая команда WS  - [100 часов, вид сверху, общение команды](https://www.youtube.com/channel/UCjMqWcQsXAXhI247M7knRYQ/playlists?view_as=subscriber)\nOWL и Contenders - [Официальные записи игр](https://vk.com/videos-39230591)\nEU&US VODS - [Ютуб канал с водами](https://www.youtube.com/channel/UC2J2ZrVtL_muVqK5xmiPyXw)"
-
-                },
-        {
-          "name": "*На масло и улучшения*",
-          "value": "PayPal - https://www.paypal.me/akseliter\nЯндекс кошелек - 41001266249359"
-        }
-        ,
-        {
-          "name": "__Важная информация обо мне__",
-          "value": "Все списки поиска общие для всех серверов, так что вы можете установить меня к себе на сервер и пользоваться всеми моими плюшками с комфортом для себя =)\n[Ссылка для установки меня к вам на сервер!](https://discordapp.com/api/oauth2/authorize?client_id=291380685392838657&scope=bot&permissions=1)"
-        },
-        {
-                  "name": "*Список команд* - !wsstats теперь обновляет роль по рейтингу на сервере WinSpirit",
-                  "value": "```!wsreg BattleTag#1234 - регистрация для включения всех функций и выдача роли по рейтингу на сервере WinSpirit\n!wsstats - вывод статистики(если не вводил wsreg то необходимо указать BattleTag#1234)\n!wscmd - вывод полного списка команд\n!wshelp - вывод помощи и справочной информации```"
-                }
-      ]
-
-    }
+   "embed": {
+    "title": "Самое важное, что вы должны знать о WinSpirit",
+    "description": "Мы работаем каждый день - наша цель развивать сообщество по Overwatch",
+    "color": 37595,
+    "footer": {
+      "text": "Удачи и удовольствия!"
+    },
+    "fields": [
+    {
+        "name": "Что есть!?",
+        "value": "У нас есть сетка событий - http://winspirit.org/events, каналы для поиска игроков для разных целей и поиск тренировок, каналы с огромным количеством стримов и ссылок на полезную информацию"
+      },
+      {
+        "name": "ПОКУПАЙТЕ ПОДПИСКУ!",
+        "value": "Вы станете не просто зрителем, а участником проекта WinSpirit. Пройдя по ссылке - http://www.donationalerts.ru/r/winspirit, укажите ПОДПИСКА и ваше дискорд имя. Стоимость подписки 500 рублей в месяц."
+      },
+      {
+        "name": "Что будет!?",
+        "value": "Вы сможете не просто слушать спикеров, но и задавать вопросы. Так же на вырученные деньги мы будем увеличивать количество спикеров. Сделаем еженедельный, ежемесячные финалы и годовой итоговый турнир. Так же хотим организовать студию для качественных трансляций всех событий из мира Overwatch."
+       },
+      {
+        "name": "ВАРИАНТЫ",
+        "value": "Все, что можно было сделать бесплатного мы сделали и сейчас нам надо для дальнейшего развития или зажимать гайки и ограничевать вас на сервере или все-таки убедить вас помогать проекту. Заранее благодарим Вас за поддержку и понимание."
+      }
+    ]
+  }
 }
 
 *[lfg_user_not_reg]* LFG незарегестрированный пользователь пробует воспользоваться lfg
@@ -230,9 +205,13 @@
         "value": "Еженедельник от WinSpirit\nскоро..."
       },
       {
-         "name": "RU # Cup of Dreamers",
-        "value": "Регулярный турнир от AlexanDream. 2 раза в год. Хороший призовой.\n[подробнее...](https://vk.com/cupofdreamers)"
-      }
+                "name": "RU # Cup of Dreamers",
+               "value": "Регулярный турнир от AlexanDream. 2 раза в год. Хороший призовой.\n[подробнее...](https://vk.com/cupofdreamers)"
+             },
+      {
+               "name": "RU # LCES - Legendary Competitions of eSport",
+               "value": "Регулярный турнир. Хороший призовой. LAN турниры в Санкт-Петербурге\n[подробнее...](LCES [Legendary Competitions of eSport])"
+             }
     ]
   }
 }
@@ -270,7 +249,7 @@
       },
       {
         "name": "*Инструментарий*",
-        "value": "1. Совместный просмотр видео с возможностью рисовать - <https://visor.gg>\n2. Общие таблицы для ведения статистики - <https://docs.google.com/>\n3. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n4. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>"
+        "value": "1. Совместный просмотр видео с возможностью рисовать - <https://visor.gg>\n2. Простой совместный просмоторщик видео - <https://andchill.tv>\n3. Общие таблицы для ведения статистики - <https://docs.google.com/>\n4. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n5. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>\n6. Энциклопедия овервотч - <https://overwiki.ru/>\n7. Подробная энциклопедия профессионального Overwatch - <http://liquipedia.net/overwatch/Main_Page>\n8. Хороший и полезный сайт от Таверны по Overwatch - <https://overwatch.tavernofheroes.net/ru>"
                       },
       {
         "name": "*Ты можешь посетить наши ресурсы:*",
