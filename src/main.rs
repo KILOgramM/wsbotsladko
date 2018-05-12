@@ -25,12 +25,8 @@ use std::io::Write;
 use std::ops::Deref;
 use std::ops::Index;
 
-//use std::env;
-//use rusqlite::Connection;
-
 pub mod addon;
-//pub mod net;
-//pub mod tournaments;
+
 pub mod event;
 
 pub mod denum;
@@ -48,8 +44,6 @@ use event::{EventChanel, EventH, EventReq, EventChanelBack, EventType};
 use addon::{DB, Chat, lfg_none, Stage_LFG, Global, TempData};
 use dstruct::{DiscordMain};
 use serde_json::Value;
-
-//use net::Net;
 
 use std::{thread, time, fmt};
 
@@ -1392,264 +1386,6 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
 		.send(chan);
 }
 
-//Отправная функция по всем запросам касательно скримов
-/*
-fn scrim_starter(mut mes: &str, autor: discord::model::User)
-{
-    lazy_static! {
-        static ref REG_RTG: Regex = Regex::new(r"^([0-9]{1,3}|[1-4][0-9]{1,3}|5000)$").unwrap();
-    }
-
-    let mut mes_str: Vec<&str> = mes.split_whitespace().collect();
-    let mut battletag: String = String::new();
-    let mut platform: String = String::new();
-    let mut rating: u16 = 0;
-    let mut unnone = false;
-    let mut botmess: String = "     Поиск скримов".to_string();
-    let mut timer: u64 = 900; //Вообще надо бы сделать значение с точкой но это потом
-    let mut live_time: u64 = 900;
-    let mut hide: bool = false;
-    let mut show_btag: bool = false;
-    let mut help_str = "\n```markdown\n!wsscrim {Время поиска: m|H} {Платформа: PC|P4|XB} {Рейтинг группы (по умолчанию будет взят ваш рейтинг)} {Сохранить шаблон: save}\n```";
-    //let is_reg = reg_check(autor.id);
-    let user: User = match load_by_id(autor.id.0) {
-        Some(u) => { u }
-        _ => { User::empty() }
-    };
-    if user.did != 0 && !user.btag.is_empty() {
-        rating = match load_overwatch_rating(user.btag.clone(), user.reg.clone(), user.plat.clone()) {
-            6000 => {
-                0
-            }
-            x => { x }
-            _ => { 0 }
-        }
-    }
-    let mut save_preset: bool = false;
-    let mut preset: Preset_Scrim;
-
-    if mes_str.capacity() > 1 {
-        for s in mes_str {
-            match s.to_uppercase().as_str() {
-                "PC" | "P4" | "XB" => {
-                    platform = s.to_uppercase();
-                }
-                "SAVE" => {
-                    save_preset = true;
-                }
-                _ => {
-                    if REG_BTAG.is_match(s) {
-                        battletag = s.to_string();
-                    } else if REG_RTG.is_match(s) { rating = s.parse::<u16>().unwrap(); } else { unnone = true; }
-                }
-            }
-        }
-        if unnone {
-            if REG_TIME.is_match(mes) {
-                match REG_TIME.captures(mes).unwrap().name("ntype").unwrap().as_str().to_uppercase().as_str() {
-                    "M" | "MIN" => {
-                        timer = REG_TIME.captures(mes).unwrap().name("n").unwrap().as_str().parse::<u64>().unwrap() * 60;
-                    }
-                    "H" | "HOUR" => {
-                        timer = REG_TIME.captures(mes).unwrap().name("n").unwrap().as_str().parse::<u64>().unwrap() * 3600;
-                    }
-                    _ => {}
-                }
-                if timer <= 7200 {
-                    live_time = timer;
-                } else {
-                    live_time = 7200;
-                    //текст о превышении лимита
-                }
-            }
-        }
-        let no_btag = match (battletag.is_empty(), user.btag.clone().is_empty()) {
-            (true, true) => { true }
-            (false, _) => { false }
-            (true, false) => {
-                battletag = user.btag.clone();
-                true
-            }
-            _ => { false }
-        };
-
-        let no_plat: bool = match (platform.is_empty(), user.plat.clone().is_empty()) {
-            (true, true) => {
-                platform = "PC".to_string();
-                true
-            }
-            (false, _) => { false }
-            (true, false) => {
-                platform = user.plat.clone();
-                true
-            }
-            _ => { false }
-        };
-    } else {
-        if user.scrim_preset.plat.is_empty() {
-            if user.did == 0 {
-                //проверка на регистрацию
-            } else {
-                if rating == 0 {} else {}
-            }
-        } else {
-            let mut scrim = Scrim::new();
-
-            scrim.user = autor.id.0;
-            scrim.plat = user.scrim_preset.plat;
-            scrim.rtg = user.scrim_preset.rtg;
-            scrim.live_time = user.scrim_preset.live_time;
-            scrim.hide = hide;
-            scrim.show_btag = show_btag;
-        }
-    }
-
-    let mut scrim = Scrim::new();
-
-    scrim.user = autor.id.0;
-    scrim.plat = platform;
-    scrim.rtg = rating;
-    scrim.live_time = live_time;
-    scrim.hide = hide;
-    scrim.show_btag = show_btag;
-
-    match DIS.create_invite(DIS.create_private_channel(autor.id).unwrap().id, 600, 0, true) {
-        Ok(chan) => {
-            println!("[code] {}", chan.code);
-            println!("[server_id] {:?}", chan.server_id);
-            println!("[server_name] {}", chan.server_name);
-            botmess.push_str(format!("\nПлатформа: {}", scrim.plat.clone()).as_str());
-            botmess.push_str(format!("\nРейтинг: {:?}", scrim.rtg).as_str());
-            botmess.push_str(format!("\nВремя поиска: {:?}", live_time * 60).as_str());
-            //let _ = DIS.send_message(, botmess.as_str(), "", false);
-            scrim_queue(&scrim);
-        }
-        Err(e) => { println!("[CreatingChanelErr] {:?}", e) }
-    }
-}*/
-
-/*
-fn scrim_queue(scrim: &Scrim) {
-    let mut conn = POOL.get_conn().unwrap();
-    let command = format!("SELECT COUNT(*) FROM scrim_queue");
-    let mut stmt = conn.prepare(command).unwrap();
-    let mut answer: u64 = 0;
-
-    for row in stmt.execute(()).unwrap() {
-        answer = mysql::from_row::<u64>(row.unwrap());
-    }
-
-    println!("[MySQL request SELECT COUNT(*)] {:?}", answer);
-
-    if answer == 0 {
-        add_to_scrim_queue(&scrim);
-    } else {
-        let mut call = format!("SELECT");
-
-        call = format!("{} user", call);
-        call = format!("{}, plat", call);
-        call = format!("{}, rtg", call);
-        call = format!("{}, live_time", call);
-        call = format!("{}, hide", call);
-        call = format!("{}, show_btag", call);
-
-        call = format!("{} FROM scrim_queue WHERE", call);
-
-        call = format!("{} plat='{}'", call, scrim.plat);
-
-        call = format!("{} AND", call);
-
-        call = format!("{} rtg BETWEEN {:?} AND {:?}", call, scrim.rtg - 200, scrim.rtg + 200);
-
-        call = format!("{} ORDER BY createdtime LIMIT 1", call);
-        let mut conn = POOL.get_conn().unwrap();
-        let mut stmt = conn.prepare(call.as_str()).unwrap();
-        let mut founded: Scrim = Scrim::new();
-
-
-        for row in stmt.execute(()).unwrap() {
-            let (user, plat, rtg, live_time, hide, show_btag) = mysql::from_row::<(u64, String, u16, u64, bool, bool)>(row.unwrap());
-            founded.user = user;
-            founded.plat = plat;
-            founded.rtg = rtg;
-            founded.live_time = live_time;
-            founded.hide = hide;
-            founded.show_btag = show_btag;
-        }
-        let mut botmess: String = "Найдено".to_string();
-        botmess.push_str(format!("\nUser: {}", discord::model::UserId(founded.user).mention()).as_str());
-        botmess.push_str(format!("\nПлатформа: {}", founded.plat).as_str());
-
-
-        call = format!("SELECT");
-        call = format!("{} ABS(UNIX_TIMESTAMP(endtime) - UNIX_TIMESTAMP(CURRENT_TIMESTAMP))", call);
-        call = format!("{}, CASE WHEN endtime >= CURRENT_TIMESTAMP THEN 1 ELSE 0 END", call);
-        call = format!("{} FROM scrim_queue WHERE", call);
-        call = format!("{} user={}", call, scrim.user);
-
-        let mut conn = POOL.get_conn().unwrap();
-        let mut stmt = conn.prepare(call.as_str()).unwrap();
-        let mut answer: u64 = 0;
-        let mut trigger: i16 = 0;
-
-        for row in stmt.execute(()).unwrap() {
-            let (first, second) = mysql::from_row::<(u64, i16)>(row.unwrap());
-            answer = first;
-            trigger = second;
-        }
-        if trigger == 1 {
-            botmess.push_str(format!("\nОсталось: {:?} секунд", answer).as_str());
-        } else {
-            if answer == 0 {
-                botmess.push_str(format!("\nПрошло: ровно").as_str());
-            }
-            {
-                botmess.push_str(format!("\nПрошло: {:?} секунд", answer).as_str());
-            }
-        }
-
-        let _ = DIS.send_message(DIS.create_private_channel(discord::model::UserId(founded.user)).unwrap().id, botmess.as_str(), "", false);
-    }
-}*/
-
-/*
-fn add_to_scrim_queue(scrim: &Scrim) {
-    let time_str = format!("{:?}:{:?}:{:?}", scrim.live_time / 3600, (scrim.live_time / 60) % 60, scrim.live_time % 60);
-    println!("[time_str] {}", time_str);
-
-    let mut call = format!("INSERT INTO scrim_queue (");
-
-    call = format!("{} user", call);
-    call = format!("{}, plat", call);
-    call = format!("{}, rtg", call);
-    call = format!("{}, live_time", call);
-    call = format!("{}, hide", call);
-    call = format!("{}, show_btag", call);
-    call = format!("{}, endtime", call);
-
-    call = format!("{}) VALUES (", call);
-
-    call = format!("{} {:?}", call, scrim.user);
-    call = format!("{}, '{}'", call, scrim.plat);
-    call = format!("{}, {}", call, scrim.rtg);
-    call = format!("{}, {}", call, scrim.live_time);
-    call = format!("{}, {}", call, match scrim.hide {
-        true => { 1 }
-        false => { 0 }
-    });
-    call = format!("{}, {}", call, match scrim.show_btag {
-        true => { 1 }
-        false => { 0 }
-    });
-    call = format!("{}, TIMESTAMP(CURRENT_TIMESTAMP,'{}')", call, time_str);
-
-    call = format!("{});", call);
-
-    println!("[MySQL request INSERT INTO scrim_queue] {}", call);
-    let mut conn = POOL.get_conn().unwrap();
-    let _ = conn.query(call);
-}
-*/
 
 fn insert(name: &str, var: &String) {
     let mut call = format!("INSERT INTO variables (name,var) VALUES(");
@@ -1672,81 +1408,6 @@ fn get_db(name: &str) -> String {
     return string;
 }
 
-/*
-fn event_eater(ev: String){
-    thread::spawn(move || {
-
-        let mut mess = String::new();
-        let mut tabs = 0;
-        for char in ev.chars() {
-            match char {
-                '(' => {
-                    mess.push(char);
-                    mess.push('\n');
-                    tabs = tabs + 1;
-                    for _ in 0..tabs {
-                        mess.push('\t');
-                    }
-                }
-                '{' => {
-                    mess.push(char);
-                    mess.push('\n');
-                    tabs = tabs + 1;
-                    for _ in 0..tabs {
-                        mess.push('\t');
-                    }
-                }
-                ',' => {
-                    mess.push(char);
-                    mess.push('\n');
-                    for _ in 0..tabs {
-                        mess.push('\t');
-                    }
-                }
-                ')' => {
-                    mess.push(char);
-                    mess.push('\n');
-                    tabs = tabs - 1;
-                    if tabs < 0 { tabs = 0; }
-                    for _ in 0..tabs {
-                        mess.push('\t');
-                    }
-                }
-                '}' => {
-                    mess.push('\n');
-                    mess.push(char);
-                    tabs = tabs - 1;
-                    if tabs < 0 { tabs = 0; }
-                    for _ in 0..tabs {
-                        mess.push('\t');
-                    }
-                }
-                '[' => {
-                    mess.push(char);
-                    mess.push('\n');
-                    tabs = tabs + 1;
-                    for _ in 0..tabs {
-                        mess.push('\t');
-                    }
-                }
-                ']' => {
-                    mess.push('\n');
-                    mess.push(char);
-                    tabs = tabs - 1;
-                    if tabs < 0 { tabs = 0; }
-                    for _ in 0..tabs {
-                        mess.push('\t');
-                    }
-                }
-                _ => {
-                    mess.push(char);
-                }
-            }
-        }
-        println!("{}", mess);
-    });
-}
-*/
 
 fn get_arg_from_mes(mut reg_str: Vec<&str>) -> User{
     let mut u = User::empty();
@@ -2132,97 +1793,7 @@ impl<'a> EmbedStruct<'a> {
 	    Discord::send_embed(chanel,json!(json));
     }
 }
-/*
-pub fn embed(chanel: u64, text: &str, title: &str, des: &str,
-         thumbnail: String, col: u64, footer: (String, &str), fields: Vec<(String, String , bool)>,
-             author: (&str,&str,&str), url: String, image: String) -> discord::Result<discord::model::Message>{
 
-    return DIS.send_embed(chanel, text, |e| {
-        let mut a = e.color(col);
-        if !title.is_empty() {a = a.title(title);}
-        if !des.is_empty() {a = a.description(des);}
-        if !thumbnail.is_empty() {a = a.thumbnail(thumbnail.as_str());}
-        if !url.is_empty() {a = a.url(url.as_str());}
-        if !image.is_empty() {a = a.image(image.as_str());}
-
-        if !footer.0.is_empty() || !footer.1.is_empty()
-            {
-                a = a.footer(|f| {
-                    let mut foo = f;
-                    if !footer.0.is_empty() { foo = foo.icon_url(footer.0.as_str()); }
-                    if !footer.1.is_empty() { foo = foo.text(footer.1); }
-                    foo
-                });
-            }
-        if !author.0.is_empty() || !author.1.is_empty() || !author.2.is_empty()
-            {a = a.author(|au| {
-                let mut aut = au;
-                if !author.0.is_empty() {aut = aut.name(author.0);}
-                if !author.1.is_empty() {aut = aut.url(author.1);}
-                if !author.2.is_empty() {aut = aut.icon_url(author.2);}
-                aut
-            })}
-        if fields.len() > 0 {
-            a = a.fields(|z| {
-                let mut w = z;
-                for (name, text, inline) in fields{
-                    w = w.field(name.as_str(), text.as_str(), inline);
-                }
-                w
-            });
-        }
-        a
-    });
-}
-
-fn embed_builder(e: EmbedBuilder,botmess: &str, des: &str, col: u64, answer: BtagData, hero_list_titles: Vec<&str>) -> EmbedBuilder{
-
-    let mut b = e.title(botmess).description(des).color(col);
-
-    b = b.thumbnail(answer.avatar_url.as_str());
-    if hero_list_titles.len() == 0{return b;}
-
-    b.fields(|z| embed_field_builder(z,answer,hero_list_titles))
-
-}
-
-fn embed_field_builder(z: discord::builders::EmbedFieldsBuilder, answer: BtagData, hero_list_titles: Vec<&str>) -> discord::builders::EmbedFieldsBuilder{
-    let mut zz = z;
-
-    if hero_list_titles.len()>answer.heroes.len(){ return zz;}
-
-    for (enumerat,l) in hero_list_titles.iter().enumerate(){
-
-        let ref an = answer.heroes[enumerat];
-        let mut itre = an.clone().hero.name_rus();
-        let name = format!("{} {}",l,itre);
-
-        let mut value = String::new();
-        let mut f = true;
-        if let Some(ref x) = answer.heroes[enumerat].time_played{
-            match x{
-                &Time::Hours(t) => {
-                    if !f{value = format!("{},",value)}
-                    else{f=false}
-                    value = format!("{}ч.",t);}
-                &Time::Min(t) => {
-                    if !f{value = format!("{},",value)}
-                    else{f=false}
-                    value = format!("{}мин.",t);}
-                &Time::Sec(t) => {
-                    if !f{value = format!("{},",value)}
-                    else{f=false}
-                    value = format!("{}сек.",t);}
-                &Time::None => {}
-            }
-        }
-        if let Some(x)= answer.heroes[enumerat].win_perc{if !f{value = format!("{},",value)}else{f=false} value = format!("{} {}% побед",value,x);}
-        if let Some(x)= answer.heroes[enumerat].games_won{if !f{value = format!("{},",value)}else{f=false} value = format!("{} {} побед(а)",value,x);}
-        zz = zz.field(name.as_str(), value.as_str(), false);
-    }
-    return zz;
-}
-*/
 pub fn embed_from_value(chanel: u64, val: Value){
     Discord::send_embed(chanel,val);
 }
@@ -2610,7 +2181,7 @@ fn main() {
 
                                                         }
                                                     }
-                                                    if push || (i == num_elements){
+                                                    if push{
                                                         push = false;
                                                         switch = false;
                                                         no_chars = true;
@@ -2626,6 +2197,10 @@ fn main() {
                                                         settings = String::new();
                                                     }
                                                 }
+                                                if !option.is_empty(){
+                                                    buf.push((option, settings));
+                                                }
+
 
                                                 for (opt_namer, opt_par) in buf{
                                                     if opt_namer.is_empty(){
@@ -2647,6 +2222,7 @@ fn main() {
                                                         }
 
                                                         "room" => {
+                                                            println!("room - {}",&opt_par);
                                                             room = opt_par;
                                                         }
 
@@ -3163,39 +2739,12 @@ fn main() {
 
                     }
                     else {
-                        /*if let Ok(discord::model::Channel::Private(_)) = DIS.get_channel(mes.channel_id){
-                            if let Some(c) = DB.get_chat(mes.author.id.0){
-                                match c{
-                                    Chat::LFG(stage) => {lfg(mes,stage);}
-                                }
-                            }
-                        }*/
-//						if let Some(c) = DB.get_chat(mes.author.id){
-//                                match c{
-//                                    Chat::LFG(stage) => {lfg(mes,stage);}
-//                                }
-//                            }
+
                     }
                 });
             }
-            /*
-                        Event::ServerCreate(x) => {
-                            match x {
-                                discord::model::PossibleServer::Offline(_) => {}
-                                discord::model::PossibleServer::Online(y) => {
-                                    if y.name.eq("Bobin\'sTestPoligon") {
-                                        insert("BobinServerId",&format!("{:?}",y.id.0))
-                                    }
-                                }
-                            }
-                        }
-            */
+
             _ => {}
-            //let m: String = format!("{:?}", event);
-            //event_eater(m);}
-            //println!("[Some Event] {:?}", event);} // discard other known events
-
-
 
             //END OF MAIN THREAD
         }

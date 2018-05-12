@@ -398,9 +398,6 @@ impl EventData{
             output = format!("{}\nStart time: {}",output, next.to_tm().ctime())
         }
 
-//        self.next_activ.as_ref().map(|n| println!("Start time: {}", n.to_tm().ctime()));
-
-
         let event_type = self.event_type.clone();
         let name = self.name.clone();
         let _ = thread::spawn(move || match_func(name, event_type));
