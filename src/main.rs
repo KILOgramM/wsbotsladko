@@ -1083,7 +1083,7 @@ fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог со
 
         if no_btag || no_plat || no_reg {
 
-            des = "Но вы не указали полные данные :worried:";
+            des = "Не хватает некоторых данных, но ничего страшного :worried:";
 
             if no_btag {fields.push(("BattleTag".to_string(),"Не указан".to_string(),false))}
                 else { fields.push(("BattleTag".to_string(), battletag.clone(), false)) }
