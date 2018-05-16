@@ -34,8 +34,6 @@ pub mod denum;
 pub mod dstruct;
 pub mod dis;
 pub mod disapi;
-pub mod settings;
-pub mod structs;
 
 use disapi::Discord;
 use dstruct::DCShell;
