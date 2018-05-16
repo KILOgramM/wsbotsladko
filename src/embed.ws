@@ -182,12 +182,6 @@
     "footer": {
       "text": "WinSpirit™"
     },
-    "thumbnail": {
-      "url": "http://winspirit.org/sites/default/files/full-quad-200px.png"
-    },
-    "image": {
-      "url": "https://blizzard.gamespress.com/cdn/propressroom/Content/Artwork/Eva/BlizzardLive/artwork/2017/10/08170355-64c84909-3f5f-41b7-9dfc-39afdcaacfd2/OWContenders_S1_Playoffs_Day_One__(1).jpg?w=1024&maxheight=4096&mode=pad&format=jpg"
-    },
     "author": {
       "name": "Список турниров"
       },
@@ -201,6 +195,10 @@
         "value": "Еженедельный европейский турнир с сильным соперниками и небольшим призовым\n[подробнее...](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe)"
       },
       {
+                                  "name": "RU # OK Challenge Overwatch",
+                                  "value": "Регулярный онлайн турнир. Призовой 100 000 рублей.\n[подробнее...](https://vk.com/okchallenge)"
+                                },
+      {
          "name": "RU # Meatgrinder",
         "value": "Еженедельник от WinSpirit\nскоро..."
       },
@@ -210,8 +208,9 @@
              },
       {
                "name": "RU # LCES - Legendary Competitions of eSport",
-               "value": "Регулярный турнир. Хороший призовой. LAN турниры в Санкт-Петербурге\n[подробнее...](LCES [Legendary Competitions of eSport])"
+               "value": "Регулярный турнир. Хороший призовой. LAN турниры в Санкт-Петербурге\n[подробнее...](https://vk.com/lcescomp)"
              }
+
     ]
   }
 }
@@ -249,11 +248,11 @@
       },
       {
         "name": "*Инструментарий*",
-        "value": "1. Совместный просмотр видео с возможностью рисовать - <https://visor.gg>\n2. Простой совместный просмоторщик видео - <https://andchill.tv>\n3. Общие таблицы для ведения статистики - <https://docs.google.com/>\n4. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n5. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>\n6. Энциклопедия овервотч - <https://overwiki.ru/>\n7. Подробная энциклопедия профессионального Overwatch - <http://liquipedia.net/overwatch/Main_Page>\n8. Хороший и полезный сайт от Таверны по Overwatch - <https://overwatch.tavernofheroes.net/ru>"
+        "value": "1. Совместный просмотр видео с возможностью рисовать - <https://visor.gg>\n2. Простой совместный просмоторщик видео - <https://andchill.tv>\n3. Общие таблицы для ведения статистики - <https://docs.google.com/>\n4. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n5. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>\n6. Энциклопедия овервотч - <https://overwiki.ru/>\n7. Подробная энциклопедия профессионального Overwatch - <http://liquipedia.net/overwatch/Main_Page>\n8. Хороший и полезный сайт от Таверны по Overwatch - <https://overwatch.tavernofheroes.net/ru>\n9. Очень хороший сайт для поиска тиммейтов - <http://oversearch.ru>"
                       },
       {
         "name": "*Ты можешь посетить наши ресурсы:*",
-        "value": "http://winspirit.org/\nhttps://vk.com/winspiritow\n"
+        "value": "http://winspirit.org/\nhttps://vk.com/winspiritow"
       },
       {
         "name": "*Краткий список команд*",
