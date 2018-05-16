@@ -201,9 +201,9 @@
         "value": "Еженедельный европейский турнир с сильным соперниками и небольшим призовым\n[подробнее...](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe)"
       },
       {
-               "name": "RU # Турнир Жестяного Кубка",
-              "value": "Очень можный турнир от WinSpirit с открытой регистрацией\n[подробнее...](http://winspirit.org/jestcup)"
-            },
+                                  "name": "RU # OK Challenge Overwatch",
+                                  "value": "Регулярный онлайн турнир. Призовой 100 000 рублей.\n[подробнее...](https://vk.com/okchallenge)"
+                                },
       {
          "name": "RU # Meatgrinder",
         "value": "Еженедельник от WinSpirit\nскоро..."
@@ -215,11 +215,8 @@
       {
                "name": "RU # LCES - Legendary Competitions of eSport",
                "value": "Регулярный турнир. Хороший призовой. LAN турниры в Санкт-Петербурге\n[подробнее...](https://vk.com/lcescomp)"
-             },
-             {
-                            "name": "RU # OK Challenge Overwatch",
-                            "value": "Регулярный онлайн турнир. Призовой 100 000 рублей.\n[подробнее...](https://vk.com/okchallenge)"
-                          }
+             }
+
     ]
   }
 }
