@@ -1,6 +1,6 @@
 [package]
 name = "WSBot"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Sladko"]
 
 [dependencies]
@@ -18,3 +18,5 @@ indexmap = "0.4.*"
 
 native-tls = "0.1"
 websocket = "0.20.2"
+
+net2 = "0.2"

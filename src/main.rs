@@ -15,6 +15,7 @@ extern crate indexmap;
 
 extern crate native_tls;
 extern crate websocket;
+extern crate net2;
 
 extern crate time as extime;
 //https://discordapp.com/api/oauth2/authorize?client_id=316281967375024138&scope=bot&permissions=0
@@ -33,6 +34,8 @@ pub mod denum;
 pub mod dstruct;
 pub mod dis;
 pub mod disapi;
+pub mod settings;
+pub mod structs;
 
 use disapi::Discord;
 use dstruct::DCShell;
@@ -164,18 +167,6 @@ impl User {
             scrim_preset: Preset_Scrim::new(),
             rtg_preset: Preset_Rtg::new(),
         }
-        /*
-        let mut temp_user = User::empty();
-        temp_user.did = autor.id.0;
-        temp_user.name = autor.name;
-        temp_user.disc = autor.discriminator.to_string();
-        temp_user.btag = battletag.clone();
-        temp_user.rtg = 0;
-        temp_user.reg = region.clone();
-        temp_user.plat = platform.clone();
-        temp_user.scrim_preset = user.scrim_preset;
-        temp_user.rtg_preset = user.rtg_preset;
-        */
     }
 }
 

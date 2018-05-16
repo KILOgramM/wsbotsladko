@@ -8,6 +8,7 @@ use websocket::client::ClientBuilder;
 use websocket::stream::sync::AsTcpStream;
 use serde_json::Value;
 use std::io::ErrorKind;
+use extime;
 
 
 use reqwest;
@@ -40,6 +41,7 @@ enum Core{
 }
 
 fn core(dc_shell: DoubleChanel<UniChanel>){
+    use net2::TcpStreamExt;
     //переменные
 
     let gateway = get_gate();
@@ -49,9 +51,11 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
         .expect("[WebSocket Core] Make Client Builder")
         .connect_secure(None)
         .expect("[WebSocket Core] Create Connection from Builder");
-    client.stream_ref().as_tcp().set_read_timeout(Some(Duration::from_millis(50))).expect("[WebSocket Core] Set Read Timeout");
-
-
+    client.stream_ref().as_tcp().set_nonblocking(true);
+    //client.stream_ref().as_tcp().set_read_timeout(Some(Duration::from_millis(50))).expect("[WebSocket Core] Set Read Timeout");
+//    client.stream_ref().as_tcp().set_keepalive(Some(Duration::from_millis(300))).expect("[WebSocket Core] Set Keepalive");
+//    println!("[WebSocket Core] read_timeout is: {:?}", client.stream_ref().as_tcp().read_timeout());
+//    println!("[WebSocket Core] keepalive is: {:?}", client.stream_ref().as_tcp().keepalive_ms());
     let (cha_se, reciv_inner) = channel::<OwnedMessage>();
 
 
@@ -129,6 +133,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                     }
 
                     OwnedMessage::Close(e) => {
+                        hbeat.stop();
                         if let Core::CloseConfirm = state{
                             dc_shell.send(UniChanel::Close);
                             return;
@@ -136,7 +141,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                         if let Core::Reconect = state{
                         }
                         else {
-                            println!("[WebSocket Core] Connection closed: {:?}", e);
+                            println!("[WebSocket Core] Connection closed ({}): {:?}",extime::now().ctime(), e);
                         }
                     }
 
@@ -165,7 +170,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                     hbeat.refresh();
                 }
                 Err(e) => {
-                    println!("[WebSocket Core] Send Err1: {:?}", e);
+                    println!("[WebSocket Core] Send Err1 ({}): {:?}",extime::now().ctime(), e);
                     if let WebSocketError::IoError(err) = e {
                         if let ErrorKind::ConnectionAborted = err.kind(){
                             println!("[WebSocket Core] Try reconect");
@@ -241,6 +246,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
             }
             Core::Ok => {}
             Core::ReconectClose => {
+                hbeat.stop();
                 let mes = OwnedMessage::Close(None);
                 match client.send_message(&mes) {
                     Ok(()) => {
@@ -259,9 +265,14 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                     .expect("[WebSocket Core] Make Client Builder for Reconect")
                     .connect_secure(None)
                     .expect("[WebSocket Core] Make Connection for Reconect");
+                client.stream_ref().as_tcp().set_nonblocking(true);
+//                client.stream_ref().as_tcp().set_read_timeout(Some(Duration::from_millis(50))).expect("[WebSocket Core] Set Read Timeout for Reconect");
+//                client.stream_ref().as_tcp().set_keepalive_ms(Some(300000)).expect("[WebSocket Core] Set Keepalive");
                 last_seq = None;
                 session_id = None;
-                println!("[WebSocket Core] Reconection success");
+                println!("[WebSocket Core] Reconection success ({})", extime::now().ctime());
+                hbeat.start();
+                hbeat.refresh();
                 continue;
             }
             _ => {}
@@ -292,7 +303,6 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
 
 pub fn shell(dc_global: DoubleChanel<GlobE>){
 
-    //let (dc_local_s, dc_local_r) = DoubleChanel::<LocalLink>::new();
 
     let (dc_core, dc_to_core) = DoubleChanel::<UniChanel>::new();
     thread::Builder::new()
@@ -324,11 +334,7 @@ pub fn shell(dc_global: DoubleChanel<GlobE>){
             }
             _ =>{}
         }
-//        for link in dis_links{
-//            match link.get(){
-//                _ =>{}
-//            }
-//        }
+
 
     }
 
