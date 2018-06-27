@@ -1,3 +1,4 @@
+//strukture 4 discord for bot
 use websocket::{OwnedMessage};
 use dstruct::DoubleChanel;
 use serde_json::Value;

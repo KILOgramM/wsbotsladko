@@ -1,3 +1,4 @@
+//connect to server & token
 use std::thread;
 use std::time::Duration;
 use websocket::{Message,

@@ -22,7 +22,7 @@
            },
            {
                      "name": "*Регулярные EU турниры*",
-                     "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-europe/2018-overwatch-open-division-season-2-europe/5ab2ee6f126cba034a112993/info?infoTab=details) - EU season 2 2018\n[Toornament.com](https://www.toornament.com/games/overwatch) - турнирная площадка\n[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - турнирная площадка\n[Oversalt](https://battlefy.com/oversalt-tournaments) - еженедельник с призовыми\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - турниры всех уровней",
+                     "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-europe) - EU регион\n[Toornament.com](https://www.toornament.com/games/overwatch) - турнирная площадка\n[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - турнирная площадка\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - еженедельник с призовыми\n[Oversalt](https://battlefy.com/oversalt-tournaments) - турниры всех уровней\n[G-cup](https://battlefy.com/g-cup) - линейка евро турниров",
                      "inline": true
                    },
            {
@@ -156,7 +156,11 @@
       },
       {
         "name": "!wslfg BattleTag#1234 eu pc",
-        "value": "Команда для внесения вас в список поиска. Регион и платформу вводить необязательно, по умолчанию - eu pc"
+        "value": "Команда для внесения вас в список поиска. Регион и платформу вводить необязательно, по умолчанию - eu pc."
+      },
+      {
+        "name": "Информация",
+        "value": "```Все списки поиска общие для всех серверов, где есть бот.\nСписок очищается атоматически в ночь со вторника на среду.```"
       }
     ]
   }
@@ -214,26 +218,34 @@
         "name": "EU # Open Division",
         "value": "Открытый турнир от Blizzard\n[подробнее...](https://battlefy.com/overwatch-open-division-europe)"
       },
-            {
+      {
         "name": "EU # ESL Go4Overwatch",
         "value": "Еженедельный европейский турнир с сильным соперниками и небольшим призовым\n[подробнее...](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe)"
       },
       {
-                                  "name": "RU # OK Challenge Overwatch",
-                                  "value": "Регулярный онлайн турнир. Призовой 100 000 рублей.\n[подробнее...](https://vk.com/okchallenge)"
-                                },
+        "name": "EU # Oversalt",
+        "value": "Много турниров для разного уровня команд - от Бронзы до ТОП500\n[подробнее...](https://battlefy.com/oversalt-tournaments)"
+      },
       {
-         "name": "RU # Meatgrinder",
+        "name": "EU # G-cup",
+        "value": "Линейка регулярных европейских турниров\n[подробнее...](https://battlefy.com/g-cup)"
+      },
+      {
+        "name": "RU # OK Challenge Overwatch",
+        "value": "Регулярный онлайн турнир. Призовой 100 000 рублей.\n[подробнее...](https://vk.com/okchallenge)"
+      },
+      {
+        "name": "RU # Meatgrinder",
         "value": "Еженедельник от WinSpirit\nскоро..."
       },
       {
-                "name": "RU # Cup of Dreamers",
-               "value": "Регулярный турнир от AlexanDream. 2 раза в год. Хороший призовой.\n[подробнее...](https://vk.com/cupofdreamers)"
-             },
+        "name": "RU # Cup of Dreamers",
+        "value": "Регулярный турнир от AlexanDream. 2 раза в год. Хороший призовой.\n[подробнее...](https://vk.com/cupofdreamers)"
+      },
       {
-               "name": "RU # LCES - Legendary Competitions of eSport",
-               "value": "Регулярный турнир. Хороший призовой. LAN турниры в Санкт-Петербурге\n[подробнее...](https://vk.com/lcescomp)"
-             }
+        "name": "RU # LCES - Legendary Competitions of eSport",
+        "value": "Регулярный турнир. Хороший призовой. LAN турниры в Санкт-Петербурге\n[подробнее...](https://vk.com/lcescomp)"
+      }
 
     ]
   }

@@ -1,4 +1,4 @@
-
+//lfg & embed
 use extime::get_time;
 
 #[macro_use]
