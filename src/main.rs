@@ -2732,7 +2732,9 @@ fn main() {
                     }
                 });
             }
-
+            Event::Ready(json) => {
+                println!("READY:\n{}", serde_json::to_string_pretty(&json));
+            }
             _ => {}
 
             //END OF MAIN THREAD
