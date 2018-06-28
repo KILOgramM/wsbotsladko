@@ -1,31 +1,55 @@
 *[broadcast]* Сообщение для рассылки
 {
    "embed": {
-    "title": "Самое важное, что вы должны знать о WinSpirit",
-    "description": "Мы работаем каждый день - наша цель развивать сообщество по Overwatch",
-    "color": 37595,
-    "footer": {
-      "text": "Удачи и удовольствия!"
-    },
-    "fields": [
-    {
-        "name": "Хочешь реального скилла?",
-        "value": "У нас есть сетка событий - http://winspirit.org/events, каналы для поиска игроков для разных целей и поиск тренировок, каналы с огромным количеством стримов и ссылок на полезную информацию"
-      },
-      {
-        "name": "ПОКУПАЙ ПОДПИСКУ!",
-        "value": "Ты получишь возможность задать вопросым лучшим русcкоязычным игрокам. Пройдя по ссылке - http://www.donationalerts.ru/r/winspirit, укажите ПОДПИСКА и ваше дискорд имя. Стоимость подписки - 500 рублей за 31 день, 2500 за 183 дня и 4000 за 365 дней. Акция **Первый Шаг** только до конца мая стоимость подписки - 100 рублей."
-      },
-      {
-        "name": "Что будет!?",
-        "value": "Вы сможете не просто слушать спикеров, но и задавать вопросы. Так же на вырученные деньги мы будем увеличивать количество спикеров. Сделаем еженедельный, ежемесячные финалы и годовой итоговый турнир. Так же хотим организовать студию для качественных трансляций всех событий из мира Overwatch."
-       },
-      {
-        "name": "ВАРИАНТЫ",
-        "value": "Все, что можно было сделать бесплатного мы сделали и сейчас нам надо для дальнейшего развития или зажимать гайки и ограничевать вас на сервере или все-таки убедить вас помогать проекту. Заранее благодарим Вас за поддержку и понимание."
-      }
-    ]
-  }
+         "title": "Важная информация",
+         "color": 37595,
+         "fields": [
+           {
+             "name": "*WinSpirit*",
+             "value": "[Группа ВК](https://vk.com/winspiritow)\n[Сайт](http://winspirit.org/)",
+           "inline": true
+           },
+           {
+             "name": "*Функции*",
+             "value": "Просмотр статистики\nПоиск тиммейтов\nСписки турниров",
+           "inline": true
+           },
+
+           {
+             "name": "*Регулярные RU турниры и события*",
+             "value": "[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир\n[PR1ME](https://vk.com/pr1mevk) - Турниры от стримеров\n[OK Challerrnge](https://vk.com/okchallenge) - Регулярный турнир",
+             "inline": true
+           },
+           {
+                     "name": "*Регулярные EU турниры*",
+                     "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-europe) - EU регион\n[Toornament.com](https://www.toornament.com/games/overwatch) - турнирная площадка\n[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - турнирная площадка\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - еженедельник с призовыми\n[Oversalt](https://battlefy.com/oversalt-tournaments) - турниры всех уровней\n[G-cup](https://battlefy.com/g-cup) - линейка евро турниров",
+                     "inline": true
+                   },
+           {
+             "name": "*Инструментарий*",
+             "value": "1. Совместный просмотр видео с возможностью рисовать - <https://visor.gg>\n2. Простой совместный просмоторщик видео - <https://andchill.tv>\n3. Общие таблицы для ведения статистики - <https://docs.google.com/>\n4. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n5. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>\n6. Энциклопедия овервотч - <https://overwiki.ru/>\n7. Подробная энциклопедия профессионального Overwatch - <http://liquipedia.net/overwatch/Main_Page>\n8. Хороший и полезный сайт от Таверны по Overwatch - <https://overwatch.tavernofheroes.net/ru>"
+
+           },
+           {
+             "name": "*Записи игр | VODS*",
+              "value": "Первая команда WS  - [100 часов, вид сверху, общение команды](https://www.youtube.com/channel/UCjMqWcQsXAXhI247M7knRYQ/playlists?view_as=subscriber)\nOWL и Contenders - [Официальные записи игр](https://vk.com/videos-39230591)\nEU&US VODS - [Ютуб канал с водами](https://www.youtube.com/channel/UC2J2ZrVtL_muVqK5xmiPyXw)"
+
+                   },
+           {
+             "name": "*На масло и улучшения*",
+             "value": "[http://www.donationalerts.ru/r/winspirit](http://www.donationalerts.ru/r/winspirit)"
+           },
+           {
+             "name": "__Важная информация обо мне__",
+             "value": "Все списки поиска общие для всех серверов, так что вы можете установить меня к себе на сервер и пользоваться всеми моими плюшками с комфортом для себя =)\n[Ссылка для установки меня к вам на сервер!](https://discordapp.com/api/oauth2/authorize?client_id=291380685392838657&scope=bot&permissions=1)"
+           },
+           {
+                     "name": "*Список команд* - !wsstats теперь обновляет роль по рейтингу на сервере WinSpirit",
+                     "value": "```!wsreg BattleTag#1234 - регистрация для включения всех функций и выдача роли по рейтингу на сервере WinSpirit\n!wsstats - вывод статистики(если не вводил wsreg то необходимо указать BattleTag#1234)\n!wscmd - вывод полного списка команд\n!wshelp - вывод помощи и справочной информации```"
+                   }
+         ]
+
+       }
 }
 
 *[lfg_user_not_reg]* LFG незарегестрированный пользователь пробует воспользоваться lfg
@@ -132,7 +156,11 @@
       },
       {
         "name": "!wslfg BattleTag#1234 eu pc",
-        "value": "Команда для внесения вас в список поиска. Регион и платформу вводить необязательно, по умолчанию - eu pc"
+        "value": "Команда для внесения вас в список поиска. Регион и платформу вводить необязательно, по умолчанию - eu pc."
+      },
+      {
+        "name": "Информация",
+        "value": "```Все списки поиска общие для всех серверов, где есть бот.\nСписок очищается атоматически в ночь со вторника на среду.```"
       }
     ]
   }
@@ -190,26 +218,34 @@
         "name": "EU # Open Division",
         "value": "Открытый турнир от Blizzard\n[подробнее...](https://battlefy.com/overwatch-open-division-europe)"
       },
-            {
+      {
         "name": "EU # ESL Go4Overwatch",
         "value": "Еженедельный европейский турнир с сильным соперниками и небольшим призовым\n[подробнее...](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe)"
       },
       {
-                                  "name": "RU # OK Challenge Overwatch",
-                                  "value": "Регулярный онлайн турнир. Призовой 100 000 рублей.\n[подробнее...](https://vk.com/okchallenge)"
-                                },
+        "name": "EU # Oversalt",
+        "value": "Много турниров для разного уровня команд - от Бронзы до ТОП500\n[подробнее...](https://battlefy.com/oversalt-tournaments)"
+      },
       {
-         "name": "RU # Meatgrinder",
+        "name": "EU # G-cup",
+        "value": "Линейка регулярных европейских турниров\n[подробнее...](https://battlefy.com/g-cup)"
+      },
+      {
+        "name": "RU # OK Challenge Overwatch",
+        "value": "Регулярный онлайн турнир. Призовой 100 000 рублей.\n[подробнее...](https://vk.com/okchallenge)"
+      },
+      {
+        "name": "RU # Meatgrinder",
         "value": "Еженедельник от WinSpirit\nскоро..."
       },
       {
-                "name": "RU # Cup of Dreamers",
-               "value": "Регулярный турнир от AlexanDream. 2 раза в год. Хороший призовой.\n[подробнее...](https://vk.com/cupofdreamers)"
-             },
+        "name": "RU # Cup of Dreamers",
+        "value": "Регулярный турнир от AlexanDream. 2 раза в год. Хороший призовой.\n[подробнее...](https://vk.com/cupofdreamers)"
+      },
       {
-               "name": "RU # LCES - Legendary Competitions of eSport",
-               "value": "Регулярный турнир. Хороший призовой. LAN турниры в Санкт-Петербурге\n[подробнее...](https://vk.com/lcescomp)"
-             }
+        "name": "RU # LCES - Legendary Competitions of eSport",
+        "value": "Регулярный турнир. Хороший призовой. LAN турниры в Санкт-Петербурге\n[подробнее...](https://vk.com/lcescomp)"
+      }
 
     ]
   }

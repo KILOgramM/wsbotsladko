@@ -1903,7 +1903,7 @@ fn role_ruler_text(server_id: u64, user_id: u64, cmd: RoleR) -> String{
 fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
     lazy_static! {
         static ref ROLES: Vec<String> = vec![
-            String::from("ТОП500"),
+            String::from("4500+"),
             String::from("Грандмастер"),
             String::from("Мастер"),
             String::from("Алмаз"),
@@ -2732,7 +2732,9 @@ fn main() {
                     }
                 });
             }
-
+            Event::Ready(json) => {
+                println!("READY:\n{}", serde_json::to_string_pretty(&json).unwrap_or(String::new()));
+            }
             _ => {}
 
             //END OF MAIN THREAD
