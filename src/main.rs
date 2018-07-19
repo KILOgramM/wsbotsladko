@@ -168,7 +168,18 @@ impl User {
     }
 }
 
+pub struct Server {
+    dsid: u64,
+    //discord server id?
+}
 
+impl Server {
+    pub fn empty() -> Server {
+        Server {
+            dsid: 0,
+        }
+    }
+}
 fn build_opts() -> mysql::Opts //Конструктор для БД
 {
     let mut builder = mysql::OptsBuilder::new();
@@ -887,7 +898,13 @@ fn cut_part_of_str(main: &String, wall_1: &str, wall_2: &str) -> String
         return main.slice_unchecked(start, end+1).to_owned();
     }
 }
-
+fn add_dsid_to_db(server: Server) //Добавление Нового профиля в БД
+{
+let call = format!("INSERT INTO dservers (dsid) VALUES ({});",&server.dsid);
+let mut conn = POOL.get_conn().unwrap();
+println!("[MySQL request INSERT INTO dservers] {}", call);
+let _ = conn.query(call);
+}
 fn add_to_db(user: User) //Добавление Нового профиля в БД
 {
     let call = format!("INSERT INTO users (did, name, disc, btag, rtg, reg, plat, scrim_preset, rtg_preset) VALUES ({}, '{}', '{}', '{}', {}, '{}', '{}', '{}', '{}');",
@@ -904,6 +921,22 @@ fn update_in_db(user: User) //Изменение профиля в БД
     let mut conn = POOL.get_conn().unwrap();
     let _ = conn.query(call);
 }
+
+//pub fn load_by_dsid(dsid: u64) -> Option<Server> //Получение сервера из базы по Discord server Id
+//{
+ //   let mut conn = POOL.get_conn().unwrap();
+ //   let command = format!("SELECT dsid FROM servers WHERE dsid = {}", &dsid);
+ //   let mut stmt = conn.prepare(command).unwrap();
+ //   let mut server:Option<Server> = None;
+
+ //   for row in stmt.execute(()).unwrap() {
+ //       let dsid = mysql::from_row::<(u64)>(row.unwrap());
+ //       let mut s = Server::empty();
+ //       s.dsid = dsid;
+ //       server = Some(s);
+ //   }
+ //   return server;
+//}
 
 pub fn load_by_id(id: u64) -> Option<User> //Получение профиля из базы по DiscordId
 {
@@ -1974,7 +2007,6 @@ fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
 								}
 							}
 						}
-
 						Discord::set_member_roles(server_id,user_id,new_roles);
 
 					}
@@ -2026,21 +2058,26 @@ fn main() {
                             }
 
                             "!wsstats" => {
+                                println!("wsstats");
                                 Discord::send_typing(mes.channel_id);
                                 wsstats(mes_split.clone(), mes.author.id, mes.channel_id);
                             }
 
                             "!wstour" => {
+                                println!("wstour");
                                 DB.send_embed("tourneys",mes.channel_id);
                             }
 
                             "!wshelp" => {
+                                println!("wshelp");
                                 DB.send_embed("help",mes.channel_id);
                             }
                             "!wscmd" => {
+                                println!("wscmd");
                                 DB.send_embed("cmd",mes.channel_id);
                             }
                             "!wslfg" => {
+                                println!("wslfg");
                                 lfg_none(mes.clone());
                             }
                             _ => {}
@@ -2734,6 +2771,22 @@ fn main() {
             }
             Event::Ready(json) => {
                 println!("READY:\n{}", serde_json::to_string_pretty(&json).unwrap_or(String::new()));
+            }
+            Event::GuildCreate(json) => {
+                println!("GuildCreate:\nName: {}", json["name"].as_str().unwrap_or(""));
+                println!("Id: {}", json["id"].as_str().unwrap_or(""));
+ //               let dservid = json["id"].as_str().unwrap().parse::<u64>().unwrap()("");
+//
+  //              if load_by_dsid(dservid) = dservid.as_str().unwrap_or("0").parse::<u64>().unwrap()
+   //             {}
+   //             else {add_dsid_to_db(dservid)};
+
+                println!("Member Count: {}", json["member_count"].as_u64().unwrap_or(0));
+                if let Some(user) = Discord::get_user(json["owner_id"].as_str().unwrap_or("0").parse::<u64>().unwrap()){
+                    println!("Owner Id: {}", user.id);
+                    println!("Owner Username: {}", user.username);
+                    println!("Owner Discriminator: {}", user.discriminator);
+                }
             }
             _ => {}
 

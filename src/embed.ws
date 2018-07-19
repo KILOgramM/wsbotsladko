@@ -17,8 +17,8 @@
 
            {
              "name": "*Регулярные RU турниры и события*",
-             "value": "[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир\n[PR1ME](https://vk.com/pr1mevk) - Турниры от стримеров\n[OK Challerrnge](https://vk.com/okchallenge) - Регулярный турнир",
-             "inline": true
+             "value": "[Мясорубка](http://winspirit.org/tourneys) - Регулярный турнир\n[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир\n[PR1ME](https://vk.com/pr1mevk) - Турниры от стримеров\n[OK Challerrnge](https://vk.com/okchallenge) - Регулярный турнир\n[LookOfQ](https://vk.com/lookofq) - Регулярные турниры\n[RUOWL](https://liquipedia.net/overwatch/Russian_Overwatch_League_Season_1) - Лига OW",
+             "inline": true\n[EGoG](https://vk.com/enthusiasticgg) - Новинка =)
            },
            {
                      "name": "*Регулярные EU турниры*",
@@ -235,8 +235,8 @@
         "value": "Регулярный онлайн турнир. Призовой 100 000 рублей.\n[подробнее...](https://vk.com/okchallenge)"
       },
       {
-        "name": "RU # Meatgrinder",
-        "value": "Еженедельник от WinSpirit\nскоро..."
+        "name": "RU # Мясорубка",
+        "value": "Еженедельник от WinSpirit\n[подробнее...](http://winspirit.org/tourneys)"
       },
       {
         "name": "RU # Cup of Dreamers",
@@ -245,8 +245,20 @@
       {
         "name": "RU # LCES - Legendary Competitions of eSport",
         "value": "Регулярный турнир. Хороший призовой. LAN турниры в Санкт-Петербурге\n[подробнее...](https://vk.com/lcescomp)"
-      }
-
+      },
+{
+        "name": "RU # LookOfQ - Look Of Queue",
+        "value": "Регулярные турниры\n[подробнее...](https://vk.com/lookofq)"
+      },
+      {
+              "name": "RU # EGoG - Enthusiastic Group of Gamers",
+              "value": "Ентузиасты делают турниры\n[подробнее...](https://vk.com/enthusiasticgg)"
+            }
+    ,
+          {
+                  "name": "RU # RUOWL - Russian Overwatch League",
+                  "value": "Лига Overwatch\n[подробнее...](https://liquipedia.net/overwatch/Russian_Overwatch_League_Season_1)"
+                }
     ]
   }
 }
