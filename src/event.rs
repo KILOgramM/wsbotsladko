@@ -847,10 +847,14 @@ fn rating_updater(){
             let mut conn = POOL.get_conn().unwrap();
             let _ = conn.query(call);
             let _ = role_ruler(WSSERVER,did,RoleR::rating(data.rating));
-            
+
             counter_ok += 1;
         }
         else {
+	        let call = format!("UPDATE users SET rtg={} WHERE did={}",
+	                           0,  did);
+	        let mut conn = POOL.get_conn().unwrap();
+	        let _ = conn.query(call);
             let _ = role_ruler(WSSERVER,did,RoleR::rating(0));
             counter_bad_btag += 1;
         }
