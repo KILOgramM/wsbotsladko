@@ -22,12 +22,12 @@
            },
            {
                      "name": "*Регулярные EU турниры*",
-                     "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-europe) - EU регион\n[Toornament.com](https://www.toornament.com/games/overwatch) - турнирная площадка\n[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - турнирная площадка\n[Go4OW](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe) - еженедельник с призовыми\n[Oversalt](https://battlefy.com/oversalt-tournaments) - турниры всех уровней\n[G-cup](https://battlefy.com/g-cup) - линейка евро турниров",
+                     "value": "[OpenDivision](https://battlefy.com/overwatch-open-division-europe) - EU регион\n[Toornament.com](https://www.toornament.com/games/overwatch) - турнирная площадка\n[Battlefy.com](https://battlefy.com/browse/overwatch?region=Europe&platform=PC) - турнирная площадка\n[Oversalt](https://battlefy.com/oversalt-tournaments) - турниры всех уровней\n[G-cup](https://battlefy.com/g-cup) - линейка евро турниров",
                      "inline": true
                    },
            {
              "name": "*Инструментарий*",
-             "value": "1. Совместный просмотр видео с возможностью рисовать - <https://visor.gg>\n2. Простой совместный просмоторщик видео - <https://andchill.tv>\n3. Общие таблицы для ведения статистики - <https://docs.google.com/>\n4. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n5. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>\n6. Энциклопедия овервотч - <https://overwiki.ru/>\n7. Подробная энциклопедия профессионального Overwatch - <http://liquipedia.net/overwatch/Main_Page>\n8. Хороший и полезный сайт от Таверны по Overwatch - <https://overwatch.tavernofheroes.net/ru>"
+             "value": "1. Мощный и платный сервис по про ОВ - <https://visor.gg>\n2. Простой совместный просмоторщик видео - <https://andchill.tv>\n3. Общие таблицы для ведения статистики - <https://docs.google.com/>\n4. Общая тренировка аима - <http://store.steampowered.com/app/518030/Aim_Hero/>\n5. Настройка цветовой температуры на экране для оптимизации нагрузки на глаза - <https://justgetflux.com/>\n6. Энциклопедия овервотч - <https://overwiki.ru/>\n7. Подробная энциклопедия профессионального Overwatch - <http://liquipedia.net/overwatch/Main_Page>\n8. Хороший и полезный сайт от Таверны по Overwatch - <https://overwatch.tavernofheroes.net/ru>"
 
            },
            {
@@ -217,10 +217,6 @@
       {
         "name": "EU # Open Division",
         "value": "Открытый турнир от Blizzard\n[подробнее...](https://battlefy.com/overwatch-open-division-europe)"
-      },
-      {
-        "name": "EU # ESL Go4Overwatch",
-        "value": "Еженедельный европейский турнир с сильным соперниками и небольшим призовым\n[подробнее...](https://play.eslgaming.com/overwatch/europe/overwatch/major/go4overwatch-europe)"
       },
       {
         "name": "EU # Oversalt",
