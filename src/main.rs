@@ -1825,7 +1825,7 @@ pub enum RoleR{
     rating(u16),
 }
 
-enum RoleChange{
+pub enum RoleChange{
     add(String),
     rem(String)
 }
