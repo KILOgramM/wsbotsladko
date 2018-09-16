@@ -825,9 +825,9 @@ pub fn rating_updater(){
         obj_kills: false,
     };
 
-    let mut conn = POOL.get_conn().unwrap();
+    let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #1");
     let command = format!("SELECT did, btag, plat FROM users");
-    let mut stmt = conn.prepare(command).unwrap();
+    let mut stmt = conn.prepare(command).expect("Err in rating_updater on conn.prepare() #2");
 
     let mut counter_all = 0;
     let mut counter_bad_btag = 0;
@@ -836,15 +836,15 @@ pub fn rating_updater(){
     for row in stmt.execute(()).unwrap() {
         counter_all += 1;
         let mut row = row.unwrap();
-        let did: u64 = row.take("did").unwrap();
-        let btag: String = row.take("btag").unwrap();
-        let plat: String = row.take("plat").unwrap();
+        let did: u64 = row.take("did").expect("Err in rating_updater on row.take(\"did\") #3");
+        let btag: String = row.take("btag").expect("Err in rating_updater on row.take(\"btag\") #4");
+        let plat: String = row.take("plat").expect("Err in rating_updater on row.take(\"plat\") #5");
 
         if let Some(data) = load_btag_data(btag,"EU".to_string(),plat,hreq.clone()){
             let call = format!("UPDATE users SET rtg={} WHERE did={}",
                                data.rating,  did);
 
-            let mut conn = POOL.get_conn().unwrap();
+            let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #6");
             let _ = conn.query(call);
             let _ = role_ruler(WSSERVER,did,RoleR::rating(data.rating));
 
@@ -853,7 +853,7 @@ pub fn rating_updater(){
         else {
 	        let call = format!("UPDATE users SET rtg={} WHERE did={}",
 	                           0,  did);
-	        let mut conn = POOL.get_conn().unwrap();
+	        let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #7");
 	        let _ = conn.query(call);
             let _ = role_ruler(WSSERVER,did,RoleR::rating(0));
             counter_bad_btag += 1;
