@@ -840,14 +840,14 @@ pub fn rating_updater(){
         let btag: String = row.take("btag").expect("Err in rating_updater on row.take(\"btag\") #4");
         let plat: String = row.take("plat").expect("Err in rating_updater on row.take(\"plat\") #5");
 
-        if let Some(data) = load_btag_data(btag,"EU".to_string(),plat,hreq.clone()){
+        if let Some(data) = load_btag_data(btag.clone(),"EU".to_string(),plat,hreq.clone()){
             let call = format!("UPDATE users SET rtg={} WHERE did={}",
                                data.rating,  did);
 
             let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #6");
             let _ = conn.query(call);
             let _ = role_ruler(WSSERVER,did,RoleR::rating(data.rating));
-
+            println!("[{}] Rating of {} now {}", extime::now().ctime(),btag,data.rating);
             counter_ok += 1;
         }
         else {
@@ -856,6 +856,7 @@ pub fn rating_updater(){
 	        let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #7");
 	        let _ = conn.query(call);
             let _ = role_ruler(WSSERVER,did,RoleR::rating(0));
+            println!("[{}] Rating of {} now {}", extime::now().ctime(),btag,0);
             counter_bad_btag += 1;
         }
     }
@@ -878,6 +879,8 @@ pub fn rating_updater(){
     println!("{}",output);
 
 }
+
+
 
 fn get_chanel_id(server: Option<String>, serverId: Option<u64>, chanel: String) -> Option<u64>{
     let mut err_str = format!("get_chanel_id[\n");
