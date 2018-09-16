@@ -1967,8 +1967,9 @@ pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
                         _ =>{}
                     }
 
-
-
+                    if !member["roles"].is_array(){
+                        println!("[Err] member[\"roles\"] is not array\n {}", member["roles"]);
+                    }
 					'outer: for roleid in member["roles"].as_array().expect("Err #21"){
 						'inner: for role in roles.as_array().expect("Err #22"){
 							if roleid.as_str().unwrap().eq(role["id"].as_str().expect("Err #23")){
