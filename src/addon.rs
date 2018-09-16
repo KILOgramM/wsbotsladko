@@ -49,7 +49,7 @@ pub struct Global{
 impl Global{
     fn new() -> Global{
         Global{
-            lfg: RwLock::new(Vec::new()),
+            lfg:  RwLock::new(Vec::new()),
             chat: RwLock::new(Vec::new()),
             embeds_s: RwLock::new(Vec::new()),
             users: RwLock::new(Vec::new()),
