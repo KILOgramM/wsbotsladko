@@ -1821,7 +1821,7 @@ pub fn embed_from_value(chanel: u64, val: Value){
 }
 
 
-enum RoleR{
+pub enum RoleR{
     rating(u16),
 }
 
@@ -1933,7 +1933,7 @@ fn role_ruler_text(server_id: u64, user_id: u64, cmd: RoleR) -> String{
     return answer;
 }
 
-fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
+pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
     lazy_static! {
         static ref ROLES: Vec<String> = vec![
             String::from("4500+"),
@@ -1996,6 +1996,7 @@ fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
 							}
 						}
 					}
+                    if find_role.is_empty() {done = true;}
 					if !done || change {
 						if !done{
 							for role in roles.as_array().unwrap(){
