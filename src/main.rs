@@ -2089,6 +2089,12 @@ fn main() {
 
                         if mes.author.id == 193759349531869184 || mes.author.id == 222781446971064320{
                             match mes_split[0].to_lowercase().as_str() {
+	                            "!rup" => {
+		                            use event::rating_updater;
+		                            rating_updater();
+		                            Discord::send_mes(mes.channel_id, "Опция не определена", "", false);
+	                            }
+
                                 "!ahelp" => {
                                     DB.send_embed("admin_commands",mes.channel_id);
                                 }

@@ -807,7 +807,7 @@ fn match_func(name: String, event_type: EventType){
     }
 }
 
-fn rating_updater(){
+pub fn rating_updater(){
     use role_ruler;
     use RoleR;
 
