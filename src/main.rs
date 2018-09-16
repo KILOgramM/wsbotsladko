@@ -1948,6 +1948,9 @@ pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
 
 
 	if let Some(member) = Discord::get_member(server_id,user_id){
+        if !member["roles"].is_array(){
+            return Vec::new(); //Отбрасывает тех кого нет на сервере
+        }
 		if let Some(roles) = Discord::get_roles_list(server_id){
 			match cmd{
 				RoleR::rating(r) => {
@@ -1967,9 +1970,7 @@ pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
                         _ =>{}
                     }
 
-                    if !member["roles"].is_array(){
-                        println!("[Err] member[\"roles\"] is not array\n {}", member);
-                    }
+
 					'outer: for roleid in member["roles"].as_array().expect("Err #21"){
 						'inner: for role in roles.as_array().expect("Err #22"){
 							if roleid.as_str().unwrap().eq(role["id"].as_str().expect("Err #23")){
