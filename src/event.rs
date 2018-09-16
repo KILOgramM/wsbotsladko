@@ -835,7 +835,7 @@ pub fn rating_updater(){
 
     for row in stmt.execute(()).unwrap() {
         counter_all += 1;
-        let mut row = row.unwrap();
+        let mut row = row.expect("Err in rating_updater on row unpack #8");
         let did: u64 = row.take("did").expect("Err in rating_updater on row.take(\"did\") #3");
         let btag: String = row.take("btag").expect("Err in rating_updater on row.take(\"btag\") #4");
         let plat: String = row.take("plat").expect("Err in rating_updater on row.take(\"plat\") #5");

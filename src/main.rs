@@ -472,10 +472,10 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
 
 
 
-    if mode_debug{
-        println!("Get respornse: {:?}",
-                 SystemTime::now().duration_since(sys_time_old).unwrap());
-    }
+//    if mode_debug{
+//        println!("Get respornse: {:?}",
+//                 SystemTime::now().duration_since(sys_time_old).unwrap());
+//    }
 
     if let Some(body) = result{
         if body.contains("h1 class=\"u-align-center\">Profile Not Found<") {
@@ -578,9 +578,9 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
 
         }
 
-        if mode_debug{
-            println!("Get rating: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
-        }
+//        if mode_debug{
+//            println!("Get rating: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
+//        }
 
         let mut comp = String::new();
         let mut time_played = String::new();
@@ -617,17 +617,17 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
                         let hdat = find_description(hero_data.as_str());
                         let mut time = Time::None;
                         if hdat != "--" || hdat.is_empty(){
-                            let num = hdat.find(" ").unwrap();
+                            let num = hdat.find(" ").expect("Err #9");
                             let (hdat_split1,hdat_split2) = hdat.split_at(num);
                             time = match hdat_split2{
                                 " hour"|" hours" => {
-                                    Time::Hours(hdat_split1.parse::<u32>().unwrap())
+                                    Time::Hours(hdat_split1.parse::<u32>().expect("Err #10"))
                                 }
                                 " minute"|" minutes" => {
-                                    Time::Min(hdat_split1.parse::<u32>().unwrap())
+                                    Time::Min(hdat_split1.parse::<u32>().expect("Err #11"))
                                 }
                                 " second"|" seconds" => {
-                                    Time::Sec(hdat_split1.parse::<u32>().unwrap())
+                                    Time::Sec(hdat_split1.parse::<u32>().expect("Err #12"))
                                 }
                                 _ =>{
                                     Time::None
@@ -661,7 +661,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
                         let hdat = find_description(hero_data.as_str());
 
                         let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.games_won = Some(hdat.parse::<u32>().unwrap());
+                        hero_stats.games_won = Some(hdat.parse::<u32>().expect("Err #13"));
 
                         b_data.hero_data(hero_stats);
 
@@ -686,7 +686,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
                         let hdat = find_description(hero_data.as_str());
 
                         let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.win_perc = Some(hdat.trim_matches('%').parse::<u16>().unwrap());
+                        hero_stats.win_perc = Some(hdat.trim_matches('%').parse::<u16>().expect("Err #14"));
 
                         b_data.hero_data(hero_stats);
 
@@ -710,7 +710,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
                         let hdat = find_description(hero_data.as_str());
 
                         let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.aim = Some(hdat.trim_matches('%').parse::<u16>().unwrap());
+                        hero_stats.aim = Some(hdat.trim_matches('%').parse::<u16>().expect("Err #15"));
 
                         b_data.hero_data(hero_stats);
 
@@ -736,7 +736,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
                         let hdat = find_description(hero_data.as_str());
 
                         let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.kills_per_live = Some(hdat.parse::<f32>().unwrap());
+                        hero_stats.kills_per_live = Some(hdat.parse::<f32>().expect("Err #16"));
 
                         b_data.hero_data(hero_stats);
 
@@ -762,7 +762,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
                         let hdat = find_description(hero_data.as_str());
 
                         let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.best_multiple_kills = Some(hdat.parse::<u32>().unwrap());
+                        hero_stats.best_multiple_kills = Some(hdat.parse::<u32>().expect("Err #17"));
 
                         b_data.hero_data(hero_stats);
 
@@ -788,7 +788,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
                         let hdat = find_description(hero_data.as_str());
 
                         let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.obj_kills = Some(hdat.parse::<u32>().unwrap());
+                        hero_stats.obj_kills = Some(hdat.parse::<u32>().expect("Err #18"));
 
                         b_data.hero_data(hero_stats);
 
@@ -804,14 +804,14 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
         }
 
         if mode_debug{
-            println!("End: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
+            println!("End: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #19"));
         }
         return Some(b_data);
 
     }
     else{
         if mode_debug{
-            println!("End None: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
+            println!("End None: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #20"));
         }
         return None;
     }
@@ -1969,11 +1969,11 @@ pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
 
 
 
-					'outer: for roleid in member["roles"].as_array().unwrap(){
-						'inner: for role in roles.as_array().unwrap(){
-							if roleid.as_str().unwrap().eq(role["id"].as_str().unwrap()){
+					'outer: for roleid in member["roles"].as_array().expect("Err #21"){
+						'inner: for role in roles.as_array().expect("Err #22"){
+							if roleid.as_str().unwrap().eq(role["id"].as_str().expect("Err #23")){
 								let mut is_find = false;
-								let role_name: &str = role["name"].as_str().unwrap();
+								let role_name: &str = role["name"].as_str().expect("Err #24");
 
 								for ROLE in ROLES.clone(){
 									if ROLE.eq(role_name){
@@ -1999,8 +1999,8 @@ pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
                     if find_role.is_empty() {done = true;}
 					if !done || change {
 						if !done{
-							for role in roles.as_array().unwrap(){
-								let role_name: &str = role["name"].as_str().unwrap();
+							for role in roles.as_array().expect("Err #25"){
+								let role_name: &str = role["name"].as_str().expect("Err #26");
 								if find_role.eq(role_name){
 									answer.push(RoleChange::add(find_role));
 									new_roles.push(role["id"].clone());
