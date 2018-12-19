@@ -17,7 +17,7 @@
 
            {
              "name": "*Регулярные RU турниры и события*",
-             "value": "[Мясорубка](http://winspirit.org/tourneys) - Регулярный турнир\n[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир\n[PR1ME](https://vk.com/pr1mevk) - Турниры от стримеров\n[OK Challerrnge](https://vk.com/okchallenge) - Регулярный турнир\n[LookOfQ](https://vk.com/lookofq) - Регулярные турниры\n[RUOWC](https://liquipedia.net/overwatch/Russian_Overwatch_League_Season_1) - Лига OW\n[EGoG](https://vk.com/enthusiasticgg) - Новинка =)",
+             "value": "[Мясорубка](http://winspirit.org/tourneys) - Регулярный турнир\n[Cup of Dreamers](https://vk.com/cupofdreamers) - Регулярный турнир\n[PR1ME](https://vk.com/pr1mevk) - Турниры от стримеров\n[OK Challerrnge](https://vk.com/okchallenge) - Регулярный турнир\n[LookOfQ](https://vk.com/lookofq) - Регулярные турниры\n[RUOWC](https://liquipedia.net/overwatch/Russian_Overwatch_Cup_Season_1) - Регулярный турнир\n[EGoG](https://vk.com/enthusiasticgg) - Новинка =)",
              "inline": true
            },
            {
@@ -252,8 +252,8 @@
             }
     ,
           {
-                  "name": "RU # RUOWL - Russian Overwatch League",
-                  "value": "Лига Overwatch\n[подробнее...](https://liquipedia.net/overwatch/Russian_Overwatch_League_Season_1)"
+                  "name": "RU # RUOWCUP - Russian Overwatch Cup",
+                  "value": "Регулярный турнир\n[подробнее...](https://liquipedia.net/overwatch/Russian_Overwatch_Cup_Season_1)"
                 }
     ]
   }
