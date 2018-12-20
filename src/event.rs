@@ -808,7 +808,7 @@ fn match_func(name: String, event_type: EventType){
 }
 
 pub fn rating_updater(){
-    use role_ruler;
+    use roles::role_ruler;
     use RoleR;
 
     let begun_time = extime::get_time().sec;

@@ -1,5 +1,5 @@
 use reqwest;
-use reqwest::{Response,Result};
+use reqwest::{Response,Request,Result};
 use D;
 use serde_json::{Value, Map};
 use dstruct::DUser;
@@ -27,11 +27,9 @@ impl Discord{
 
 	}
 	pub fn send_typing(chanel_id: u64){
-
 		if let Err(e)  = dpool(&format!("/channels/{}/typing", chanel_id),None){
 			println!("[Send Typing] Error:\n{}",e);
 		}
-
 	}
 	pub fn set_member_roles(server_id: u64,user_id: u64, role_id: Vec<Value>){
 		if let Err(e)  = dpatch(&format!("/guilds/{}/members/{}", server_id,user_id),json!({ "roles": role_id })){
@@ -39,6 +37,28 @@ impl Discord{
 		}
 	}
 
+	pub fn add_member_role(server_id: u64,user_id: u64, role_id: u64){
+		if let Err(e)  = dput(&format!("/guilds/{}/members/{}/roles/{}", server_id,user_id,role_id)){
+			println!("[Add Member Role] Error\nError:\n{}",e);
+		}
+	}
+
+	pub fn rem_member_role(server_id: u64,user_id: u64, role_id: u64){
+		if let Err(e)  = ddelete(&format!("/guilds/{}/members/{}/roles/{}", server_id,user_id,role_id),None){
+			println!("[Remove Member Role] Error\nError:\n{}",e);
+		}
+	}
+	pub fn get_server(server_id: u64) -> Option<Value>{
+		match dget(&format!("/guilds/{}", server_id),None){
+			Err(e)  => {
+				println!("[Get Server] Error:\n{}",e);
+				return None;
+			}
+			Ok(mut k) => {
+				return k.json().unwrap();
+			}
+		}
+	}
 	pub fn get_servers() -> Option<Value>{
 		match dget(&format!("/users/@me/guilds"),None){
 			Err(e)  => {
@@ -148,26 +168,22 @@ impl Discord{
 
 fn dpatch(cmd: &str, json:Value) -> Result<Response>{
 	let url = format!("{}{}",DAPI,cmd);
-	let mut headers = reqwest::header::Headers::new();
-	headers.set_raw("Authorization",format!("Bot {}", Discord::token()));
-	headers.set_raw("User-Agent",UAGENT);
 	reqwest::Client::new()
 		.patch(&url)
-		.headers(headers)
+		.header("Authorization",format!("Bot {}", Discord::token()))
+		.header("User-Agent",UAGENT)
 		.json(&json)
 		.send()
 }
 
 fn dget(cmd: &str, json:Option<Value>) -> Result<Response>{
 	let url = format!("{}{}",DAPI,cmd);
-	let mut headers = reqwest::header::Headers::new();
-	headers.set_raw("Authorization",format!("Bot {}", Discord::token()));
-	headers.set_raw("User-Agent",UAGENT);
 	let mut req = reqwest::Client::new()
-		.get(&url);
-	let mut req = req.headers(headers);
+		.get(&url)
+		.header("Authorization",format!("Bot {}", Discord::token()))
+		.header("User-Agent",UAGENT);
 	if let Some(j) = json{
-		req.json(&j);
+		req = req.json(&j);
 	}
 
 	req.send()
@@ -175,14 +191,41 @@ fn dget(cmd: &str, json:Option<Value>) -> Result<Response>{
 
 fn dpool(cmd: &str, json:Option<Value>) -> Result<Response>{
 	let url = format!("{}{}",DAPI,cmd);
-	let mut headers = reqwest::header::Headers::new();
-	headers.set_raw("Authorization",format!("Bot {}", Discord::token()));
-	headers.set_raw("User-Agent",UAGENT);
+
 	let mut req = reqwest::Client::new()
-		.post(&url);
-	let mut req = req.headers(headers);
+		.post(&url)
+		.header("Authorization",format!("Bot {}", Discord::token()))
+		.header("User-Agent",UAGENT);
 	if let Some(j) = json{
-		req.json(&j);
+		req = req.json(&j);
+		let len = serde_json::to_vec(&j).unwrap_or(vec![]).len();
+		req.header("Content-Length",format!("{}",len)).send()
+	}
+	else {
+		req.header("Content-Length","0").send()
+	}
+
+
+}
+
+fn dput(cmd: &str) -> Result<Response>{
+	let url = format!("{}{}",DAPI,cmd);
+	let mut req = reqwest::Client::new()
+		.put(&url)
+		.header("Authorization",format!("Bot {}", Discord::token()))
+		.header("User-Agent",UAGENT)
+		.header("Content-Length","0");
+	req.send()
+}
+
+fn ddelete(cmd: &str, json:Option<Value>) -> Result<Response>{
+	let url = format!("{}{}",DAPI,cmd);
+	let mut req = reqwest::Client::new()
+		.delete(&url)
+		.header("Authorization",format!("Bot {}", Discord::token()))
+		.header("User-Agent",UAGENT);
+	if let Some(j) = json{
+		req = req.json(&j);
 	}
 
 	req.send()

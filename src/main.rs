@@ -1,3 +1,18 @@
+#![allow(unused_imports)]
+#![allow(deprecated)]
+#![allow(unreachable_code)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(unused_variables)]
+#![allow(unused_mut)]
+#![allow(non_upper_case_globals)]
+#![allow(unused_must_use)]
+#![allow(non_shorthand_field_patterns)]
+#![allow(non_camel_case_types)]
+#![allow(unused_attributes)]
+#![allow(non_snake_case)]
+#![allow(dead_code)]
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -27,7 +42,8 @@ use std::ops::Deref;
 use std::ops::Index;
 
 pub mod addon;
-
+pub mod conf;
+pub mod roles;
 pub mod event;
 
 pub mod denum;
@@ -54,6 +70,11 @@ use std::sync::mpsc::channel;
 use mysql::from_row;
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
+use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
+
+use roles::RoleR;
+use roles::RoleChange;
+use roles::role_ruler_text;
 
 lazy_static! {
 
@@ -69,6 +90,7 @@ lazy_static! {
 pub static WSSERVER: u64 = 351798277756420098; //ws = 351798277756420098 //bs = 316394947513155598
 static SWITCH_NET: AtomicBool = ATOMIC_BOOL_INIT;
 static DEBUG: AtomicBool = ATOMIC_BOOL_INIT;
+static DEBUG_LOCKED_THREADS: AtomicUsize = ATOMIC_USIZE_INIT;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct Preset_Scrim {
@@ -1090,7 +1112,20 @@ fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог со
                 rating = an.rating;
                 //println!("rating: {}", rating);
                 thumbnail = an.avatar_url.clone();
-                roleruler = role_ruler_text(WSSERVER,
+
+                let server_id = match Discord::get_chanel(chan){
+                    None => {0}
+                    Some(json) => {
+                        match json.get("guild_id"){
+                            None => {0}
+                            Some(jtext) => {
+                                jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
+                            }
+                        }
+                    }
+                };
+
+                roleruler = role_ruler_text(server_id,
                            autor.id,
                            RoleR::rating(rating));
             }
@@ -1306,7 +1341,18 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
                         rating = an.rating;
                         //println!("rating: {}", rating);
                         thumbnail = an.avatar_url.clone();
-                        roleruler = role_ruler_text(WSSERVER,
+                        let server_id = match Discord::get_chanel(chan){
+                            None => {0}
+                            Some(json) => {
+                                match json.get("guild_id"){
+                                    None => {0}
+                                    Some(jtext) => {
+                                        jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
+                                    }
+                                }
+                            }
+                        };
+                        roleruler = role_ruler_text(server_id,
                                    autor.id,
                                    RoleR::rating(rating));
                     }
@@ -1570,7 +1616,18 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
             u.rtg = answer.clone().unwrap().rating;
         }
         if update {
-            roleruler = role_ruler_text(WSSERVER,
+            let server_id = match Discord::get_chanel(chanel){
+                None => {0}
+                Some(json) => {
+                    match json.get("guild_id"){
+                        None => {0}
+                        Some(jtext) => {
+                            jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
+                        }
+                    }
+                }
+            };
+            roleruler = role_ruler_text(server_id,
                        autor_id,
                        RoleR::rating(u.rtg));
             update_in_db(u.clone()); }
@@ -1820,7 +1877,7 @@ pub fn embed_from_value(chanel: u64, val: Value){
     Discord::send_embed(chanel,val);
 }
 
-
+/*
 pub enum RoleR{
     rating(u16),
 }
@@ -1934,16 +1991,7 @@ fn role_ruler_text(server_id: u64, user_id: u64, cmd: RoleR) -> String{
 }
 
 pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
-    lazy_static! {
-        static ref ROLES: Vec<String> = vec![
-            String::from("4500+"),
-            String::from("Грандмастер"),
-            String::from("Мастер"),
-            String::from("Алмаз"),
-            String::from("Платина"),
-            String::from("Золото")
-            ];
-    }
+
     let mut answer: Vec<RoleChange> = Vec::new();
 
 
@@ -2020,13 +2068,16 @@ pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
 	}
     return answer;
 }
+*/
 
 fn main() {
+    use conf::Config;
     let dcshell:DCShell = Discord::get_event_reciever();
 
     DB.ini_embeds_s();
     DB.ini_lfg();
     DB.ini_chat();
+    Config::init();
     EVENT.send(EventChanel::Check);
     println!("[Status] Main loop start");
     println!("{}", START_TIME.ctime());
@@ -2504,6 +2555,10 @@ fn main() {
                                                 DB.ini_chat();
                                                 Discord::send_mes(mes.channel_id, "Вектор Chat инициализирован", "", false);
                                             }
+                                            "config" => {
+                                                Config::init();
+                                                Discord::send_mes(mes.channel_id, "Config инициализирован", "", false);
+                                            }
                                             _ => {
                                                 Discord::send_mes(mes.channel_id, "Опция не определена", "", false);
                                             }
@@ -2782,6 +2837,7 @@ fn main() {
                 println!("READY:\n{}", serde_json::to_string_pretty(&json).unwrap_or(String::new()));
             }
             Event::GuildCreate(json) => {
+
                 println!("GuildCreate:\nName: {}", json["name"].as_str().unwrap_or(""));
                 println!("Id: {}", json["id"].as_str().unwrap_or(""));
  //               let dservid = json["id"].as_str().unwrap().parse::<u64>().unwrap()("");
@@ -2796,6 +2852,115 @@ fn main() {
                     println!("Owner Username: {}", user.username);
                     println!("Owner Discriminator: {}", user.discriminator);
                 }
+
+
+                Config::exec_fn(move |rwlock| {
+                    use conf::ConfType;
+                    use std::ops::DerefMut;
+                    //Апдейт конфига ролей (если есть)
+
+                    let config = rwlock.deref_mut();
+                    let mut need_update = false;
+                    let mut rating = Value::Null;
+
+                    if let Some(rating_root) = config.get(&ConfType::rating){
+                        rating = rating_root.clone();
+                        if let Some(text_id) = json["id"].as_str(){
+                            if let Some(guild_list_of_roles) = json["roles"].as_array(){
+                                if let Some(guild_conf) = rating_root.pointer(format!("/{}",text_id).as_str()){
+                                    for (pos, conf_role) in guild_conf.as_array().expect("Err main#4").iter().enumerate(){
+                                        'inner: for guild_role in guild_list_of_roles{
+                                            let id = guild_role["id"].as_str().expect("Err main#0").parse::<u64>().expect("Err main#1");
+                                            let name = guild_role["name"].as_str().expect("Err main#3");
+
+                                            if let Some(conf_id) = conf_role["id"].as_u64(){
+                                                if id == conf_id{
+                                                    if let Some(conf_name) = conf_role["name"].as_str(){
+                                                        if conf_name.eq(name){
+                                                        }
+                                                            else {
+                                                                rating.pointer_mut(format!("/{}/{}",text_id,pos).as_str()).unwrap().as_object_mut().unwrap().insert("name".to_string(), Value::String(name.to_string()));
+                                                                need_update = true;
+                                                            }
+                                                    }
+                                                    break 'inner;
+                                                }
+                                            }
+                                                else{
+                                                    if let Some(conf_name) = conf_role["name"].as_str(){
+                                                        if conf_name.eq(name){
+                                                            rating.pointer_mut(format!("/{}/{}",text_id,pos).as_str()).unwrap().as_object_mut().unwrap().insert("id".to_string(), json!(id));
+                                                            need_update = true;
+                                                            break 'inner;
+                                                        }
+                                                    }
+                                                }
+
+                                        }
+
+                                    }
+
+                                }
+                            }
+                        }
+                    }
+                    if need_update{
+                        Config::set_in_file(ConfType::rating, rating.clone());
+                        config.insert(ConfType::rating, rating);
+                    }
+                });
+
+            }
+            Event::GuildRoleUpdate(json) => {
+                Config::exec_fn(move |rwlock| {
+                    use conf::ConfType;
+                    use std::ops::DerefMut;
+                    //Апдейт конфига ролей (если есть)
+
+                    let config = rwlock.deref_mut();
+                    let mut need_update = false;
+                    let mut rating = Value::Null;
+                    if let Some(rating_root) = config.get(&ConfType::rating){
+                        rating = rating_root.clone();
+                        if let Some(text_id) = json["guild_id"].as_str(){
+                            if let Some(guild_role) = json.get("role"){
+                                if let Some(guild_conf) = rating_root.pointer(format!("/{}",text_id).as_str()){
+                                    let id = guild_role["id"].as_str().expect("Err main#0").parse::<u64>().expect("Err main#1");
+                                    let name = guild_role["name"].as_str().expect("Err main#3");
+                                    for (pos, conf_role) in guild_conf.as_array().expect("Err main#4").iter().enumerate(){
+                                        if let Some(conf_id) = conf_role["id"].as_u64(){
+                                            if id == conf_id{
+                                                if let Some(conf_name) = conf_role["name"].as_str(){
+                                                    if conf_name.eq(name){
+                                                    }
+                                                        else {
+                                                            rating.pointer_mut(format!("/{}/{}",text_id,pos).as_str()).unwrap().as_object_mut().unwrap().insert("name".to_string(), Value::String(name.to_string()));
+                                                            need_update = true;
+                                                        }
+                                                }
+                                                break;
+                                            }
+                                        }
+                                            else{
+                                                if let Some(conf_name) = conf_role["name"].as_str(){
+                                                    if conf_name.eq(name){
+                                                        rating.pointer_mut(format!("/{}/{}",text_id,pos).as_str()).unwrap().as_object_mut().unwrap().insert("id".to_string(), json!(id));
+                                                        need_update = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if need_update{
+                        Config::set_in_file(ConfType::rating, rating.clone());
+                        config.insert(ConfType::rating, rating);
+                    }
+                });
+
             }
             _ => {}
 

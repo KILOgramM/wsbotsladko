@@ -1,7 +1,7 @@
 use std::sync::mpsc::{Receiver,Sender,channel};
 use std::time::{Instant, Duration};
 use std::ops::Deref;
-
+use extime;
 use std::sync::{Mutex,
                 mpsc::{
                     SendError,
@@ -235,7 +235,7 @@ impl Drop for DiscordMain{
                             }
                         }
                     }
-
+                    println!("Перезапуск {}", extime::now().ctime());
 
                     break;
                 }
