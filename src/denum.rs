@@ -1,8 +1,8 @@
 //strukture 4 discord for bot
 use websocket::{OwnedMessage};
-use dstruct::DoubleChanel;
+use crate::dstruct::DoubleChanel;
 use serde_json::Value;
-use dstruct::{DMessage,DUser};
+use crate::dstruct::{DMessage,DUser};
 
 pub enum LocalLink{
 	None

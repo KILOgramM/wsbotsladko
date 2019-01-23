@@ -1,6 +1,6 @@
-use WSSERVER;
-use embed_from_value;
-use {POOL, EVENT, User, load_btag_data, HeroInfoReq, OwData};
+use crate::WSSERVER;
+use crate::embed_from_value;
+use crate::{POOL, EVENT, User, load_btag_data, HeroInfoReq, OwData};
 use mysql::from_row;
 use mysql;
 use std::thread;
@@ -12,13 +12,13 @@ use extime::Tm;
 use extime;
 use std::sync::Mutex;
 
-use addon::DB;
+use crate::addon::DB;
 use std::ops::Sub;
 use std::ops::Add;
 
 use indexmap::map::IndexMap;
 use serde_json;
-use disapi::Discord;
+use crate::disapi::Discord;
 
 pub struct EventH{
     sender: Mutex<Sender<EventChanel>>,
@@ -808,8 +808,8 @@ fn match_func(name: String, event_type: EventType){
 }
 
 pub fn rating_updater(){
-    use roles::role_ruler;
-    use RoleR;
+    use crate::roles::role_ruler;
+    use crate::RoleR;
 
     let begun_time = extime::get_time().sec;
 

@@ -1,7 +1,7 @@
-use disapi::Discord;
+use crate::disapi::Discord;
 use serde_json::Value;
-use conf::Config;
-use conf::ConfType;
+use crate::conf::Config;
+use crate::conf::ConfType;
 use serde_json::map::Map;
 
 

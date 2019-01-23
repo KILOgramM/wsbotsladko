@@ -1,11 +1,11 @@
 use reqwest;
 use reqwest::{Response,Request,Result};
-use D;
+use crate::D;
 use serde_json::{Value, Map};
-use dstruct::DUser;
-use dstruct::DCShell;
-use dstruct::DServerBig;
-use EmbedStruct;
+use crate::dstruct::DUser;
+use crate::dstruct::DCShell;
+use crate::dstruct::DServerBig;
+use crate::EmbedStruct;
 
 pub const DAPI: &'static str = "https://discordapp.com/api/v6";
 pub const UAGENT: &'static str = "DiscordBot (https://github.com/KILOgramM/wsbotsladko, 0.5.0)";

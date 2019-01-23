@@ -9,7 +9,7 @@ use serde_json::Value;
 use serde_derive;
 
 use std::sync::Mutex;
-use {Hero,
+use crate::{Hero,
      POOL,
      REG_BTAG,
      load_by_id,
@@ -26,11 +26,11 @@ use std::fmt::Debug;
 use regex::Regex;
 use std::thread;
 use mysql;
-use disapi::Discord;
-use EmbedStruct;
-use dstruct::DMessage;
-use dstruct::DUser;
-use OwData;
+use crate::disapi::Discord;
+use crate::EmbedStruct;
+use crate::dstruct::DMessage;
+use crate::dstruct::DUser;
+use crate::OwData;
 
 
 lazy_static!{

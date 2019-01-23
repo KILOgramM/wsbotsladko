@@ -19,6 +19,7 @@ extern crate lazy_static;
 extern crate regex;
 extern crate reqwest;
 //extern crate rusqlite;
+#[macro_use]
 extern crate mysql;
 extern crate serde;
 #[macro_use]
@@ -82,7 +83,7 @@ use roles::role_ruler_text;
 
 lazy_static! {
 
-    pub static ref POOL: mysql::conn::pool::Pool = mysql::Pool::new(build_opts()).unwrap();
+    pub static ref POOL: mysql::Pool = mysql::Pool::new(build_opts()).unwrap();
     pub static ref REG_BTAG: Regex = Regex::new(r"^.{2,16}#[0-9]{2,6}$").expect("Regex btag error");
     static ref REG_TIME: Regex = Regex::new(r"(?P<n>\d){1,4} ?(?i)(?P<ntype>m|min|h|hour)").expect("Regex btag error");
 
@@ -954,27 +955,68 @@ fn cut_part_of_str(main: &String, wall_1: &str, wall_2: &str) -> String
 }
 fn add_dsid_to_db(server: Server) //Добавление Нового профиля в БД
 {
-let call = format!("INSERT INTO dservers (dsid) VALUES ({});",&server.dsid);
-let mut conn = POOL.get_conn().unwrap();
-println!("[MySQL request INSERT INTO dservers] {}", call);
-let _ = conn.query(call);
+    for mut stmt in POOL.prepare(r"INSERT INTO dservers
+                                       (dsid)
+                                   VALUES
+                                       (:dsid)").into_iter() {
+        stmt.execute(params!{
+                "dsid" => server.dsid,
+            }).expect("[MySQL add_dsid_to_db error]");
+    }
 }
 
 fn add_to_db(user: User) //Добавление Нового профиля в БД
 {
-    let call = format!("INSERT INTO users (did, name, disc, btag, rtg, reg, plat, scrim_preset, rtg_preset) VALUES ({}, '{}', '{}', '{}', {}, '{}', '{}', '{}', '{}');",
-                       &user.did, &user.name, &user.disc, &user.btag, &user.rtg, &user.reg, &user.plat, serde_json::to_string(&user.scrim_preset).unwrap(), serde_json::to_string(&user.rtg_preset).unwrap());
-    let mut conn = POOL.get_conn().unwrap();
-    println!("[MySQL request INSERT INTO users] {}", call);
-    let _ = conn.query(call);
+    for mut stmt in POOL.prepare(r"INSERT INTO users
+                                       (did, name, disc, btag, rtg, reg, plat, scrim_preset, rtg_preset)
+                                   VALUES
+                                       (:did, :name, :disc, :btag, :rtg, :reg, :plat, :scrim_preset, :rtg_preset)").into_iter() {
+
+            stmt.execute(params!{
+                "did" => user.did,
+                "name" => &user.name,
+                "disc" => &user.disc,
+                "btag" => &user.btag,
+                "rtg" => &user.rtg,
+                "reg" => &user.reg,
+                "plat" => &user.plat,
+                "scrim_preset" => serde_json::to_string(&user.scrim_preset).unwrap(),
+                "rtg_preset" => serde_json::to_string(&user.rtg_preset).unwrap(),
+            }).expect("[MySQL add_to_db error]");
+    }
+
 }
 
 fn update_in_db(user: User) //Изменение профиля в БД
 {
+    for mut stmt in POOL.prepare(r"UPDATE users
+                                    SET
+                                       name=:name, disc=:disc, btag=:btag, rtg=:rtg, reg=:reg, plat=:plat, scrim_preset=:scrim_preset, rtg_preset=:rtg_preset
+                                   WHERE
+                                       did=:did").into_iter() {
+        stmt.execute(params!{
+                "name" => &user.name,
+                "disc" => &user.disc,
+                "btag" => &user.btag,
+                "rtg" => &user.rtg,
+                "reg" => &user.reg,
+                "plat" => &user.plat,
+                "scrim_preset" => serde_json::to_string(&user.scrim_preset).unwrap(),
+                "rtg_preset" => serde_json::to_string(&user.rtg_preset).unwrap(),
+                "did" => &user.did,
+            }).expect("[MySQL update_in_db error]");
+    }
+
+
+
+
+
+/*
     let call = format!("UPDATE users SET name='{}', disc='{}', btag='{}', rtg={}, reg='{}', plat='{}', scrim_preset='{}', rtg_preset='{}' WHERE did={}",
                        &user.name, &user.disc, &user.btag, &user.rtg, &user.reg, &user.plat, serde_json::to_string(&user.scrim_preset).unwrap(), serde_json::to_string(&user.rtg_preset).unwrap(), &user.did);
     let mut conn = POOL.get_conn().unwrap();
     let _ = conn.query(call);
+    */
 }
 
 //pub fn load_by_dsid(dsid: u64) -> Option<Server> //Получение сервера из базы по Discord server Id
@@ -995,6 +1037,31 @@ fn update_in_db(user: User) //Изменение профиля в БД
 
 pub fn load_by_id(id: u64) -> Option<User> //Получение профиля из базы по DiscordId
 {
+
+        POOL.prep_exec("SELECT did, name, disc, btag, rtg, reg, plat, scrim_preset, rtg_preset FROM users WHERE did = :a", params!{"a" => id})
+            .map(|result| {
+                result.map(|x| x.expect("load_by_id MySQL reqwest error")).map(|row| {
+
+                    let (udid, uname, udisc, ubtag, urtg, ureg,
+                        uplat, scrim_preset, rtg_preset) = mysql::from_row::<
+                        (u64, String, String, String, u16, String, String, String, String)>(row);
+                    let mut u = User::empty();
+                    u.did = udid;
+                    u.name = uname;
+                    u.disc = udisc;
+                    u.btag = ubtag;
+                    u.rtg = urtg;
+                    u.reg = ureg;
+                    u.plat = uplat;
+                    u.scrim_preset = serde_json::from_str(&scrim_preset).unwrap();
+                    u.rtg_preset = serde_json::from_str(&rtg_preset).unwrap();
+                    u
+                }).next()
+            }).unwrap()
+
+
+
+/*
     let mut conn = POOL.get_conn().unwrap();
     let command = format!("SELECT did, name, disc, btag, rtg, reg, plat, scrim_preset, rtg_preset FROM users WHERE did = {}", &id);
     let mut stmt = conn.prepare(command).unwrap();
@@ -1017,6 +1084,7 @@ pub fn load_by_id(id: u64) -> Option<User> //Получение профиля �
         user = Some(u);
     }
     return user;
+    */
 }
 
 pub fn load_settings() -> String //Загрузка DiscordId

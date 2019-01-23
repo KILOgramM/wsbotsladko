@@ -14,19 +14,19 @@ use extime;
 
 use reqwest;
 use serde_json;
-use dstruct::{DoubleChanel,
+use crate::dstruct::{DoubleChanel,
               HBeat,
               DiscordMain,
               DCShell};
-use denum::{UniChanel,
+use crate::denum::{UniChanel,
             OutLink,
             LocalLink,
             GlobE};
 
 use std::sync::mpsc::{Receiver,Sender,channel};
 
-use disapi::Discord;
-use denum::Event;
+use crate::disapi::Discord;
+use crate::denum::Event;
 
 const GETGATEWAY: &'static str = "https://discordapp.com/api/v6/gateway";
 
