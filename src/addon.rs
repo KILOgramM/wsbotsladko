@@ -30,7 +30,7 @@ use disapi::Discord;
 use EmbedStruct;
 use dstruct::DMessage;
 use dstruct::DUser;
-
+use OwData;
 
 
 lazy_static!{
@@ -887,14 +887,16 @@ pub fn lfg_none(mes: DMessage){
 
                 let mut req = HeroInfoReq::empty();
                 req.rating = true;
+
+
                 match load_btag_data(btag.clone(),reg.clone(),plat.clone(),req){
-                    None => {
+                    OwData::NotFound | OwData::ClosedProfile {..} => {
                         DB.send_embed("lfg_wrong_btag",mes.channel_id);
                         return;
-                    }
-                    Some(data) => {
+                    },
+                    OwData::Full(BData) => {
                         old_lfg.btag = btag;
-                        old_lfg.rating = data.rating;
+                        old_lfg.rating = BData.rating;
                         old_lfg.reg = reg;
                         old_lfg.plat = plat;
                     }
@@ -967,13 +969,14 @@ pub fn lfg_none(mes: DMessage){
 
                 let mut req = HeroInfoReq::empty();
                 req.rating = true;
-                match load_btag_data(btag.clone(),reg.clone(),plat.clone(),req){
-                    None => {
-                        DB.send_embed("lfg_wrong_btag",mes.channel_id);
+
+                match load_btag_data(btag.clone(),reg.clone(),plat.clone(),req) {
+                    OwData::NotFound | OwData::ClosedProfile { .. } => {
+                        DB.send_embed("lfg_wrong_btag", mes.channel_id);
                         return;
-                    }
-                    Some(data) => {
-                        rating = data.rating;
+                    },
+                    OwData::Full(BData) => {
+                        rating = BData.rating;
                     }
                 }
 

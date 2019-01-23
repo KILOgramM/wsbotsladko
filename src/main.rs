@@ -45,11 +45,15 @@ pub mod addon;
 pub mod conf;
 pub mod roles;
 pub mod event;
+//pub mod owparcer;
+
 
 pub mod denum;
 pub mod dstruct;
 pub mod dis;
 pub mod disapi;
+
+
 
 use disapi::Discord;
 use dstruct::DCShell;
@@ -247,10 +251,45 @@ pub enum Hero{
     Orisa,
     Moira,
     Brigitte,
+    Wrecking_Ball,
+    Ashe,
+
 }
 impl Hero{
     fn get_from_bliz_str(s: &str) -> Hero{
         match s{
+            "Winston" => {return Hero::Winston;}
+            "Tracer" => {return Hero::Tracer;}
+            "Pharah" => {return Hero::Pharah;}
+            "Genji" => {return Hero::Genji;}
+            "Zenyatta" => {return Hero::Zenyatta;}
+            "Reinhardt" => {return Hero::Reinhardt;}
+            "Mercy" => {return Hero::Mercy;}
+            "Lúcio" => {return Hero::Lucio;}
+            "Soldier: 76" => {return Hero::Soldier;}
+            "D.Va" => {return Hero::DVa;}
+            "Reaper" => {return Hero::Reaper;}
+            "Hanzo" => {return Hero::Hanzo;}
+            "Torbjörn" => {return Hero::Torbjorn;}
+            "Widowmaker" => {return Hero::Widowmaker;}
+            "Bastion" => {return Hero::Bastion;}
+            "Symmetra" => {return Hero::Symmetra;}
+            "Roadhog" => {return Hero::Roadhog;}
+            "McCree" => {return Hero::McCree;}
+            "Junkrat" => {return Hero::Junkrat;}
+            "Zarya" => {return Hero::Zarya;}
+            "Mei" => {return Hero::Mei;}
+            "Sombra" => {return Hero::Sombra;}
+            "Doomfist" => {return Hero::Doomfist;}
+            "Ana" => {return Hero::Ana;}
+            "Orisa" => {return Hero::Orisa;}
+            "Moira" => {return Hero::Moira;}
+            "Brigitte" => {return Hero::Brigitte;}
+            "Ashe" => {return Hero::Ashe;}
+            "Wrecking Ball" => {return Hero::Wrecking_Ball;}
+            _ => {{return Hero::None;}}
+        }
+       /* match s{
             "009" => {return Hero::Winston;}
             "003" => {return Hero::Tracer;}
             "008" => {return Hero::Pharah;}
@@ -280,6 +319,7 @@ impl Hero{
             "195" => {return Hero::Brigitte;}
             _ => {{return Hero::None;}}
         }
+      */
     }
     fn name_eng(&self) -> String{
         match self{
@@ -310,6 +350,8 @@ impl Hero{
              &Hero::Orisa => {return String::from("Orisa");}
              &Hero::Moira => {return String::from("Moira");}
              &Hero::Brigitte => {return String::from("Brigitte");}
+             &Hero::Ashe => {return String::from("Ashe");}
+             &Hero::Wrecking_Ball => {return String::from("Wrecking Ball");}
              &Hero::None => {return String::new();}
         }
     }
@@ -342,6 +384,8 @@ impl Hero{
             Hero::Orisa => {return String::from("Ориса");}
             Hero::Moira => {return String::from("Мойра");}
             Hero::Brigitte => {return String::from("Бригитта");}
+            Hero::Ashe => {return String::from("Эш");}
+            Hero::Wrecking_Ball => {return String::from("Таран");}
             Hero::None => {return String::new();}
         }
     }
@@ -391,6 +435,18 @@ impl BtagData{
    }
 }
 
+pub enum OwData{
+    NotFound,
+    ClosedProfile{
+        btag: String,
+        reg: String,
+        plat: String,
+        url: String,
+        avatar_url: String,
+    },
+    Full(BtagData)
+}
+
 #[derive(Default,Debug,Clone)]
 pub struct HeroInfoReq{
     num: i16,
@@ -422,7 +478,7 @@ impl HeroInfoReq{
 #[derive(Clone,Debug)]
 struct HeroStats{
     hero: Hero,
-    time_played: Option<Time>,
+    time_played: Option<String>,
     games_won: Option<u32>,
     win_perc: Option<u16>,
     aim: Option<u16>,
@@ -445,12 +501,12 @@ impl HeroStats{
     }
 }
 
-pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> Option<BtagData> //Проверка существования профиля и подгрузка рейтинга при наличии
+pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> OwData //Проверка существования профиля и подгрузка рейтинга при наличии
 {
     use std::time::SystemTime;
-
+    use self::OwData::*;
     if btag.is_empty() || plat.is_empty(){
-        return None;
+        return NotFound;
     }
 
     let sys_time_old = SystemTime::now();
@@ -464,9 +520,8 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
     }
 
 
-    let mut result = None;
+    let mut result: Option<String> = None;
     let mut url = String::new();
-//        url = format!("https://playoverwatch.com/en-us/career/{}/{}/{}", plat.to_lowercase(), reg.to_lowercase(), btag.replace("#", "-"));
         url = format!("https://playoverwatch.com/en-us/career/{}/{}", plat.to_lowercase(), btag.replace("#", "-"));
 
         match reqwest::get(&url){
@@ -479,13 +534,6 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
 
                     }
                 }
-//                let mut content = String::new();
-//                if let Err(e) = resp.read_to_string(&mut content){
-//                    println!("[load_btag_data] Error while reading body:\n{}", e);
-//                }
-//                else {
-//                    result = Some(content);
-//                }
             }
             Err(e) => {
                 println!("[load_btag_data] Error while get responce from url. Probaly wrong url:\n{}", e);
@@ -501,7 +549,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
 
     if let Some(body) = result{
         if body.contains("h1 class=\"u-align-center\">Profile Not Found<") {
-            return None;
+            return NotFound;
         }
 
         let mut b_data = BtagData::default();
@@ -511,24 +559,30 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
         b_data.url = url.clone();
 
 
-        let avatar_url_patern = "masthead-player\"><img src=\"";
+        let avatar_url_patern = "class=\"player-portrait\"";
         b_data.avatar_url = match body.find(avatar_url_patern){ //Ищем URL аватара
-            Some(start_pos) => {
+            Some(mut pos) => {
                 let mut string = String::new();
-                let mut pos = start_pos + avatar_url_patern.len();
+                let mut end_if_finded = false;
+                let mut end = 0;
                 loop{
                     let c = body.index(pos..pos+1).chars().next().unwrap();
-
                     if c == '\"'{
-                         break;
-                    }
-                    else {
-                        string.push(c);
-                        pos += 1;
+                        if end_if_finded{
+                            string = body.index(pos+1..end).to_string();
+                            break;
+                        }
+                        else {
+                            end_if_finded = true;
+                            end = pos;
+                        }
+                        pos -= 1;
                         continue;
                     }
-
-
+                    else {
+                        pos -= 1;
+                        continue;
+                    }
                 }
                 string
             }
@@ -537,312 +591,290 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
             }
         };
 
-        if req.rating{
-            let rating_patern = "class=\"u-align-center h5\">";
-            match body.find(rating_patern){  //Ищем рейтинг
-                Some(start_pos) => {
 
-                    let mut string = String::new();
-                    let mut pos = start_pos+rating_patern.chars().count();
-                    loop{
 
-                        let c = body.index(pos..pos+1).chars().next().unwrap();
-                        if c == '<'{
-                            break;
-                        }
+//        if mode_debug{
+//            println!("Get rating: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
+//        }
+
+        if body.contains("masthead-permission-level-text\">Private Profile<"){
+
+            return ClosedProfile {
+                btag: b_data.btag,
+                reg: b_data.reg,
+                plat: b_data.plat,
+                url: b_data.url,
+                avatar_url: b_data.avatar_url,
+            };
+        }
+        else {
+            if req.rating{
+                let rating_patern = "class=\"u-align-center h5\">";
+                match body.find(rating_patern){  //Ищем рейтинг
+                    Some(start_pos) => {
+
+                        let mut string = String::new();
+                        let mut pos = start_pos+rating_patern.chars().count();
+                        loop{
+
+                            let c = body.index(pos..pos+1).chars().next().unwrap();
+                            if c == '<'{
+                                break;
+                            }
                             else {
                                 pos += 1;
                                 string.push(c);
                                 continue;
                             }
-                    }
-                    b_data.rating = match string.parse::<u16>(){
-
-                        Ok(x) => {x}
-
-                        Err(e) => {
-                            println!("Error while parce rating:\n{}\n{}",string ,e);
-                            0
                         }
-                    };
-                    let comp_rang_patern = "class=\"competitive-rank\"><img src=\"";
-                    match body.find(comp_rang_patern){  //Ищем URL иконки рейтинга
-                        Some(start_pos) => {
-                            let mut string = String::new();
-                            let mut pos = start_pos + comp_rang_patern.len();
-                            loop{
-                                let c = body.index(pos..pos+1).chars().next().unwrap();
+                        b_data.rating = match string.parse::<u16>(){
 
-                                if c == '\"'{
-                                    break;
-                                }
+                            Ok(x) => {x}
+
+                            Err(e) => {
+                                println!("Error while parce rating:\n{}\n{}",string ,e);
+                                0
+                            }
+                        };
+                        let comp_rang_patern = "class=\"competitive-rank\"><img src=\"";
+                        match body.find(comp_rang_patern){  //Ищем URL иконки рейтинга
+                            Some(start_pos) => {
+                                let mut string = String::new();
+                                let mut pos = start_pos + comp_rang_patern.len();
+                                loop{
+                                    let c = body.index(pos..pos+1).chars().next().unwrap();
+
+                                    if c == '\"'{
+                                        break;
+                                    }
                                     else {
                                         string.push(c);
                                         pos += 1;
                                         continue;
                                     }
 
+                                }
+
+                                b_data.rank_url = string;
                             }
+                            None => {
+                                b_data.rank_url = String::new();
+                            }
+                        }
 
-                            b_data.rank_url = string;
-                        }
-                        None => {
-                            b_data.rank_url = String::new();
-                        }
                     }
+                    None => {
+                        b_data.rating = 0;
+                        b_data.rank_url = String::new();
+                    }
+                }
 
-                }
-                None => {
-                    b_data.rating = 0;
-                    b_data.rank_url = String::new();
-                }
             }
+            let mut comp = String::new();
+            let mut time_played = String::new();
+            let mut games_won = String::new();
+            let mut win_perc = String::new();
+            let mut aim = String::new();
+            let mut kills_per_live = String::new();
+            let mut best_multiple_kills = String::new();
+            let mut obj_kills = String::new();
 
-        }
+            static COMP_STR: &str = "id=\"competitive\""; //начало комп раздела, конец раздела быстрой игры
+            static TIME_PLAYED_STR: &str = "data-category-id=\"0x0860000000000021\""; //начало раздела времени в игре
+            static GAMES_WON_STR: &str = "data-category-id=\"0x0860000000000039\""; //начало раздела выйграных матчей
+            static AIM_STR: &str = "data-category-id=\"0x086000000000002F\""; //начало раздела меткости
+            static WIN_PERC_STR: &str = "data-category-id=\"0x08600000000003D1\""; //начало раздела процента побед
+            static KILLS_PER_LIVE_STR: &str = "data-category-id=\"0x08600000000003D2\""; //начало раздела убийств за одну жизнь
+            static AIM_CRIT_STR: &str = "data-category-id=\"0x08600000000003E2\""; //начало раздела убийств за одну жизнь
+            static BEST_MULTIPLE_KILLS_STR: &str = "data-category-id=\"0x0860000000000346\""; //начало раздела лучш. множ. убийств
+            static OBJ_KILLS_STR: &str = "data-category-id=\"0x086000000000031C\""; //начало раздела убийств у объекта
+            static ACHIVMENT_STR: &str = "id=\"achievements-section\""; //начало раздела ачивок, конец комп раздела
 
-//        if mode_debug{
-//            println!("Get rating: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
-//        }
+            if req.time_played || req.games_won || req.win_perc || req.aim
+                || req.kills_per_live || req.best_multiple_kills || req.obj_kills {
+                comp = cut_part_of_str(&body.to_string(), COMP_STR, ACHIVMENT_STR);
+            }
+            if req.time_played {
+                time_played = cut_part_of_str(&comp, TIME_PLAYED_STR, GAMES_WON_STR);
+                loop {
+                    match find_next_hero(&time_played) {
+                        (Hero::None, ..) => {break;}
+                        (hero, hero_data, next_data) => {
+                            let hdat = find_description(hero_data.as_str());
+                            let mut hero_stats = HeroStats::new(hero);
+                            hero_stats.time_played = Some(hdat);
 
-        let mut comp = String::new();
-        let mut time_played = String::new();
-        let mut games_won = String::new();
-        let mut win_perc = String::new();
-        let mut aim = String::new();
-        let mut kills_per_live = String::new();
-        let mut best_multiple_kills = String::new();
-        let mut obj_kills = String::new();
+                            b_data.hero_data(hero_stats);
 
-        static COMP_STR: &str = "id=\"competitive\" data-js=\"career-category\""; //начало комп раздела, конец раздела быстрой игры
-        static TIME_PLAYED_STR: &str = "data-category-id=\"overwatch.guid.0x0860000000000021\""; //начало раздела времени в игре
-        static GAMES_WON_STR: &str = "data-category-id=\"overwatch.guid.0x0860000000000039\""; //начало раздела выйграных матчей
-        static WIN_PERC_STR: &str = "data-category-id=\"overwatch.guid.0x08600000000003D1\""; //начало раздела процента побед
-        static AIM_STR: &str = "data-category-id=\"overwatch.guid.0x086000000000002F\""; //начало раздела меткости
-        static KILLS_PER_LIVE_STR: &str = "data-category-id=\"overwatch.guid.0x08600000000003D2\""; //начало раздела убийств за одну жизнь
-        static BEST_MULTIPLE_KILLS_STR: &str = "data-category-id=\"overwatch.guid.0x0860000000000346\""; //начало раздела лучш. множ. убийств
-        static OBJ_KILLS_STR: &str = "data-category-id=\"overwatch.guid.0x086000000000039C\""; //начало раздела убийств у объекта
-        static ACHIVMENT_STR: &str = "<section id=\"achievements-section\""; //начало раздела ачивок, конец комп раздела
-
-        if req.time_played || req.games_won || req.win_perc || req.aim
-            || req.kills_per_live || req.best_multiple_kills || req.obj_kills{
-
-            comp = cut_part_of_str(&body.to_string(), COMP_STR, ACHIVMENT_STR);
-        }
-        if req.time_played{
-            time_played = cut_part_of_str(&comp, TIME_PLAYED_STR, GAMES_WON_STR);
-
-            loop{
-                match find_next_hero(&time_played){
-                    (Hero::None, ..) => {break;}
-                    (hero, hero_data, next_data) => {
-                        //println!("3 cut");
-                        let hdat = find_description(hero_data.as_str());
-                        let mut time = Time::None;
-                        if hdat != "--" || hdat.is_empty(){
-                            let num = hdat.find(" ").expect("Err #9");
-                            let (hdat_split1,hdat_split2) = hdat.split_at(num);
-                            time = match hdat_split2{
-                                " hour"|" hours" => {
-                                    Time::Hours(hdat_split1.parse::<u32>().expect("Err #10"))
-                                }
-                                " minute"|" minutes" => {
-                                    Time::Min(hdat_split1.parse::<u32>().expect("Err #11"))
-                                }
-                                " second"|" seconds" => {
-                                    Time::Sec(hdat_split1.parse::<u32>().expect("Err #12"))
-                                }
-                                _ =>{
-                                    Time::None
-                                }
-                            };
-                        }
-
-                        let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.time_played = Some(time);
-
-                        b_data.hero_data(hero_stats);
-
-                        if next_data.is_empty(){
+                            if next_data.is_empty() {
                                 break;
-                        }
-                        else {
-                            time_played = next_data;
+                            } else {
+                                time_played = next_data;
+                            }
                         }
                     }
                 }
             }
-        }
-        if req.games_won{
-            games_won = cut_part_of_str(&comp, GAMES_WON_STR, WIN_PERC_STR);
+            if req.games_won {
+                games_won = cut_part_of_str(&comp, GAMES_WON_STR, AIM_STR);
 
-            loop{
-                match find_next_hero(&games_won){
-                    (Hero::None, ..) => {break;}
-                    (hero, hero_data, next_data) => {
+                loop {
+                    match find_next_hero(&games_won) {
+                        (Hero::None, ..) => { break; }
+                        (hero, hero_data, next_data) => {
+                            let hdat = find_description(hero_data.as_str());
 
-                        let hdat = find_description(hero_data.as_str());
+                            let mut hero_stats = HeroStats::new(hero);
+                            hero_stats.games_won = Some(hdat.parse::<u32>().expect("Err #13"));
 
-                        let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.games_won = Some(hdat.parse::<u32>().expect("Err #13"));
+                            b_data.hero_data(hero_stats);
 
-                        b_data.hero_data(hero_stats);
-
-                        if next_data.is_empty(){
-                            break;
-                        }
-                            else {
+                            if next_data.is_empty() {
+                                break;
+                            } else {
                                 games_won = next_data;
                             }
+                        }
                     }
                 }
             }
-        }
-        if req.win_perc{
-            win_perc = cut_part_of_str(&comp, WIN_PERC_STR, AIM_STR);
+            if req.aim {
+                aim = cut_part_of_str(&comp, AIM_STR, WIN_PERC_STR);
+                loop {
+                    match find_next_hero(&aim) {
+                        (Hero::None, ..) => { break; }
+                        (hero, hero_data, next_data) => {
+                            let hdat = find_description(hero_data.as_str());
 
-            loop{
-                match find_next_hero(&win_perc){
-                    (Hero::None, ..) => {break;}
-                    (hero, hero_data, next_data) => {
+                            let mut hero_stats = HeroStats::new(hero);
+                            hero_stats.aim = Some(hdat.trim_matches('%').parse::<u16>().expect("Err #15"));
 
-                        let hdat = find_description(hero_data.as_str());
+                            b_data.hero_data(hero_stats);
 
-                        let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.win_perc = Some(hdat.trim_matches('%').parse::<u16>().expect("Err #14"));
-
-                        b_data.hero_data(hero_stats);
-
-                        if next_data.is_empty(){
-                            break;
-                        }
-                            else {
-                                win_perc = next_data;
-                            }
-                    }
-                }
-            }
-        }
-        if req.aim{
-            aim = cut_part_of_str(&comp, AIM_STR, KILLS_PER_LIVE_STR);
-            loop{
-                match find_next_hero(&aim){
-                    (Hero::None, ..) => {break;}
-                    (hero, hero_data, next_data) => {
-
-                        let hdat = find_description(hero_data.as_str());
-
-                        let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.aim = Some(hdat.trim_matches('%').parse::<u16>().expect("Err #15"));
-
-                        b_data.hero_data(hero_stats);
-
-                        if next_data.is_empty(){
-                            break;
-                        }
-                            else {
+                            if next_data.is_empty() {
+                                break;
+                            } else {
                                 aim = next_data;
                             }
+                        }
                     }
                 }
             }
-        }
-        if req.kills_per_live{
-            kills_per_live = cut_part_of_str(&comp,
-                                             KILLS_PER_LIVE_STR,
-                                             BEST_MULTIPLE_KILLS_STR);
-            loop{
-                match find_next_hero(&kills_per_live){
-                    (Hero::None, ..) => {break;}
-                    (hero, hero_data, next_data) => {
+            if req.win_perc {
+                win_perc = cut_part_of_str(&comp, WIN_PERC_STR, KILLS_PER_LIVE_STR);
 
-                        let hdat = find_description(hero_data.as_str());
+                loop {
+                    match find_next_hero(&win_perc) {
+                        (Hero::None, ..) => { break; }
+                        (hero, hero_data, next_data) => {
+                            let hdat = find_description(hero_data.as_str());
 
-                        let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.kills_per_live = Some(hdat.parse::<f32>().expect("Err #16"));
+                            let mut hero_stats = HeroStats::new(hero);
+                            hero_stats.win_perc = Some(hdat.trim_matches('%').parse::<u16>().expect("Err #14"));
 
-                        b_data.hero_data(hero_stats);
+                            b_data.hero_data(hero_stats);
 
-                        if next_data.is_empty(){
-                            break;
+                            if next_data.is_empty() {
+                                break;
+                            } else {
+                                win_perc = next_data;
+                            }
                         }
-                            else {
+                    }
+                }
+            }
+            if req.kills_per_live {
+                kills_per_live = cut_part_of_str(&comp,
+                                                 KILLS_PER_LIVE_STR,
+                                                 AIM_CRIT_STR);
+                loop {
+                    match find_next_hero(&kills_per_live) {
+                        (Hero::None, ..) => { break; }
+                        (hero, hero_data, next_data) => {
+                            let hdat = find_description(hero_data.as_str());
+
+                            let mut hero_stats = HeroStats::new(hero);
+                            hero_stats.kills_per_live = Some(hdat.parse::<f32>().expect("Err #16"));
+
+                            b_data.hero_data(hero_stats);
+
+                            if next_data.is_empty() {
+                                break;
+                            } else {
                                 kills_per_live = next_data;
                             }
+                        }
                     }
                 }
             }
-        }
-        if req.best_multiple_kills{
-            best_multiple_kills = cut_part_of_str(&comp,
-                                                  BEST_MULTIPLE_KILLS_STR,
-                                                  OBJ_KILLS_STR);
-            loop{
-                match find_next_hero(&best_multiple_kills){
-                    (Hero::None, ..) => {break;}
-                    (hero, hero_data, next_data) => {
+            if req.best_multiple_kills {
+                best_multiple_kills = cut_part_of_str(&comp,
+                                                      BEST_MULTIPLE_KILLS_STR,
+                                                      OBJ_KILLS_STR);
+                loop {
+                    match find_next_hero(&best_multiple_kills) {
+                        (Hero::None, ..) => { break; }
+                        (hero, hero_data, next_data) => {
+                            let hdat = find_description(hero_data.as_str());
 
-                        let hdat = find_description(hero_data.as_str());
+                            let mut hero_stats = HeroStats::new(hero);
+                            hero_stats.best_multiple_kills = Some(hdat.parse::<u32>().expect("Err #17"));
 
-                        let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.best_multiple_kills = Some(hdat.parse::<u32>().expect("Err #17"));
+                            b_data.hero_data(hero_stats);
 
-                        b_data.hero_data(hero_stats);
-
-                        if next_data.is_empty(){
-                            break;
-                        }
-                            else {
+                            if next_data.is_empty() {
+                                break;
+                            } else {
                                 best_multiple_kills = next_data;
                             }
+                        }
                     }
                 }
             }
-        }
-        if req.obj_kills{
-            obj_kills = cut_part_of_str(&comp,
-                                        OBJ_KILLS_STR,
-                                        ACHIVMENT_STR);
-            loop{
-                match find_next_hero(&obj_kills){
-                    (Hero::None, ..) => {break;}
-                    (hero, hero_data, next_data) => {
+            if req.obj_kills {
+                obj_kills = cut_part_of_str(&comp,
+                                            OBJ_KILLS_STR,
+                                            ACHIVMENT_STR);
+                loop {
+                    match find_next_hero(&obj_kills) {
+                        (Hero::None, ..) => { break; }
+                        (hero, hero_data, next_data) => {
+                            let hdat = find_description(hero_data.as_str());
 
-                        let hdat = find_description(hero_data.as_str());
+                            let mut hero_stats = HeroStats::new(hero);
+                            hero_stats.obj_kills = Some(hdat.parse::<u32>().expect("Err #18"));
 
-                        let mut hero_stats = HeroStats::new(hero);
-                        hero_stats.obj_kills = Some(hdat.parse::<u32>().expect("Err #18"));
+                            b_data.hero_data(hero_stats);
 
-                        b_data.hero_data(hero_stats);
-
-                        if next_data.is_empty(){
-                            break;
-                        }
-                            else {
+                            if next_data.is_empty() {
+                                break;
+                            } else {
                                 obj_kills = next_data;
                             }
+                        }
                     }
                 }
             }
-        }
 
-        if mode_debug{
-            println!("End: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #19"));
+            if mode_debug {
+                println!("End: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #19"));
+            }
+            return Full(b_data);
         }
-        return Some(b_data);
 
     }
     else{
         if mode_debug{
             println!("End None: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #20"));
         }
-        return None;
+        return NotFound;
     }
 
 }
 
 fn find_description(string: &str) -> String //class="description">
 {
-    let description_patern = "class=\"description\">";
+    let description_patern = "class=\"ProgressBar-description\">";
     match string.find(description_patern){ //Ищем URL аватара
         Some(start_pos) => {
             let mut answer = String::new();
@@ -870,38 +902,33 @@ fn find_description(string: &str) -> String //class="description">
 
 fn find_next_hero(string: &String) -> (Hero, String, String) //берёт целевую строку, возвращает имя героя + его блок + остаток
 {
-    static hero_start: &str = "data-hero-guid=\"0x02E0000000000";
+    //static hero_start: &str = "data-hero-guid=\"0x02E0000000000";
+    static hero_start: &str = "data-hero=\"";
     let mut answer = (Hero::None, String::new(), String::new());
 
+
     let start = match string.find(hero_start) {
-        Some(x) => {x+hero_start.chars().count()}
+        Some(x) => {x+hero_start.len()}
         None => {return answer;}
     };
-
-    let mut hero_str = String::new();
-
-    unsafe{
-        answer.1 = string.slice_unchecked(start, string.chars().count()).to_string();
-        hero_str = answer.1.slice_unchecked(0, 3).to_owned();
+    let mut s_wo_start = "";
+    let mut hero_str = "";
+    unsafe {
+        s_wo_start = string.slice_unchecked(start, string.len());
+        hero_str = s_wo_start.slice_unchecked(0, s_wo_start.find('"').unwrap_or(1));
     }
-
-    answer.0 = Hero::get_from_bliz_str(hero_str.as_str());
-
-
-    let end = match answer.1.find(hero_start) {
-        Some(x) => {x}
-        None => {0}
-    };
-
-    if end > 0{
-        unsafe{
-            answer.2 = answer.1.slice_unchecked(end, answer.1.chars().count()).to_string();
-            answer.1 = answer.1.slice_unchecked(0, end).to_string();
+    answer.0 = Hero::get_from_bliz_str(hero_str);
+    match s_wo_start.find(hero_start) {
+        Some(x) => {
+            let (answer1, answer2) = s_wo_start.split_at(x-1);
+            answer.1 = answer1.to_owned();
+            answer.2 = answer2.to_owned();
         }
-    }
-
+        None => {
+            answer.1 =s_wo_start.to_owned();
+        }
+    };
     return answer;
-
 }
 
 fn cut_part_of_str(main: &String, wall_1: &str, wall_2: &str) -> String
@@ -915,10 +942,15 @@ fn cut_part_of_str(main: &String, wall_1: &str, wall_2: &str) -> String
         Some(x) => {x+wall_2.len()}
         None => {return String::new();}
     };
-
     unsafe {
-        return main.slice_unchecked(start, end+1).to_owned();
+
+        if start > end {
+            println!("errr start > end: {} {}",wall_1, wall_2);
+            return String::new(); }
+        let temp = main.slice_unchecked(start, end).to_owned();
+        return temp;
     }
+
 }
 fn add_dsid_to_db(server: Server) //Добавление Нового профиля в БД
 {
@@ -927,6 +959,7 @@ let mut conn = POOL.get_conn().unwrap();
 println!("[MySQL request INSERT INTO dservers] {}", call);
 let _ = conn.query(call);
 }
+
 fn add_to_db(user: User) //Добавление Нового профиля в БД
 {
     let call = format!("INSERT INTO users (did, name, disc, btag, rtg, reg, plat, scrim_preset, rtg_preset) VALUES ({}, '{}', '{}', '{}', {}, '{}', '{}', '{}', '{}');",
@@ -1094,44 +1127,52 @@ fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог со
 
         let mut acc_not_found = false;
 
+        let mut req = HeroInfoReq::default();
+        req.num = 0;
+        req.rating = true;
+        req.time_played = false;
+        req.games_won = false;
+        req.aim = false;
+        req.kills_per_live = false;
+        req.win_perc = false;
+        req.best_multiple_kills = false;
+        req.obj_kills = false;
+
+        let answer = load_btag_data(battletag.to_string(), region.to_string(), platform.to_string(), req);
+
         if !no_btag {
-            let mut req = HeroInfoReq::default();
-            req.num = 0;
-            req.rating = true;
-            req.time_played = false;
-            req.games_won = false;
-            req.aim = false;
-            req.kills_per_live = false;
-            req.win_perc = false;
-            req.best_multiple_kills = false;
-            req.obj_kills = false;
 
-            let answer = load_btag_data(battletag.to_string(), region.to_string(), platform.to_string(), req);
+            match answer{
+                OwData::NotFound => {
+                    acc_not_found = true;
+                    rating = 0;
+                }
+                OwData::ClosedProfile { ref avatar_url, ..
+                } => {
+                    rating = 0;
+                    thumbnail = avatar_url.clone();
+                },
+                OwData::Full(ref BData) => {
+                    rating = BData.rating;
+                    //println!("rating: {}", rating);
+                    thumbnail = BData.avatar_url.clone();
 
-            if let Some(an) = answer{
-                rating = an.rating;
-                //println!("rating: {}", rating);
-                thumbnail = an.avatar_url.clone();
-
-                let server_id = match Discord::get_chanel(chan){
-                    None => {0}
-                    Some(json) => {
-                        match json.get("guild_id"){
-                            None => {0}
-                            Some(jtext) => {
-                                jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
+                    let server_id = match Discord::get_chanel(chan){
+                        None => {0}
+                        Some(json) => {
+                            match json.get("guild_id"){
+                                None => {0}
+                                Some(jtext) => {
+                                    jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
+                                }
                             }
                         }
-                    }
-                };
+                    };
 
-                roleruler = role_ruler_text(server_id,
-                           autor.id,
-                           RoleR::rating(rating));
-            }
-            else {
-                acc_not_found = true;
-                rating = 0;
+                    roleruler = role_ruler_text(server_id,
+                                                autor.id,
+                                                RoleR::rating(rating));
+                }
             }
         }
 
@@ -1149,52 +1190,137 @@ fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог со
             if no_plat {fields.push(("Платформа".to_string(),"По умолчанию (PC)".to_string(),false))}
                 else { fields.push(("Платформа".to_string(), platform.clone(), false)) }
 
-            if acc_not_found {
-                des = "Мы не смогли найти ваш профиль Overwtach по заданным параметрам.\nВозможно вы ошиблись или указали недостаточно данных.";
-                footer = "Вы можете указать корректные данные позже с помощью комманды !wsreg";
-            } else {
-                if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false));}
+
+
+            match answer{
+                OwData::NotFound => {
+                    des = "Мы не смогли найти ваш профиль Overwtach по заданным параметрам.\nВозможно вы ошиблись или указали недостаточно данных.";
+                    footer = "Вы можете указать корректные данные позже с помощью комманды !wsreg";
+                }
+                OwData::ClosedProfile {
+                    ..
+                } => {
+                    des = "Мы нашли ваш профиль, но он скрыт и мы не сможем находить ваш рейтинг.\nЧто бы бот мог видеть ваш рейтинг вым надо открыть свой профиль.";
+                    footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
+                },
+                OwData::Full(_) => {
+                    if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false));}
 
                     footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
-
-
+                }
             }
-        } else {
-            if acc_not_found {
-                des = "Похоже мы не смогли найти ваш профиль Overwtach по заданным параметрам. \nВозможно вы ошиблись или указали недостаточно данных.";
-                fields.push(("BattleTag".to_string(), battletag.clone(), false));
-                fields.push(("Регион".to_string(), region.clone(), false));
-                fields.push(("Платформа".to_string(), platform.clone(), false));
-                footer ="Вы можете добавить их позже с помощью комманды !wsreg";
-            } else {
-                des = "Информация успешно добавлена :wink:";
-                fields.push(("BattleTag".to_string(), battletag.clone(), false));
-                fields.push(("Регион".to_string(), region.clone(), false));
-                fields.push(("Платформа".to_string(), platform.clone(), false));
-                if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
+
+
+
+
+//            if acc_not_found {
+//                des = "Мы не смогли найти ваш профиль Overwtach по заданным параметрам.\nВозможно вы ошиблись или указали недостаточно данных.";
+//                footer = "Вы можете указать корректные данные позже с помощью комманды !wsreg";
+//            } else {
+//                if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false));}
+//
+//                    footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
+//
+//
+//            }
+        }
+        else {
+
+            match answer{
+                OwData::NotFound => {
+                    des = "Похоже мы не смогли найти ваш профиль Overwtach по заданным параметрам. \nВозможно вы ошиблись или указали недостаточно данных.";
+                    fields.push(("BattleTag".to_string(), battletag.clone(), false));
+                    fields.push(("Регион".to_string(), region.clone(), false));
+                    fields.push(("Платформа".to_string(), platform.clone(), false));
+                    footer ="Вы можете добавить их позже с помощью комманды !wsreg";
+                }
+                OwData::ClosedProfile {
+                    ..
+                } => {
+                    des = "Мы нашли ваш профиль, но он скрыт и мы не сможем находить ваш рейтинг.\nЧто бы бот мог видеть ваш рейтинг вым надо открыть свой профиль.";
+                    fields.push(("BattleTag".to_string(), battletag.clone(), false));
+                    fields.push(("Регион".to_string(), region.clone(), false));
+                    fields.push(("Платформа".to_string(), platform.clone(), false));
+                    footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
+                },
+                OwData::Full(_) => {
+                    des = "Информация успешно добавлена :wink:";
+                    fields.push(("BattleTag".to_string(), battletag.clone(), false));
+                    fields.push(("Регион".to_string(), region.clone(), false));
+                    fields.push(("Платформа".to_string(), platform.clone(), false));
+                    if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
 
                     footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
-
+                }
             }
+//            if acc_not_found {
+//                des = "Похоже мы не смогли найти ваш профиль Overwtach по заданным параметрам. \nВозможно вы ошиблись или указали недостаточно данных.";
+//                fields.push(("BattleTag".to_string(), battletag.clone(), false));
+//                fields.push(("Регион".to_string(), region.clone(), false));
+//                fields.push(("Платформа".to_string(), platform.clone(), false));
+//                footer ="Вы можете добавить их позже с помощью комманды !wsreg";
+//            } else {
+//                des = "Информация успешно добавлена :wink:";
+//                fields.push(("BattleTag".to_string(), battletag.clone(), false));
+//                fields.push(("Регион".to_string(), region.clone(), false));
+//                fields.push(("Платформа".to_string(), platform.clone(), false));
+//                if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
+//
+//                    footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
+//
+//            }
         }
 
-        if acc_not_found {
-            let mut temp_user = User::empty();
-            temp_user.did = autor.id;
-            temp_user.name = autor.username;
-            temp_user.disc = autor.discriminator;
-            add_to_db(temp_user);
-        } else {
-            let mut temp_user = User::empty();
-            temp_user.did = autor.id;
-            temp_user.name = autor.username;
-            temp_user.disc = autor.discriminator;
-            temp_user.btag = battletag.to_string();
-            temp_user.rtg = rating;
-            temp_user.reg = region.to_string();
-            temp_user.plat = platform.to_string();
-            add_to_db(temp_user);
+        let mut temp_user = User::empty();
+        match answer{
+            OwData::NotFound => {
+                temp_user.did = autor.id;
+                temp_user.name = autor.username;
+                temp_user.disc = autor.discriminator;
+                add_to_db(temp_user);
+                }
+            OwData::ClosedProfile {
+                ref avatar_url, ref btag, ref reg, ref plat, ..
+            } => {
+                temp_user.did = autor.id;
+                temp_user.name = autor.username;
+                temp_user.disc = autor.discriminator;
+                temp_user.btag = btag.clone();
+                temp_user.rtg = rating;
+                temp_user.reg = reg.clone();
+                temp_user.plat = plat.clone();
+                add_to_db(temp_user);
+                },
+            OwData::Full(ref BData) => {
+                temp_user.did = autor.id;
+                temp_user.name = autor.username;
+                temp_user.disc = autor.discriminator;
+                temp_user.btag = BData.btag.clone();
+                temp_user.rtg = rating;
+                temp_user.reg = BData.reg.clone();
+                temp_user.plat = BData.plat.clone();
+                add_to_db(temp_user);
+               }
         }
+
+
+//        if acc_not_found {
+//            let mut temp_user = User::empty();
+//            temp_user.did = autor.id;
+//            temp_user.name = autor.username;
+//            temp_user.disc = autor.discriminator;
+//            add_to_db(temp_user);
+//        } else {
+//            let mut temp_user = User::empty();
+//            temp_user.did = autor.id;
+//            temp_user.name = autor.username;
+//            temp_user.disc = autor.discriminator;
+//            temp_user.btag = battletag.to_string();
+//            temp_user.rtg = rating;
+//            temp_user.reg = region.to_string();
+//            temp_user.plat = platform.to_string();
+//            add_to_db(temp_user);
+//        }
     } else {
         title = "Регистрация пройдена";
         des ="Но вы не указали никакой информации. Совсем :worried:";
@@ -1337,32 +1463,102 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
                     req.obj_kills = false;
                     let answer = load_btag_data(battletag.to_string(), region.to_string(), platform.to_string(), req);
 
-                    if let Some(an) = answer{
-                        rating = an.rating;
-                        //println!("rating: {}", rating);
-                        thumbnail = an.avatar_url.clone();
-                        let server_id = match Discord::get_chanel(chan){
-                            None => {0}
-                            Some(json) => {
-                                match json.get("guild_id"){
-                                    None => {0}
-                                    Some(jtext) => {
-                                        jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
-                                    }
-                                }
-                            }
-                        };
-                        roleruler = role_ruler_text(server_id,
-                                   autor.id,
-                                   RoleR::rating(rating));
-                    }
-                        else {
+                    match answer{
+                        OwData::NotFound => {
                             acc_not_found = true;
                             rating = 0;
                         }
+                        OwData::ClosedProfile {
+                            ref avatar_url, ..
+                        } => {
+                            thumbnail = avatar_url.clone();
+                            rating = 0;
+                        },
+                        OwData::Full(ref BData) => {
+                            rating = BData.rating;
+                            //println!("rating: {}", rating);
+                            thumbnail = BData.avatar_url.clone();
+                            let server_id = match Discord::get_chanel(chan){
+                                None => {0}
+                                Some(json) => {
+                                    match json.get("guild_id"){
+                                        None => {0}
+                                        Some(jtext) => {
+                                            jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
+                                        }
+                                    }
+                                }
+                            };
+                            roleruler = role_ruler_text(server_id,
+                                                        autor.id,
+                                                        RoleR::rating(rating));
+                        }
+                    }
 
-                    if acc_not_found {
-                        if force {
+
+/*                    if let Some(an) = answer{
+//                        rating = an.rating;
+//                        //println!("rating: {}", rating);
+//                        thumbnail = an.avatar_url.clone();
+//                        let server_id = match Discord::get_chanel(chan){
+//                            None => {0}
+//                            Some(json) => {
+//                                match json.get("guild_id"){
+//                                    None => {0}
+//                                    Some(jtext) => {
+//                                        jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
+//                                    }
+//                                }
+//                            }
+//                        };
+//                        roleruler = role_ruler_text(server_id,
+//                                   autor.id,
+//                                   RoleR::rating(rating));
+//                    }
+//                        else {
+//                            acc_not_found = true;
+//                            rating = 0;
+//                        }
+*/
+
+
+
+                    match answer{
+                        OwData::NotFound => {
+                            if force {
+                                let mut temp_user = User::empty();
+                                temp_user.did = autor.id;
+                                temp_user.name = autor.username;
+                                temp_user.disc = autor.discriminator;
+                                temp_user.btag = battletag.clone();
+                                temp_user.rtg = 0;
+                                temp_user.reg = region.clone();
+                                temp_user.plat = platform.clone();
+                                temp_user.scrim_preset = user.scrim_preset;
+                                temp_user.rtg_preset = user.rtg_preset;
+
+                                update_in_db(temp_user);
+                                title = "Данные обновлены";
+                                des = "Мы принудително обновили ваши данные";
+
+                                fields.push(("BattleTag".to_string(), battletag.clone(), false));
+                                fields.push(("Регион".to_string(), region.clone(), false));
+                                fields.push(("Платформа".to_string(),
+                                             format!("{} \n\nУбедитесь, что верно ввели парамтры на изменение ваших данных",platform.clone()), false));
+
+
+                            } else {
+                                title = "Изменение данных";
+                                des = "Мы не смогли найти ваш профиль Overwatch по заданным параметрам";
+                                fields.push(("BattleTag".to_string(), battletag.clone(), false));
+                                fields.push(("Регион".to_string(), region.clone(), false));
+                                fields.push(("Платформа".to_string(),
+                                             format!("{} \n\nУбедитесь, что верно ввели парамтры на изменение ваших данных\nНо если вы настаиваете, то добавте FORCE в конец, для изменения данных",platform.clone()),
+                                             false));
+
+                            }
+                        }
+                        OwData::ClosedProfile {..} => {
                             let mut temp_user = User::empty();
                             temp_user.did = autor.id;
                             temp_user.name = autor.username;
@@ -1376,49 +1572,36 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
 
                             update_in_db(temp_user);
                             title = "Данные обновлены";
-                            des = "Мы принудително обновили ваши данные";
-
+                            des = "Профиль OW скрыт";
                             fields.push(("BattleTag".to_string(), battletag.clone(), false));
                             fields.push(("Регион".to_string(), region.clone(), false));
-                            fields.push(("Платформа".to_string(),
-                                         format!("{} \n\nУбедитесь, что верно ввели парамтры на изменение ваших данных",platform.clone()), false));
+                            fields.push(("Платформа".to_string(), platform.clone(), false));
 
+                            footer = "Мы не можем выдеть ваш ретинг, когда профиль скрыт";
+                        },
+                        OwData::Full(_) => {
+                            let mut temp_user = User::empty();
+                            temp_user.did = autor.id;
+                            temp_user.name = autor.username;
+                            temp_user.disc = autor.discriminator;
+                            temp_user.btag = battletag.clone();
+                            temp_user.rtg = rating;
+                            temp_user.reg = region.clone();
+                            temp_user.plat = platform.clone();
+                            temp_user.scrim_preset = user.scrim_preset;
+                            temp_user.rtg_preset = user.rtg_preset;
 
-                        } else {
-                            title = "Изменение данных";
-                            des = "Мы не смогли найти ваш профиль Overwatch по заданным параметрам";
+                            update_in_db(temp_user);
+                            title = "Данные обновлены";
+                            des = "Профиль OW найден";
                             fields.push(("BattleTag".to_string(), battletag.clone(), false));
                             fields.push(("Регион".to_string(), region.clone(), false));
-                            fields.push(("Платформа".to_string(),
-                                         format!("{} \n\nУбедитесь, что верно ввели парамтры на изменение ваших данных\nНо если вы настаиваете, то добавте FORCE в конец, для изменения данных",platform.clone()),
-                                         false));
-
-                        }
-                    } else {
-                        let mut temp_user = User::empty();
-                        temp_user.did = autor.id;
-                        temp_user.name = autor.username;
-                        temp_user.disc = autor.discriminator;
-                        temp_user.btag = battletag.clone();
-                        temp_user.rtg = rating;
-                        temp_user.reg = region.clone();
-                        temp_user.plat = platform.clone();
-                        temp_user.scrim_preset = user.scrim_preset;
-                        temp_user.rtg_preset = user.rtg_preset;
-
-                        update_in_db(temp_user);
-                        title = "Данные обновлены";
-                        des = "Профиль OW найден";
-                        fields.push(("BattleTag".to_string(), battletag.clone(), false));
-                        fields.push(("Регион".to_string(), region.clone(), false));
-                        fields.push(("Платформа".to_string(), platform.clone(), false));
-                        if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
+                            fields.push(("Платформа".to_string(), platform.clone(), false));
+                            if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
 
                             footer = "Убедитесь, что верно ввели парамтры на изменение ваших данных";
 
-
-
-
+                        }
                     }
                 }
             } else {
@@ -1609,12 +1792,20 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
 
         let answer = load_btag_data(u.btag.to_string(), u.reg.to_string(), u.plat.to_string(), req);
 
-        if answer.is_none(){
-            u.rtg = 6000;
+        match answer{
+            OwData::NotFound => {
+                u.rtg = 6000;
+            }
+            OwData::ClosedProfile {
+                ..
+            } => {
+                u.rtg = 0;
+            },
+            OwData::Full(ref BData) => {
+                u.rtg = BData.rating.clone();
+            }
         }
-        else {
-            u.rtg = answer.clone().unwrap().rating;
-        }
+
         if update {
             let server_id = match Discord::get_chanel(chanel){
                 None => {0}
@@ -1630,94 +1821,95 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
             roleruler = role_ruler_text(server_id,
                        autor_id,
                        RoleR::rating(u.rtg));
-            update_in_db(u.clone()); }
-
-
-
-        if u.rtg == 6000 {
-
-            //Ошибка: Такой игрок не найден.
-            let botmess = "Такой игрок не найден";
-	        EmbedStruct::empty()
-		        .title(err_title)
-		        .des(botmess)
-		        .col(err_color)
-		        .send(chanel);
-        } else if u.rtg == 0 {
-            let aun:BtagData = answer.unwrap();
-            //KILOgramM#2947 EU PC Рейтинг отсутствует
-            let botmess = format!("{} {} {} Рейтинг отсутствует", u.btag, u.reg, u.plat);
-            let des = format!("[Ссылка на профиль]({})", aun.url);
-	        EmbedStruct::empty()
-		        .title(&botmess)
-		        .des(&des)
-		        .col(color)
-		        .footer((String::new(),&roleruler))
-		        .send(chanel);
-
-        } else {
-            let aun:BtagData = answer.unwrap();
-            let botmess = format!("{} {} {} Рейтинг {}", u.btag, u.reg, u.plat, aun.rating);
-            let des = format!("[Ссылка на профиль]({})", aun.url);
-
-            let mut fields_vec: Vec<(String, String , bool)> = Vec::new();
-            if hero_list_titles.len()>aun.heroes.len(){}
-            else{
-                for (enumerat,l) in hero_list_titles.iter().enumerate(){
-
-                    let ref an = aun.heroes[enumerat];
-                    let mut itre = an.clone().hero.name_rus();
-                    let name = format!("{} {}",l,itre);
-
-                    let mut value = String::new();
-                    let mut f = true;
-                    if let Some(ref x) = aun.heroes[enumerat].time_played{
-                        match x{
-                            &Time::Hours(t) => {
-                                if !f{value = format!("{},",value)}
-                                    else{f=false}
-                                value = format!("{}ч.",t);}
-                            &Time::Min(t) => {
-                                if !f{value = format!("{},",value)}
-                                    else{f=false}
-                                value = format!("{}мин.",t);}
-                            &Time::Sec(t) => {
-                                if !f{value = format!("{},",value)}
-                                    else{f=false}
-                                value = format!("{}сек.",t);}
-                            &Time::None => {}
-                        }
-                    }
-                    if let Some(x)= aun.heroes[enumerat].win_perc{
-                        if !f{value = format!("{},",value)}
-                            else{f=false}
-
-                        value = format!("{} {}% побед",value,x);
-                    }
-
-                    if let Some(x)= aun.heroes[enumerat].games_won{
-                        if !f{value = format!("{},",value)}
-                            else{f=false}
-
-                        value = format!("{} {} побед(а)",value,x);
-                    }
-
-                    fields_vec.push((name, value, false));
-                }
-            }
-
-	        EmbedStruct::empty()
-		        .title(&botmess)
-		        .des(&des)
-		        .thumbnail(&aun.avatar_url)
-		        .col(color)
-		        .footer((String::new(),&roleruler))
-		        .fields(fields_vec)
-		        .send(chanel);
-
+            update_in_db(u.clone());
         }
 
+        match answer{
+            OwData::NotFound => {
+                //Ошибка: Такой игрок не найден.
+                let botmess = "Такой игрок не найден";
+                EmbedStruct::empty()
+                    .title(err_title)
+                    .des(botmess)
+                    .col(err_color)
+                    .send(chanel);
+            }
+            OwData::ClosedProfile {
+                btag, reg, plat, url, avatar_url
+            } => {
+                let botmess = format!("{} {} {} Профиль скрыт", u.btag, u.reg, u.plat);
+                let des = format!("[Ссылка на профиль]({})", url);
+                EmbedStruct::empty()
+                    .title(&botmess)
+                    .des(&des)
+                    .col(color)
+                    .thumbnail(&avatar_url.clone())
+                    .footer((String::new(),&roleruler))
+                    .send(chanel);
+            },
+            OwData::Full(BData) => {
+                if u.rtg == 0 {
+                    //Рейтинг отсутствует
+                    let botmess = format!("{} {} {} Рейтинг отсутствует", u.btag, u.reg, u.plat);
+                    let des = format!("[Ссылка на профиль]({})", BData.url);
+                    EmbedStruct::empty()
+                        .title(&botmess)
+                        .des(&des)
+                        .col(color)
+                        .thumbnail(&BData.avatar_url.clone())
+                        .footer((String::new(),&roleruler))
+                        .send(chanel);
+                }
+                else {
+                    let botmess = format!("{} {} {} Рейтинг {}", u.btag, u.reg, u.plat, BData.rating);
+                    let des = format!("[Ссылка на профиль]({})", BData.url);
 
+                    let mut fields_vec: Vec<(String, String , bool)> = Vec::new();
+                    if hero_list_titles.len()>BData.heroes.len(){}
+                    else{
+                        for (enumerat,l) in hero_list_titles.iter().enumerate(){
+
+                            let ref an = BData.heroes[enumerat];
+                            let mut itre = an.clone().hero.name_rus();
+                            let name = format!("{} {}",l,itre);
+
+                            let mut value = String::new();
+                            let mut f = true;
+
+                            value = format!("[{}]",an.clone().time_played.unwrap_or(String::new()));
+
+
+                            if let Some(x)= an.win_perc{
+                                if !f{value = format!("{},",value)}
+                                else{f=false}
+
+                                value = format!("{} {}% побед",value,x);
+                            }
+
+                            if let Some(x)= an.games_won{
+                                if !f{value = format!("{},",value)}
+                                else{f=false}
+
+                                value = format!("{} {} побед(а)",value,x);
+                            }
+
+                            fields_vec.push((name, value, false));
+                        }
+                    }
+
+                    EmbedStruct::empty()
+                        .title(&botmess)
+                        .des(&des)
+                        .thumbnail(&BData.avatar_url.clone())
+                        .col(color)
+                        .footer((String::new(),&roleruler))
+                        .fields(fields_vec)
+                        .send(chanel);
+
+                }
+
+            }
+        }
     }
 }
 
@@ -1876,199 +2068,6 @@ impl<'a> EmbedStruct<'a> {
 pub fn embed_from_value(chanel: u64, val: Value){
     Discord::send_embed(chanel,val);
 }
-
-/*
-pub enum RoleR{
-    rating(u16),
-}
-
-pub enum RoleChange{
-    add(String),
-    rem(String)
-}
-
-fn role_ruler_text(server_id: u64, user_id: u64, cmd: RoleR) -> String{
-    let mut answer = String::new();
-    let mut removed = Vec::new();
-    let mut added = Vec::new();
-    for role in role_ruler(server_id, user_id, cmd){
-        match role {
-            RoleChange::add(s) =>{
-                added.push(s);
-            }
-            RoleChange::rem(s) =>{
-                removed.push(s);
-            }
-        };
-    }
-    answer = match removed.len() {
-        0 =>{
-            match added.len() {
-                0 =>{
-                    String::new()
-                }
-                1 =>{
-                    format!("Добавлена роль \'{}\'", added[0])
-                }
-                _ =>{
-                    let mut temp = "Добавлены роли".to_string();
-                    let mut first = true;
-                    for r in added{
-                        if first {first = false;}
-                        else {temp = format!("{},",temp);}
-                        temp = format!("{} \'{}\'", temp, r);
-                    }
-                    temp
-                }
-            }
-        }
-        1 =>{
-            match added.len() {
-                0 =>{
-                    format!("Роль \'{}\' убрана", removed[0])
-                }
-                1 =>{
-                    format!("Смена ролей: с \'{}\' на \'{}\'", removed[0], added[0])
-                }
-                _ =>{
-                    let mut temp = format!("Роль \'{}\' заменена ролями", removed[0]);
-                    let mut first = true;
-                    for r in added{
-                        if first {first = false;}
-                            else {temp = format!("{},",temp);}
-                        temp = format!("{} \'{}\'", temp, r);
-                    }
-                    temp
-                }
-            }
-        }
-        _ =>{
-            match added.len() {
-                0 =>{
-                    let mut temp = format!("Роли");
-                    let mut first = true;
-                    for r in removed.clone(){
-                        if first {first = false;}
-                            else {temp = format!("{},",temp);}
-                        temp = format!("{} \'{}\'", temp, r);
-                    }
-                    temp = format!("{} убраны",temp);
-                    temp
-                }
-                1 =>{
-                    let mut temp = format!("Роли");
-                    let mut first = true;
-                    for r in removed.clone(){
-                        if first {first = false;}
-                            else {temp = format!("{},",temp);}
-                        temp = format!("{} \'{}\'", temp, r);
-                    }
-                    temp = format!("{} заменены ролью \'{}\'", temp, added[0]);
-                    temp
-                }
-                _ =>{
-
-                    let mut temp = format!("Роли");
-                    let mut first = true;
-                    for r in removed.clone(){
-                        if first {first = false;}
-                            else {temp = format!("{},",temp);}
-                        temp = format!("{} \'{}\'", temp, r);
-                    }
-                    temp = format!("{} заменены ролями", temp);
-                    let mut first = true;
-                    for r in added.clone(){
-                        if first {first = false;}
-                            else {temp = format!("{},",temp);}
-                        temp = format!("{} \'{}\'", temp, r);
-                    }
-                    temp
-                }
-            }
-        }
-    };
-    return answer;
-}
-
-pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
-
-    let mut answer: Vec<RoleChange> = Vec::new();
-
-
-	if let Some(member) = Discord::get_member(server_id,user_id){
-        if !member["roles"].is_array(){
-            return Vec::new(); //Отбрасывает тех кого нет на сервере
-        }
-		if let Some(roles) = Discord::get_roles_list(server_id){
-			match cmd{
-				RoleR::rating(r) => {
-					let mut find_role = String::new();
-					let mut done = false;
-					let mut change = false;
-					let mut new_roles:Vec<Value> = Vec::new();
-
-
-                    match r{
-                        1...2499 =>{ find_role = ROLES.get(5).unwrap().to_string()}
-                        2500...2999 =>{ find_role = ROLES.get(4).unwrap().to_string()}
-                        3000...3499 =>{ find_role = ROLES.get(3).unwrap().to_string()}
-                        3500...3999 =>{ find_role = ROLES.get(2).unwrap().to_string()}
-                        4000...4499 =>{ find_role = ROLES.get(1).unwrap().to_string()}
-                        4500...5000 =>{ find_role = ROLES.get(0).unwrap().to_string()}
-                        _ =>{}
-                    }
-
-
-					'outer: for roleid in member["roles"].as_array().expect("Err #21"){
-						'inner: for role in roles.as_array().expect("Err #22"){
-							if roleid.as_str().unwrap().eq(role["id"].as_str().expect("Err #23")){
-								let mut is_find = false;
-								let role_name: &str = role["name"].as_str().expect("Err #24");
-
-								for ROLE in ROLES.clone(){
-									if ROLE.eq(role_name){
-										is_find = true;
-										if find_role.eq(role_name){
-											done = true;
-											new_roles.push(roleid.clone());
-										}
-											else {
-												change = true;
-												answer.push(RoleChange::rem(ROLE));
-											}
-
-									}
-								}
-								if is_find == false{
-									new_roles.push(roleid.clone());
-								}
-								break 'inner;
-							}
-						}
-					}
-                    if find_role.is_empty() {done = true;}
-					if !done || change {
-						if !done{
-							for role in roles.as_array().expect("Err #25"){
-								let role_name: &str = role["name"].as_str().expect("Err #26");
-								if find_role.eq(role_name){
-									answer.push(RoleChange::add(find_role));
-									new_roles.push(role["id"].clone());
-									break;
-								}
-							}
-						}
-						Discord::set_member_roles(server_id,user_id,new_roles);
-
-					}
-
-				}
-			}
-		}
-	}
-    return answer;
-}
-*/
 
 fn main() {
     use conf::Config;

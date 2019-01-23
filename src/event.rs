@@ -1,6 +1,6 @@
 use WSSERVER;
 use embed_from_value;
-use {POOL, EVENT, User, load_btag_data, HeroInfoReq};
+use {POOL, EVENT, User, load_btag_data, HeroInfoReq, OwData};
 use mysql::from_row;
 use mysql;
 use std::thread;
@@ -831,6 +831,7 @@ pub fn rating_updater(){
 
     let mut counter_all = 0;
     let mut counter_bad_btag = 0;
+    let mut counter_close_prof = 0;
     let mut counter_ok = 0;
 
     for row in stmt.execute(()).unwrap() {
@@ -840,24 +841,38 @@ pub fn rating_updater(){
         let btag: String = row.take("btag").expect("Err in rating_updater on row.take(\"btag\") #4");
         let plat: String = row.take("plat").expect("Err in rating_updater on row.take(\"plat\") #5");
 
-        if let Some(data) = load_btag_data(btag.clone(),"EU".to_string(),plat,hreq.clone()){
-            let call = format!("UPDATE users SET rtg={} WHERE did={}",
-                               data.rating,  did);
 
-            let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #6");
-            let _ = conn.query(call);
-            let _ = role_ruler(WSSERVER,did,RoleR::rating(data.rating));
-            println!("[{}] Rating of {} now {}", extime::now().ctime(),btag,data.rating);
-            counter_ok += 1;
-        }
-        else {
-	        let call = format!("UPDATE users SET rtg={} WHERE did={}",
-	                           0,  did);
-	        let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #7");
-	        let _ = conn.query(call);
-            let _ = role_ruler(WSSERVER,did,RoleR::rating(0));
-            println!("[{}] Rating of {} now {}", extime::now().ctime(),btag,0);
-            counter_bad_btag += 1;
+        match load_btag_data(btag.clone(),"EU".to_string(),plat,hreq.clone()){
+            OwData::NotFound => {
+                let call = format!("UPDATE users SET rtg={} WHERE did={}",
+                                   0,  did);
+                let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #7");
+                let _ = conn.query(call);
+                let _ = role_ruler(WSSERVER,did,RoleR::rating(0));
+                println!("[{}] Rating of {} now {}", extime::now().ctime(),btag,0);
+                counter_bad_btag += 1;
+            }
+            OwData::ClosedProfile {
+                ..
+            } => {
+                let call = format!("UPDATE users SET rtg={} WHERE did={}",
+                                   0,  did);
+                let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #7");
+                let _ = conn.query(call);
+                let _ = role_ruler(WSSERVER,did,RoleR::rating(0));
+                println!("[{}] Rating of {} now {} [Closed profile]", extime::now().ctime(),btag,0);
+                counter_close_prof += 1;
+            },
+            OwData::Full(BData) => {
+                let call = format!("UPDATE users SET rtg={} WHERE did={}",
+                                   BData.rating,  did);
+
+                let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #6");
+                let _ = conn.query(call);
+                let _ = role_ruler(WSSERVER,did,RoleR::rating(BData.rating));
+                println!("[{}] Rating of {} now {}", extime::now().ctime(),btag,BData.rating);
+                counter_ok += 1;
+            }
         }
     }
 
@@ -875,6 +890,7 @@ pub fn rating_updater(){
     output = format!("{}\nAll users: {}",output, counter_all);
     output = format!("{}\nSuccess: {}",output, counter_ok);
     output = format!("{}\nWrong BTag: {}",output, counter_bad_btag);
+    output = format!("{}\nClosed Profiles: {}",output, counter_close_prof);
     output = format!("{}\n-----------",output);
     println!("{}",output);
 
