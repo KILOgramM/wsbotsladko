@@ -88,7 +88,7 @@ lazy_static! {
     static ref REG_TIME: Regex = Regex::new(r"(?P<n>\d){1,4} ?(?i)(?P<ntype>m|min|h|hour)").expect("Regex btag error");
 
     static ref START_TIME: extime::Tm = extime::now();
-    static ref EVENT: EventH = EventH::create();
+    pub static ref EVENT: EventH = EventH::create();
 
     pub static ref D: DiscordMain = DiscordMain::new(load_settings());
 }
@@ -967,28 +967,77 @@ fn add_dsid_to_db(server: Server) //Добавление Нового профи
 
 fn add_to_db(user: User) //Добавление Нового профиля в БД
 {
-    for mut stmt in POOL.prepare(r"INSERT INTO users
+    use mysql::Params;
+    use mysql::Value;
+	use std::collections::HashMap;
+    use core::hash::BuildHasherDefault;
+    use twox_hash::XxHash;
+
+    let mut hash: HashMap<String, Value, BuildHasherDefault<XxHash>> = Default::default();
+    hash.insert("did".to_string(), Value::UInt(user.did));
+    hash.insert("name".to_string(), Value::Bytes(user.name.into_bytes()));
+    hash.insert("disc".to_string(), Value::Bytes(user.disc.into_bytes()));
+    hash.insert("btag".to_string(), Value::Bytes(user.btag.into_bytes()));
+    hash.insert("rtg".to_string(), Value::Int(user.rtg as i64));
+    hash.insert("reg".to_string(), Value::Bytes(user.reg.into_bytes()));
+    hash.insert("plat".to_string(), Value::Bytes(user.plat.into_bytes()));
+    hash.insert("scrim_preset".to_string(), Value::Bytes(serde_json::to_vec(&user.scrim_preset).unwrap()));
+    hash.insert("rtg_preset".to_string(), Value::Bytes(serde_json::to_vec(&user.rtg_preset).unwrap()));
+
+    POOL.prep_exec(r"INSERT INTO users
                                        (did, name, disc, btag, rtg, reg, plat, scrim_preset, rtg_preset)
                                    VALUES
-                                       (:did, :name, :disc, :btag, :rtg, :reg, :plat, :scrim_preset, :rtg_preset)").into_iter() {
+                                       (:did, :name, :disc, :btag, :rtg, :reg, :plat, :scrim_preset, :rtg_preset)",
+                   Params::Named(hash)
+    ).expect("[MySQL add_to_db error]");
 
-            stmt.execute(params!{
-                "did" => user.did,
-                "name" => &user.name,
-                "disc" => &user.disc,
-                "btag" => &user.btag,
-                "rtg" => &user.rtg,
-                "reg" => &user.reg,
-                "plat" => &user.plat,
-                "scrim_preset" => serde_json::to_string(&user.scrim_preset).unwrap(),
-                "rtg_preset" => serde_json::to_string(&user.rtg_preset).unwrap(),
-            }).expect("[MySQL add_to_db error]");
-    }
+
+
+//            stmt.execute(params!{
+//                "did" => user.did,
+//                "name" => &user.name,
+//                "disc" => &user.disc,
+//                "btag" => &user.btag,
+//                "rtg" => &user.rtg,
+//                "reg" => &user.reg,
+//                "plat" => &user.plat,
+//                "scrim_preset" => serde_json::to_string(&user.scrim_preset).unwrap(),
+//                "rtg_preset" => serde_json::to_string(&user.rtg_preset).unwrap(),
+//            }).expect("[MySQL add_to_db error]");
+
 
 }
 
 fn update_in_db(user: User) //Изменение профиля в БД
 {
+
+    use mysql::Params;
+    use mysql::Value;
+    use std::collections::HashMap;
+    use core::hash::BuildHasherDefault;
+    use twox_hash::XxHash;
+
+    let mut hash: HashMap<String, Value, BuildHasherDefault<XxHash>> = Default::default();
+    hash.insert("did".to_string(), Value::UInt(user.did));
+    hash.insert("name".to_string(), Value::Bytes(user.name.into_bytes()));
+    hash.insert("disc".to_string(), Value::Bytes(user.disc.into_bytes()));
+    hash.insert("btag".to_string(), Value::Bytes(user.btag.into_bytes()));
+    hash.insert("rtg".to_string(), Value::Int(user.rtg as i64));
+    hash.insert("reg".to_string(), Value::Bytes(user.reg.into_bytes()));
+    hash.insert("plat".to_string(), Value::Bytes(user.plat.into_bytes()));
+    hash.insert("scrim_preset".to_string(), Value::Bytes(serde_json::to_vec(&user.scrim_preset).unwrap()));
+    hash.insert("rtg_preset".to_string(), Value::Bytes(serde_json::to_vec(&user.rtg_preset).unwrap()));
+
+    POOL.prep_exec(r"UPDATE
+                                users
+                            SET
+                                name=:name, disc=:disc, btag=:btag, rtg=:rtg, reg=:reg, plat=:plat, scrim_preset=:scrim_preset, rtg_preset=:rtg_preset
+                            WHERE
+                                did=:did",
+                   Params::Named(hash)
+    ).expect("[MySQL add_to_db error]");
+
+    /*
     for mut stmt in POOL.prepare(r"UPDATE users
                                     SET
                                        name=:name, disc=:disc, btag=:btag, rtg=:rtg, reg=:reg, plat=:plat, scrim_preset=:scrim_preset, rtg_preset=:rtg_preset
@@ -1006,8 +1055,7 @@ fn update_in_db(user: User) //Изменение профиля в БД
                 "did" => &user.did,
             }).expect("[MySQL update_in_db error]");
     }
-
-
+    */
 
 
 
@@ -1018,7 +1066,7 @@ fn update_in_db(user: User) //Изменение профиля в БД
     let _ = conn.query(call);
     */
 }
-
+/*
 //pub fn load_by_dsid(dsid: u64) -> Option<Server> //Получение сервера из базы по Discord server Id
 //{
  //   let mut conn = POOL.get_conn().unwrap();
@@ -1034,7 +1082,7 @@ fn update_in_db(user: User) //Изменение профиля в БД
  //   }
  //   return server;
 //}
-
+*/
 pub fn load_by_id(id: u64) -> Option<User> //Получение профиля из базы по DiscordId
 {
 
@@ -2139,6 +2187,7 @@ pub fn embed_from_value(chanel: u64, val: Value){
 
 fn main() {
     use conf::Config;
+    use addon::event_add;
     let dcshell:DCShell = Discord::get_event_reciever();
 
     DB.ini_embeds_s();
@@ -2225,294 +2274,7 @@ fn main() {
                                         Some(&"add") =>{
                                             //11
 
-                                            let mut data = mes.content.clone();
-
-                                            if data.len() > 11{
-                                                let mut event_name = String::new();
-                                                let mut server: Option<String> = None;
-                                                let mut server_id: Option<u64> = None;
-                                                let mut room: String = String::new();
-                                                let mut chanel: Option<u64> = None;
-                                                let mut embed: String = String::new();
-                                                let mut req_list: Vec<EventReq> = Vec::new();
-                                                let mut req = EventReq::empty();
-
-                                                let mut data = data.split_off(11);
-                                                let mut buf: Vec<(String,String)> = Vec::new();
-
-                                                let mut push = false;
-                                                let mut switch = false;
-                                                let mut space_check = false;
-                                                let mut no_chars = false;
-                                                let mut long_param = false;
-
-                                                let mut option = String::new();
-                                                let mut option_rez = String::new();
-                                                let mut settings = String::new();
-                                                let mut num_elements = data.len() - 1;
-
-                                                for (i, c) in data.as_str().chars().enumerate(){
-
-                                                    match c{
-                                                        '=' | ':' => {
-                                                            if switch {
-                                                                settings.push(c);
-                                                            }
-                                                            else if !long_param{
-                                                                switch = true;
-                                                                no_chars = true;
-                                                                space_check = false;
-                                                            }
-                                                                else{
-                                                                    if switch {
-                                                                        settings.push(c);
-                                                                    }
-                                                                        else{
-                                                                            option.push(c);
-                                                                        }
-                                                                }
-                                                        }
-
-                                                        ' ' => {
-                                                            if !no_chars && !long_param{
-                                                                if switch {push = true;
-                                                                }
-                                                                    else {
-                                                                        space_check = true;
-                                                                    }
-                                                            }
-                                                            if long_param{
-                                                                    if switch {
-                                                                        settings.push(c);
-                                                                    }
-                                                                        else{
-                                                                            option.push(c);
-                                                                        }
-                                                                }
-                                                        }
-
-                                                        '"' => {
-                                                            if long_param {long_param = false;}
-                                                            else { long_param = true;}
-                                                        }
-
-                                                        ',' | '|' => {
-                                                            if !long_param{
-                                                                push = true;
-                                                            }
-                                                            else{
-                                                                if switch {
-                                                                    settings.push(c);
-                                                                }
-                                                                    else{
-                                                                        option.push(c);
-                                                                    }
-                                                            }
-                                                        }
-
-                                                        '\n' | '\r' => {
-                                                            if long_param{
-                                                                long_param = false;
-                                                            }
-                                                            push = true;
-                                                        }
-
-                                                        x => {
-                                                            if space_check{
-                                                                option_rez.push(x);
-                                                                push = true;
-                                                            }
-                                                            else {
-                                                                if switch {
-                                                                    settings.push(x);
-                                                                }
-                                                                else{
-                                                                    option.push(x);
-                                                                }
-                                                            }
-                                                            no_chars = false;
-
-                                                        }
-                                                    }
-                                                    if push{
-                                                        push = false;
-                                                        switch = false;
-                                                        no_chars = true;
-                                                        space_check = false;
-                                                        if option.is_empty() &&
-                                                            option_rez.is_empty() &&
-                                                            settings.is_empty(){
-                                                            continue;
-                                                        }
-                                                        buf.push((option, settings));
-                                                        option = option_rez;
-                                                        option_rez = String::new();
-                                                        settings = String::new();
-                                                    }
-                                                }
-                                                if !option.is_empty(){
-                                                    buf.push((option, settings));
-                                                }
-
-
-                                                for (opt_namer, opt_par) in buf{
-                                                    if opt_namer.is_empty(){
-                                                        continue;
-                                                    }
-                                                    match opt_namer.as_str(){
-                                                        "once" => {
-                                                            match opt_par.as_str(){
-                                                                "false" => { req.once = false;}
-                                                                _ => { req.once = true;}
-                                                            }
-                                                        }
-                                                        "name" => {
-                                                            event_name = opt_par;
-                                                        }
-
-                                                        "embed" => {
-                                                            embed = opt_par;
-                                                        }
-
-                                                        "room" => {
-                                                            println!("room - {}",&opt_par);
-                                                            room = opt_par;
-                                                        }
-
-                                                        "server" => {
-                                                            match opt_par.parse::<u64>(){
-                                                                Ok(x) => { server_id = Some(x);}
-                                                                Err(_) => { server = Some(opt_par);}
-                                                            }
-                                                        }
-
-                                                        "year" | "y" => {
-                                                            if let Ok(n) = opt_par.parse::<u16>(){
-                                                                req.year = Some(n);
-                                                            }
-                                                        }
-
-                                                        "month" | "mon" => {
-                                                            match opt_par.as_str(){
-                                                                "янв" | "январь"  => { req.month = Some(0);}
-                                                                "фев" | "ферваль"  => { req.month = Some(1);}
-                                                                "мар" | "март"  => { req.month = Some(2);}
-                                                                "апр" | "апрель"  => { req.month = Some(3);}
-                                                                "май"  => { req.month = Some(4);}
-                                                                "июн" | "июнь"  => { req.month = Some(5);}
-                                                                "июл" | "июль"  => { req.month = Some(6);}
-                                                                "авг" | "август"  => { req.month = Some(7);}
-                                                                "сен" | "сентябрь"  => { req.month = Some(8);}
-                                                                "окт" | "октябрь"  => { req.month = Some(9);}
-                                                                "ноя" | "ноябрь"  => { req.month = Some(10);}
-                                                                "дек" | "декабрь"  => { req.month = Some(11);}
-                                                                x => { if let Ok(n) = x.parse::<u8>(){
-                                                                        if n < 13{
-                                                                            req.month = Some(n-1);
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-
-                                                        "day_of_mouth" | "mday" => {
-                                                            if let Ok(n) = opt_par.parse::<u8>(){
-                                                                if n < 32{
-                                                                    req.day_of_mouth = Some(n);
-                                                                }
-                                                            }
-                                                        }
-
-                                                        "day_of_week" | "wday" => {
-                                                            match opt_par.as_str(){
-                                                                "пн" | "понедельник"  => { req.day_of_week = Some(1);}
-                                                                "вт" | "вторник"  => { req.day_of_week = Some(2);}
-                                                                "ср" | "среда"  => { req.day_of_week = Some(3);}
-                                                                "чт" | "четверг"  => { req.day_of_week = Some(4);}
-                                                                "пт" | "пятница"  => { req.day_of_week = Some(5);}
-                                                                "сб" | "суббота"  => { req.day_of_week = Some(6);}
-                                                                "вс" | "воскресенье"  => { req.day_of_week = Some(7);}
-                                                                x => { if let Ok(n) = x.parse::<u8>(){
-                                                                        if n < 8{
-                                                                            req.day_of_week = Some(n);
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-
-                                                        "hour" | "h" | "hours" => {
-                                                            if let Ok(n) = opt_par.parse::<u8>(){
-                                                                req.hour = Some(n);
-                                                            }
-                                                        }
-                                                        "min" | "minute" | "minutes"=> {
-                                                            if let Ok(n) = opt_par.parse::<u8>(){
-                                                                req.min = Some(n);
-                                                            }
-                                                        }
-                                                        "sec" | "s" | "second" | "seconds"=> {
-                                                            if let Ok(n) = opt_par.parse::<u8>(){
-                                                                req.sec = Some(n);
-                                                            }
-                                                        }
-
-                                                        "[trig]" =>{
-                                                            if !req.eq_alt(&EventReq::empty()){
-                                                                req_list.push(req);
-                                                                req = EventReq::empty();
-                                                            }
-                                                        }
-                                                        "time" => {
-                                                            let mut hour = String::new();
-                                                            let mut min = String::new();
-                                                            let mut sec = String::new();
-                                                            for c in opt_par.as_str().chars(){
-                                                                match c {
-                                                                    ':' => {
-                                                                        hour = min;
-                                                                        min = sec;
-                                                                        sec = String::new();}
-                                                                    '0'|'1'|'2'|'3'|'4'
-                                                                    |'5'|'6'|'7'|'8'|'9' =>{sec.push(c);}
-                                                                    _ => {
-
-                                                                    }
-                                                                }
-                                                            }
-                                                            if let Ok(n) = hour.parse::<u8>(){
-                                                                req.hour = Some(n);
-                                                            }
-                                                            if let Ok(n) = min.parse::<u8>(){
-                                                                req.min = Some(n);
-                                                            }
-                                                            if let Ok(n) = sec.parse::<u8>(){
-                                                                req.sec = Some(n);
-                                                            }
-                                                        }
-                                                        _ => {}
-                                                    }
-                                                }
-                                                if !req.eq_alt(&EventReq::empty()){
-                                                    req_list.push(req);
-                                                }
-
-                                                let event_type = EventType::CustomEmbed {
-                                                    server,
-                                                    server_id,
-                                                    room,
-                                                    chanel,
-                                                    embed
-                                                };
-
-                                                EVENT.send(EventChanel::AddEvent {
-                                                    name: event_name,
-                                                    event_type,
-                                                    req: req_list,
-                                                });
-
-                                            }
-
+                                            event_add(mes.content.clone());
                                         }
                                         Some(&"retime") =>{
                                             match mes_split.get(2){
@@ -2601,7 +2363,21 @@ fn main() {
                                     add_to_db(test_user);
                                 }
                                 "!test2" => {
-                                    delete_user(mes.author.id);
+                                    if let Some(id_str) = mes_split.get(1){
+                                        if let Ok(id) = id_str.parse::<u64>(){
+
+                                            delete_user(id);
+                                            Discord::send_mes(mes.channel_id, &format!("{} удалён",id), "", false);
+                                        }
+                                        Discord::send_mes(mes.channel_id, &format!("Неизвестный параметр:`{}`",id_str), "", false);
+
+                                    }
+                                    else{
+                                        delete_user(mes.author.id);
+                                        Discord::send_mes(mes.channel_id, &format!("{} удалён",mes.author.id), "", false);
+
+                                    }
+
                                 }
                                 "!test3" =>{
 

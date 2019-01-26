@@ -1091,6 +1091,300 @@ fn lfg_add(lfg: LFG){
     DB.push_lfg(lfg);
 }
 
+pub fn event_add(mut data: String){
+//    let mut data = mes.content.clone();
+    use crate::EventReq;
+    use crate::EVENT;
+    use crate::EventChanel;
+    use crate::EventType;
+    if data.len() > 11{
+        let mut event_name = String::new();
+        let mut server: Option<String> = None;
+        let mut server_id: Option<u64> = None;
+        let mut room: String = String::new();
+        let mut chanel: Option<u64> = None;
+        let mut embed: String = String::new();
+        let mut req_list: Vec<EventReq> = Vec::new();
+        let mut req = EventReq::empty();
+
+        let mut data = data.split_off(11);
+        let mut buf: Vec<(String,String)> = Vec::new();
+
+        let mut push = false;
+        let mut switch = false;
+        let mut space_check = false;
+        let mut no_chars = false;
+        let mut long_param = false;
+
+        let mut option = String::new();
+        let mut option_rez = String::new();
+        let mut settings = String::new();
+        let mut num_elements = data.len() - 1;
+
+        for (i, c) in data.as_str().chars().enumerate(){
+
+            match c{
+                '=' | ':' => {
+                    if switch {
+                        settings.push(c);
+                    }
+                    else if !long_param{
+                        switch = true;
+                        no_chars = true;
+                        space_check = false;
+                    }
+                    else{
+                        if switch {
+                            settings.push(c);
+                        }
+                        else{
+                            option.push(c);
+                        }
+                    }
+                }
+
+                ' ' => {
+                    if !no_chars && !long_param{
+                        if switch {push = true;
+                        }
+                        else {
+                            space_check = true;
+                        }
+                    }
+                    if long_param{
+                        if switch {
+                            settings.push(c);
+                        }
+                        else{
+                            option.push(c);
+                        }
+                    }
+                }
+
+                '"' => {
+                    if long_param {long_param = false;}
+                    else { long_param = true;}
+                }
+
+                ',' | '|' => {
+                    if !long_param{
+                        push = true;
+                    }
+                    else{
+                        if switch {
+                            settings.push(c);
+                        }
+                        else{
+                            option.push(c);
+                        }
+                    }
+                }
+
+                '\n' | '\r' => {
+                    if long_param{
+                        long_param = false;
+                    }
+                    push = true;
+                }
+
+                x => {
+                    if space_check{
+                        option_rez.push(x);
+                        push = true;
+                    }
+                    else {
+                        if switch {
+                            settings.push(x);
+                        }
+                        else{
+                            option.push(x);
+                        }
+                    }
+                    no_chars = false;
+
+                }
+            }
+            if push{
+                push = false;
+                switch = false;
+                no_chars = true;
+                space_check = false;
+                if option.is_empty() &&
+                    option_rez.is_empty() &&
+                    settings.is_empty(){
+                    continue;
+                }
+                buf.push((option, settings));
+                option = option_rez;
+                option_rez = String::new();
+                settings = String::new();
+            }
+        }
+        if !option.is_empty(){
+            buf.push((option, settings));
+        }
+
+
+        for (opt_namer, opt_par) in buf{
+            if opt_namer.is_empty(){
+                continue;
+            }
+            match opt_namer.as_str(){
+                "once" => {
+                    match opt_par.as_str(){
+                        "false" => { req.once = false;}
+                        _ => { req.once = true;}
+                    }
+                }
+                "name" => {
+                    event_name = opt_par;
+                }
+
+                "embed" => {
+                    embed = opt_par;
+                }
+
+                "room" => {
+                    println!("room - {}",&opt_par);
+                    room = opt_par;
+                }
+
+                "server" => {
+                    match opt_par.parse::<u64>(){
+                        Ok(x) => { server_id = Some(x);}
+                        Err(_) => { server = Some(opt_par);}
+                    }
+                }
+
+                "year" | "y" => {
+                    if let Ok(n) = opt_par.parse::<u16>(){
+                        req.year = Some(n);
+                    }
+                }
+
+                "month" | "mon" => {
+                    match opt_par.as_str(){
+                        "янв" | "январь"  => { req.month = Some(0);}
+                        "фев" | "ферваль"  => { req.month = Some(1);}
+                        "мар" | "март"  => { req.month = Some(2);}
+                        "апр" | "апрель"  => { req.month = Some(3);}
+                        "май"  => { req.month = Some(4);}
+                        "июн" | "июнь"  => { req.month = Some(5);}
+                        "июл" | "июль"  => { req.month = Some(6);}
+                        "авг" | "август"  => { req.month = Some(7);}
+                        "сен" | "сентябрь"  => { req.month = Some(8);}
+                        "окт" | "октябрь"  => { req.month = Some(9);}
+                        "ноя" | "ноябрь"  => { req.month = Some(10);}
+                        "дек" | "декабрь"  => { req.month = Some(11);}
+                        x => { if let Ok(n) = x.parse::<u8>(){
+                            if n < 13{
+                                req.month = Some(n-1);
+                            }
+                        }
+                        }
+                    }
+                }
+
+                "day_of_mouth" | "mday" => {
+                    if let Ok(n) = opt_par.parse::<u8>(){
+                        if n < 32{
+                            req.day_of_mouth = Some(n);
+                        }
+                    }
+                }
+
+                "day_of_week" | "wday" => {
+                    match opt_par.as_str(){
+                        "пн" | "понедельник"  => { req.day_of_week = Some(1);}
+                        "вт" | "вторник"  => { req.day_of_week = Some(2);}
+                        "ср" | "среда"  => { req.day_of_week = Some(3);}
+                        "чт" | "четверг"  => { req.day_of_week = Some(4);}
+                        "пт" | "пятница"  => { req.day_of_week = Some(5);}
+                        "сб" | "суббота"  => { req.day_of_week = Some(6);}
+                        "вс" | "воскресенье"  => { req.day_of_week = Some(7);}
+                        x => { if let Ok(n) = x.parse::<u8>(){
+                            if n < 8{
+                                req.day_of_week = Some(n);
+                            }
+                        }
+                        }
+                    }
+                }
+
+                "hour" | "h" | "hours" => {
+                    if let Ok(n) = opt_par.parse::<u8>(){
+                        req.hour = Some(n);
+                    }
+                }
+                "min" | "minute" | "minutes"=> {
+                    if let Ok(n) = opt_par.parse::<u8>(){
+                        req.min = Some(n);
+                    }
+                }
+                "sec" | "s" | "second" | "seconds"=> {
+                    if let Ok(n) = opt_par.parse::<u8>(){
+                        req.sec = Some(n);
+                    }
+                }
+
+                "[trig]" =>{
+                    if !req.eq_alt(&EventReq::empty()){
+                        req_list.push(req);
+                        req = EventReq::empty();
+                    }
+                }
+                "time" => {
+                    let mut hour = String::new();
+                    let mut min = String::new();
+                    let mut sec = String::new();
+                    for c in opt_par.as_str().chars(){
+                        match c {
+                            ':' => {
+                                hour = min;
+                                min = sec;
+                                sec = String::new();}
+                            '0'|'1'|'2'|'3'|'4'
+                            |'5'|'6'|'7'|'8'|'9' =>{sec.push(c);}
+                            _ => {
+
+                            }
+                        }
+                    }
+                    if let Ok(n) = hour.parse::<u8>(){
+                        req.hour = Some(n);
+                    }
+                    if let Ok(n) = min.parse::<u8>(){
+                        req.min = Some(n);
+                    }
+                    if let Ok(n) = sec.parse::<u8>(){
+                        req.sec = Some(n);
+                    }
+                }
+                _ => {}
+            }
+        }
+        if !req.eq_alt(&EventReq::empty()){
+            req_list.push(req);
+        }
+
+        let event_type = EventType::CustomEmbed {
+            server,
+            server_id,
+            room,
+            chanel,
+            embed
+        };
+
+        EVENT.send(EventChanel::AddEvent {
+            name: event_name,
+            event_type,
+            req: req_list,
+        });
+
+    }
+
+}
+
 fn match_merge(chanel: u64, did: u64) -> String{
 
 //    let user = match DIS.create_private_channel(discord::model::UserId(did)){

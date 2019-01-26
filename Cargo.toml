@@ -1,6 +1,6 @@
 [package]
 name = "WSBot"
-version = "0.7.1"
+version = "0.7.2"
 authors = ["Sladko"]
 edition = "2018"
 
@@ -21,3 +21,5 @@ native-tls = "0.1"
 websocket = "0.20"
 
 net2 = "0.2"
+
+twox-hash = "1.1.2"
