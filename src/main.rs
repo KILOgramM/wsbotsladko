@@ -254,6 +254,7 @@ pub enum Hero{
     Brigitte,
     Wrecking_Ball,
     Ashe,
+	Baptiste,
 
 }
 impl Hero{
@@ -288,6 +289,7 @@ impl Hero{
             "Brigitte" => {return Hero::Brigitte;}
             "Ashe" => {return Hero::Ashe;}
             "Wrecking Ball" => {return Hero::Wrecking_Ball;}
+	        "Baptiste" => {return Hero::Baptiste;}
             _ => {{return Hero::None;}}
         }
        /* match s{
@@ -353,6 +355,7 @@ impl Hero{
              &Hero::Brigitte => {return String::from("Brigitte");}
              &Hero::Ashe => {return String::from("Ashe");}
              &Hero::Wrecking_Ball => {return String::from("Wrecking Ball");}
+	         &Hero::Baptiste => {return String::from("Baptiste");}
              &Hero::None => {return String::new();}
         }
     }
@@ -387,6 +390,7 @@ impl Hero{
             Hero::Brigitte => {return String::from("Бригитта");}
             Hero::Ashe => {return String::from("Эш");}
             Hero::Wrecking_Ball => {return String::from("Таран");}
+	        Hero::Baptiste => {return String::from("Батист");}
             Hero::None => {return String::new();}
         }
     }
