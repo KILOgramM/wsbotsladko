@@ -20,7 +20,8 @@ impl Discord{
 		DCShell::from_dc(D.get_chanel())
 	}
 	pub fn send_embed(chanel_id: u64, embed: Value){
-
+//		dbg!(&embed);
+//		dbg!(dpool(&format!("/channels/{}/messages", chanel_id),Some(embed)));
 		if let Err(e)  = dpool(&format!("/channels/{}/messages", chanel_id),Some(embed)){
 			println!("[Embed Send] Error\nError:\n{}",e);
 		}

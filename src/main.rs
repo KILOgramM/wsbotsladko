@@ -85,7 +85,7 @@ lazy_static! {
 
     pub static ref POOL: mysql::Pool = mysql::Pool::new(build_opts()).unwrap();
     pub static ref REG_BTAG: Regex = Regex::new(r"^.{2,16}#[0-9]{2,6}$").expect("Regex btag error");
-    static ref REG_TIME: Regex = Regex::new(r"(?P<n>\d){1,4} ?(?i)(?P<ntype>m|min|h|hour)").expect("Regex btag error");
+    static ref REG_TIME: Regex = Regex::new(r"(?P<n>\d){1,4} ?(?i)(?P<ntype>m|min|h|hour)").expect("Regex REG_TIME error");
 
     static ref START_TIME: extime::Tm = extime::now();
     pub static ref EVENT: EventH = EventH::create();
@@ -440,6 +440,8 @@ impl BtagData{
    }
 }
 
+
+#[derive(Debug)]
 pub enum OwData{
     NotFound,
     ClosedProfile{
@@ -508,6 +510,9 @@ impl HeroStats{
 
 pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> OwData //Проверка существования профиля и подгрузка рейтинга при наличии
 {
+    lazy_static! {
+        static ref REG_AVATAR: Regex = Regex::new(r#"player-portrait"\s??src="(?P<url>[^"]+?)""#).expect("Regex avatar url error");
+    }
     use std::time::SystemTime;
     use self::OwData::*;
     if btag.is_empty() || plat.is_empty(){
@@ -533,7 +538,8 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
             Ok(mut resp) => {
 
                 match resp.text(){
-                    Ok(text) =>{result = Some(text);}
+                    Ok(text) =>{
+                        result = Some(text);}
                     Err(e) => {
                         println!("[load_btag_data] Error while take body:\n{}", e);
 
@@ -562,41 +568,12 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
         b_data.reg = reg;
         b_data.plat = plat;
         b_data.url = url.clone();
+        b_data.avatar_url = String::new();
 
 
-        let avatar_url_patern = "class=\"player-portrait\"";
-        b_data.avatar_url = match body.find(avatar_url_patern){ //Ищем URL аватара
-            Some(mut pos) => {
-                let mut string = String::new();
-                let mut end_if_finded = false;
-                let mut end = 0;
-                loop{
-                    let c = body.index(pos..pos+1).chars().next().unwrap();
-                    if c == '\"'{
-                        if end_if_finded{
-                            string = body.index(pos+1..end).to_string();
-                            break;
-                        }
-                        else {
-                            end_if_finded = true;
-                            end = pos;
-                        }
-                        pos -= 1;
-                        continue;
-                    }
-                    else {
-                        pos -= 1;
-                        continue;
-                    }
-                }
-                string
-            }
-            None => {
-                String::new()
-            }
-        };
-
-
+        if let Some(avatar) = REG_AVATAR.captures(&body){
+            b_data.avatar_url = avatar.name("url").expect("Avatar url").as_str().to_string();
+        }
 
 //        if mode_debug{
 //            println!("Get rating: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
@@ -1911,7 +1888,6 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
         if u.reg.is_empty() { u.reg = "EU".to_string(); }
 
         let answer = load_btag_data(u.btag.to_string(), u.reg.to_string(), u.plat.to_string(), req);
-
         match answer{
             OwData::NotFound => {
                 u.rtg = 6000;
@@ -1925,7 +1901,6 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
                 u.rtg = BData.rating.clone();
             }
         }
-
         if update {
             let server_id = match Discord::get_chanel(chanel){
                 None => {0}
