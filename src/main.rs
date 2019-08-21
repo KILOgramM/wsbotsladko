@@ -46,6 +46,7 @@ pub mod addon;
 pub mod conf;
 pub mod roles;
 pub mod event;
+pub mod multirolefix;
 //pub mod owparcer;
 
 
@@ -53,6 +54,9 @@ pub mod denum;
 pub mod dstruct;
 pub mod dis;
 pub mod disapi;
+
+#[cfg(test)]
+mod tests;
 
 
 
@@ -63,7 +67,11 @@ use denum::OutLink;
 use dstruct::{DMessage,DUser};
 
 use event::{EventChanel, EventH, EventReq, EventChanelBack, EventType};
-use addon::{DB, Chat, lfg_none, Stage_LFG, Global, TempData};
+use addon::{DB,
+//            Chat,
+//            lfg_none,
+//              Stage_LFG,
+            Global, TempData};
 use dstruct::{DiscordMain};
 use serde_json::Value;
 
@@ -76,6 +84,9 @@ use mysql::from_row;
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
+
+use multirolefix::Rating;
+use multirolefix::load_btag_data_multirole;
 
 use roles::RoleR;
 use roles::RoleChange;
@@ -169,7 +180,7 @@ pub struct User {
     //name#disc цифры после ника
     btag: String,
     //battlenet tag
-    rtg: u16,
+    rtg: Rating,
     //OW rating
     reg: String,
     //OW region
@@ -186,7 +197,7 @@ impl User {
             name: String::new(),
             disc: String::new(),
             btag: String::new(),
-            rtg: 0,
+            rtg: Rating::empty(),
             reg: String::new(),
             plat: String::new(),
             scrim_preset: Preset_Scrim::new(),
@@ -401,7 +412,7 @@ pub struct BtagData {
     btag: String,
     reg: String,
     plat: String,
-    rating: u16,
+    rating: Rating,
     url: String,
     avatar_url: String,
     rank_url: String,
@@ -508,6 +519,7 @@ impl HeroStats{
     }
 }
 
+/*
 pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) -> OwData //Проверка существования профиля и подгрузка рейтинга при наличии
 {
     lazy_static! {
@@ -853,6 +865,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
     }
 
 }
+*/
 
 fn find_description(string: &str) -> String //class="description">
 {
@@ -959,7 +972,7 @@ fn add_to_db(user: User) //Добавление Нового профиля в �
     hash.insert("name".to_string(), Value::Bytes(user.name.into_bytes()));
     hash.insert("disc".to_string(), Value::Bytes(user.disc.into_bytes()));
     hash.insert("btag".to_string(), Value::Bytes(user.btag.into_bytes()));
-    hash.insert("rtg".to_string(), Value::Int(user.rtg as i64));
+    hash.insert("rtg".to_string(), Value::Int(user.rtg.higest_rating() as i64));
     hash.insert("reg".to_string(), Value::Bytes(user.reg.into_bytes()));
     hash.insert("plat".to_string(), Value::Bytes(user.plat.into_bytes()));
     hash.insert("scrim_preset".to_string(), Value::Bytes(serde_json::to_vec(&user.scrim_preset).unwrap()));
@@ -1003,7 +1016,7 @@ fn update_in_db(user: User) //Изменение профиля в БД
     hash.insert("name".to_string(), Value::Bytes(user.name.into_bytes()));
     hash.insert("disc".to_string(), Value::Bytes(user.disc.into_bytes()));
     hash.insert("btag".to_string(), Value::Bytes(user.btag.into_bytes()));
-    hash.insert("rtg".to_string(), Value::Int(user.rtg as i64));
+    hash.insert("rtg".to_string(), Value::Int(user.rtg.have_rating() as i64));
     hash.insert("reg".to_string(), Value::Bytes(user.reg.into_bytes()));
     hash.insert("plat".to_string(), Value::Bytes(user.plat.into_bytes()));
     hash.insert("scrim_preset".to_string(), Value::Bytes(serde_json::to_vec(&user.scrim_preset).unwrap()));
@@ -1079,7 +1092,7 @@ pub fn load_by_id(id: u64) -> Option<User> //Получение профиля �
                     u.name = uname;
                     u.disc = udisc;
                     u.btag = ubtag;
-                    u.rtg = urtg;
+                    u.rtg = Rating::from1(urtg);
                     u.reg = ureg;
                     u.plat = uplat;
                     u.scrim_preset = serde_json::from_str(&scrim_preset).unwrap();
@@ -1183,7 +1196,7 @@ fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог со
     let mut battletag: String = String::new();
     let mut region: String = String::new();
     let mut platform: String = String::new();
-    let mut rating: u16 = 0;
+    let mut rating = Rating::empty();
     let mut unnone = false;
     let mut botmess: String = String::new();
     let mut roleruler = String::new();
@@ -1235,22 +1248,22 @@ fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог со
         req.best_multiple_kills = false;
         req.obj_kills = false;
 
-        let answer = load_btag_data(battletag.to_string(), region.to_string(), platform.to_string(), req);
+        let answer = load_btag_data_multirole(battletag.to_string(), region.to_string(), platform.to_string(), req);
 
         if !no_btag {
 
             match answer{
                 OwData::NotFound => {
                     acc_not_found = true;
-                    rating = 0;
+//                    rating = 0;
                 }
                 OwData::ClosedProfile { ref avatar_url, ..
                 } => {
-                    rating = 0;
+//                    rating = 0;
                     thumbnail = avatar_url.clone();
                 },
                 OwData::Full(ref BData) => {
-                    rating = BData.rating;
+                    rating = BData.rating.clone();
                     //println!("rating: {}", rating);
                     thumbnail = BData.avatar_url.clone();
 
@@ -1268,7 +1281,7 @@ fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог со
 
                     roleruler = role_ruler_text(server_id,
                                                 autor.id,
-                                                RoleR::rating(rating));
+                                                RoleR::rating(rating.higest_rating()));
                 }
             }
         }
@@ -1301,7 +1314,10 @@ fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог со
                     footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
                 },
                 OwData::Full(_) => {
-                    if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false));}
+                    if rating.have_rating() {
+//                        fields.push(("Рейтинг".to_string(), rating.as_str(), false));
+                        fields.append(rating.as_fields().as_mut());
+                    }
 
                     footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
                 }
@@ -1345,7 +1361,10 @@ fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог со
                     fields.push(("BattleTag".to_string(), battletag.clone(), false));
                     fields.push(("Регион".to_string(), region.clone(), false));
                     fields.push(("Платформа".to_string(), platform.clone(), false));
-                    if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
+                    if rating.have_rating() {
+//                        fields.push(("Рейтинг".to_string(), rating.as_str(), false))
+                        fields.append(rating.as_fields().as_mut());
+                    }
 
                     footer = "Изменить BattleTag, Регион и Платформу вы можете используя комманду !wsreg";
                 }
@@ -1449,7 +1468,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
     let mut region: String = String::new();
     let mut platform: String = String::new();
     let user = load_by_id(autor.id).unwrap();
-    let mut rating: u16 = 0;
+    let mut rating = Rating::empty();
     let mut unnone = false;
     let mut botmess: String = String::new();
     let mut force: bool = false;
@@ -1536,7 +1555,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
                     temp_user.name = autor.username;
                     temp_user.disc = autor.discriminator;
                     temp_user.btag = battletag.clone();
-                    temp_user.rtg = 0;
+                    temp_user.rtg = Rating::empty();
                     temp_user.reg = region.clone();
                     temp_user.plat = platform.clone();
                     temp_user.scrim_preset = user.scrim_preset;
@@ -1558,21 +1577,21 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
                     req.win_perc = false;
                     req.best_multiple_kills = false;
                     req.obj_kills = false;
-                    let answer = load_btag_data(battletag.to_string(), region.to_string(), platform.to_string(), req);
+                    let answer = load_btag_data_multirole(battletag.to_string(), region.to_string(), platform.to_string(), req);
 
                     match answer{
                         OwData::NotFound => {
                             acc_not_found = true;
-                            rating = 0;
+//                            rating = 0;
                         }
                         OwData::ClosedProfile {
                             ref avatar_url, ..
                         } => {
                             thumbnail = avatar_url.clone();
-                            rating = 0;
+//                            rating = 0;
                         },
                         OwData::Full(ref BData) => {
-                            rating = BData.rating;
+                            rating = BData.rating.clone();
                             //println!("rating: {}", rating);
                             thumbnail = BData.avatar_url.clone();
                             let server_id = match Discord::get_chanel(chan){
@@ -1588,7 +1607,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
                             };
                             roleruler = role_ruler_text(server_id,
                                                         autor.id,
-                                                        RoleR::rating(rating));
+                                                        RoleR::rating(rating.higest_rating()));
                         }
                     }
 
@@ -1628,7 +1647,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
                                 temp_user.name = autor.username;
                                 temp_user.disc = autor.discriminator;
                                 temp_user.btag = battletag.clone();
-                                temp_user.rtg = 0;
+                                temp_user.rtg = Rating::empty();
                                 temp_user.reg = region.clone();
                                 temp_user.plat = platform.clone();
                                 temp_user.scrim_preset = user.scrim_preset;
@@ -1661,7 +1680,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
                             temp_user.name = autor.username;
                             temp_user.disc = autor.discriminator;
                             temp_user.btag = battletag.clone();
-                            temp_user.rtg = 0;
+                            temp_user.rtg = Rating::empty();
                             temp_user.reg = region.clone();
                             temp_user.plat = platform.clone();
                             temp_user.scrim_preset = user.scrim_preset;
@@ -1682,7 +1701,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
                             temp_user.name = autor.username;
                             temp_user.disc = autor.discriminator;
                             temp_user.btag = battletag.clone();
-                            temp_user.rtg = rating;
+                            temp_user.rtg = rating.clone();
                             temp_user.reg = region.clone();
                             temp_user.plat = platform.clone();
                             temp_user.scrim_preset = user.scrim_preset;
@@ -1694,7 +1713,10 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
                             fields.push(("BattleTag".to_string(), battletag.clone(), false));
                             fields.push(("Регион".to_string(), region.clone(), false));
                             fields.push(("Платформа".to_string(), platform.clone(), false));
-                            if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
+                            if rating.have_rating() {
+//                                fields.push(("Рейтинг".to_string(), rating.as_str(), false))
+                                fields.append(rating.as_fields().as_mut());
+                            }
 
                             footer = "Убедитесь, что верно ввели парамтры на изменение ваших данных";
 
@@ -1707,7 +1729,10 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
                 fields.push(("BattleTag".to_string(), battletag.clone(), false));
                 fields.push(("Регион".to_string(), region.clone(), false));
                 fields.push(("Платформа".to_string(), platform.clone(), false));
-                if rating > 0 {fields.push(("Рейтинг".to_string(), format!("{}",rating), false))}
+                if rating.have_rating() {
+//                    fields.push(("Рейтинг".to_string(), rating.as_str(), false))
+                    fields.append(rating.as_fields().as_mut());
+                }
 
 
 
@@ -1887,15 +1912,15 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
         if u.plat.is_empty() { u.plat = "PC".to_string(); }
         if u.reg.is_empty() { u.reg = "EU".to_string(); }
 
-        let answer = load_btag_data(u.btag.to_string(), u.reg.to_string(), u.plat.to_string(), req);
+        let answer = load_btag_data_multirole(u.btag.to_string(), u.reg.to_string(), u.plat.to_string(), req);
         match answer{
             OwData::NotFound => {
-                u.rtg = 6000;
+                u.rtg = Rating::empty();
             }
             OwData::ClosedProfile {
                 ..
             } => {
-                u.rtg = 0;
+                u.rtg = Rating::empty();
             },
             OwData::Full(ref BData) => {
                 u.rtg = BData.rating.clone();
@@ -1915,7 +1940,7 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
             };
             roleruler = role_ruler_text(server_id,
                        autor_id,
-                       RoleR::rating(u.rtg));
+                       RoleR::rating(u.rtg.higest_rating()));
             update_in_db(u.clone());
         }
 
@@ -1943,9 +1968,9 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
                     .send(chanel);
             },
             OwData::Full(BData) => {
-                if u.rtg == 0 {
+                if !u.rtg.have_rating() {
                     //Рейтинг отсутствует
-                    let botmess = format!("{} {} {} Рейтинг отсутствует", u.btag, u.reg, u.plat);
+                    let botmess = format!("{} {} {}", u.btag, u.reg, u.plat);
                     let des = format!("[Ссылка на профиль]({})", BData.url);
                     EmbedStruct::empty()
                         .title(&botmess)
@@ -1956,10 +1981,10 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
                         .send(chanel);
                 }
                 else {
-                    let botmess = format!("{} {} {} Рейтинг {}", u.btag, u.reg, u.plat, BData.rating);
+                    let botmess = format!("{} {} {}", u.btag, u.reg, u.plat);
                     let des = format!("[Ссылка на профиль]({})", BData.url);
 
-                    let mut fields_vec: Vec<(String, String , bool)> = Vec::new();
+                    let mut fields_vec: Vec<(String, String , bool)> = BData.rating.as_fields();
                     if hero_list_titles.len()>BData.heroes.len(){}
                     else{
                         for (enumerat,l) in hero_list_titles.iter().enumerate(){
@@ -2170,8 +2195,8 @@ fn main() {
     let dcshell:DCShell = Discord::get_event_reciever();
 
     DB.ini_embeds_s();
-    DB.ini_lfg();
-    DB.ini_chat();
+//    DB.ini_lfg();
+//    DB.ini_chat();
     Config::init();
     EVENT.send(EventChanel::Check);
     println!("[Status] Main loop start");
@@ -2225,10 +2250,12 @@ fn main() {
                                 println!("wscmd");
                                 DB.send_embed("cmd",mes.channel_id);
                             }
+                            /*
                             "!wslfg" => {
                                 println!("wslfg");
                                 lfg_none(mes.clone());
                             }
+                            */
                             _ => {}
                         }
 
@@ -2358,10 +2385,6 @@ fn main() {
                                     }
 
                                 }
-                                "!test3" =>{
-
-
-                                }
                                 "!ini" =>{
                                     if mes_split.len() > 1{
                                         match mes_split[1].to_lowercase().as_str(){
@@ -2369,14 +2392,14 @@ fn main() {
                                                 DB.ini_embeds_s();
                                                 Discord::send_mes(mes.channel_id, "Embed-ы инициализированы", "", false);
                                             }
-                                            "lfg" => {
-                                                DB.ini_lfg();
-                                                Discord::send_mes(mes.channel_id, "Вектор LFG инициализирован", "", false);
-                                            }
-                                            "chat" => {
-                                                DB.ini_chat();
-                                                Discord::send_mes(mes.channel_id, "Вектор Chat инициализирован", "", false);
-                                            }
+//                                            "lfg" => {
+//                                                DB.ini_lfg();
+//                                                Discord::send_mes(mes.channel_id, "Вектор LFG инициализирован", "", false);
+//                                            }
+//                                            "chat" => {
+//                                                DB.ini_chat();
+//                                                Discord::send_mes(mes.channel_id, "Вектор Chat инициализирован", "", false);
+//                                            }
                                             "config" => {
                                                 Config::init();
                                                 Discord::send_mes(mes.channel_id, "Config инициализирован", "", false);
@@ -2465,6 +2488,7 @@ fn main() {
                                         }
                                 }
 
+                                /*
                                 "!lfg" => {
                                     use addon::LFG;
                                     let color = 0;
@@ -2573,6 +2597,7 @@ fn main() {
 
 
                                 }
+                                */
 
                                 "!shver" => {
                                     use std::ops::Add;
@@ -2581,23 +2606,23 @@ fn main() {
 
                                     let cur_time = extime::now();
                                     let start_day = match START_TIME.tm_mday{
-                                        0...9 =>{ format!("0{}",START_TIME.tm_mday)}
+                                        0..=9 =>{ format!("0{}",START_TIME.tm_mday)}
                                         _ => {format!("{}",START_TIME.tm_mday)}
                                     };
                                     let start_mon = match START_TIME.tm_mon+1{
-                                        0...9 =>{ format!("0{}",START_TIME.tm_mon+1)}
+                                        0..=9 =>{ format!("0{}",START_TIME.tm_mon+1)}
                                         _ => {format!("{}",START_TIME.tm_mon+1)}
                                     };
                                     let start_h = match START_TIME.tm_hour{
-                                        0...9 =>{ format!("0{}",START_TIME.tm_hour)}
+                                        0..=9 =>{ format!("0{}",START_TIME.tm_hour)}
                                         _ => {format!("{}",START_TIME.tm_hour)}
                                     };
                                     let start_m = match START_TIME.tm_min{
-                                        0...9 =>{ format!("0{}",START_TIME.tm_min)}
+                                        0..=9 =>{ format!("0{}",START_TIME.tm_min)}
                                         _ => {format!("{}",START_TIME.tm_min)}
                                     };
                                     let start_s = match START_TIME.tm_sec{
-                                        0...9 =>{ format!("0{}",START_TIME.tm_sec)}
+                                        0..=9 =>{ format!("0{}",START_TIME.tm_sec)}
                                         _ => {format!("{}",START_TIME.tm_sec)}
                                     };
 
@@ -2613,19 +2638,19 @@ fn main() {
                                     let up_h = dif_time / 3600;
                                     dif_time = dif_time - (up_h * 3600);
                                     let up_hour = match up_h{
-                                        0...9 =>{ format!("0{}",up_h)}
+                                        0..=9 =>{ format!("0{}",up_h)}
                                         _ => {format!("{}",up_h)}
                                     };
 
                                     let up_m = dif_time / 60;
                                     dif_time = dif_time - (up_m * 60);
                                     let up_min = match up_m{
-                                        0...9 =>{ format!("0{}",up_m)}
+                                        0..=9 =>{ format!("0{}",up_m)}
                                         _ => {format!("{}",up_m)}
                                     };
 
                                     let up_sec = match dif_time{
-                                        0...9 =>{ format!("0{}",dif_time)}
+                                        0..=9 =>{ format!("0{}",dif_time)}
                                         _ => {format!("{}",dif_time)}
                                     };
 

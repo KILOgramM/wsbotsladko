@@ -185,16 +185,15 @@ impl DiscordMain{
     pub fn get_chanel(&self) -> DoubleChanel<OutLink>{
         let (dc_sender, dc_reciever) = DoubleChanel::<OutLink>::new();
         use std::ops::Deref;
-        loop{
-            match self.dc.try_lock(){
-                Ok(r) => {
-                    let r = r.deref();
-                    r.send(GlobE::GetChanel(dc_reciever));
-                    break;
-                }
-                _=>{}
+        
+        match self.dc.lock(){
+            Ok(r) => {
+                let r = r.deref();
+                r.send(GlobE::GetChanel(dc_reciever));
             }
+            _=>{}
         }
+        
         return dc_sender;
     }
 
@@ -215,8 +214,7 @@ impl DiscordMain{
 }
 impl Drop for DiscordMain{
     fn drop(&mut self){
-        loop{
-            match self.dc.try_lock(){
+            match self.dc.lock(){
                 Ok(r) => {
                     let r = r.deref();
                     r.send(GlobE::Drop);
@@ -235,13 +233,12 @@ impl Drop for DiscordMain{
                             }
                         }
                     }
-                    println!("Перезапуск {}", extime::now().ctime());
+//                    println!("Перезапуск {}", extime::now().ctime());
 
-                    break;
+
                 }
                 _=>{}
             }
-        }
     }
 }
 

@@ -17,7 +17,7 @@ use crate::{Hero,
      User,
      HeroInfoReq,
      BtagData,
-     load_btag_data,
+//     load_btag_data,
      WSSERVER};
 
 use std::sync::RwLock;
@@ -39,8 +39,8 @@ lazy_static!{
 
 
 pub struct Global{
-    pub lfg: RwLock<Vec<LFG>>,
-    pub chat: RwLock<Vec<(u64,Chat)>>,
+//    pub lfg: RwLock<Vec<LFG>>,
+//    pub chat: RwLock<Vec<(u64,Chat)>>,
     pub embeds_s: RwLock<Vec<(String,Value)>>,
     pub users: RwLock<Vec<(User)>>,
     //pub admins_id: RwLock<Vec<(u64)>>,
@@ -49,14 +49,15 @@ pub struct Global{
 impl Global{
     fn new() -> Global{
         Global{
-            lfg:  RwLock::new(Vec::new()),
-            chat: RwLock::new(Vec::new()),
+//            lfg:  RwLock::new(Vec::new()),
+//            chat: RwLock::new(Vec::new()),
             embeds_s: RwLock::new(Vec::new()),
             users: RwLock::new(Vec::new()),
             temp: RwLock::new(Vec::new()),
         }
     }
 
+/*
     pub fn ini_lfg(&self){
 
         let mut l: Vec<LFG> = Vec::new();
@@ -142,6 +143,9 @@ impl Global{
         }
         println!("\'LFG\' list ini done");
     }
+*/
+
+    /*
     pub fn ini_chat(&self){
 
         let mut ch: Vec<(u64,Chat)> = Vec::new();
@@ -177,17 +181,19 @@ impl Global{
             }
         }
 
-        loop{
-            match self.chat.try_write() {
-                Ok(mut chat) => {
-                    *chat = ch;
-                    break;
-                }
-                _ => {}
+
+        match self.chat.write() {
+            Ok(mut chat) => {
+                *chat = ch;
+
             }
+            _ => {}
         }
+
         println!("\'Chat\' list ini done");
     }
+    */
+
     pub fn ini_embeds_s(&self){
         use std::fs::File;
         use std::io::Read;
@@ -255,15 +261,14 @@ impl Global{
                             }
                         }
 
-                        loop{
-                            match self.embeds_s.write() {
-                                Ok(mut embeds) => {
-                                    *embeds = emb;
-                                    break;
-                                }
-                                _ => {}
+
+                        match self.embeds_s.write() {
+                            Ok(mut embeds) => {
+                                *embeds = emb;
                             }
+                            _ => {}
                         }
+
                         println!("\'Embed\' list ini done");
                     }
                 }
@@ -273,6 +278,7 @@ impl Global{
         }
     }
 
+    /*
     pub fn get_chat(&self, id: u64) -> Option<Chat>{
         use std::ops::Deref;
         let mut chat: Option<Chat> = None;
@@ -295,50 +301,53 @@ impl Global{
         }
         return chat;
     }
+    */
+
     pub fn get_embed(&self, name: &str) -> Option<Value>{
         use std::ops::Deref;
         let mut val = None;
-        {
-            loop{
-                match self.embeds_s.try_read(){
-                    Ok(embeds) => {
-                        let embeds = embeds.deref();
-                        for embed in embeds{
-                            if embed.0 == name.to_string(){
-                                val = Some(embed.clone().1);
-                                break;
-                            }
-                        }
+
+        match self.embeds_s.read(){
+            Ok(embeds) => {
+                let embeds = embeds.deref();
+                for embed in embeds{
+                    if embed.0 == name.to_string(){
+                        val = Some(embed.clone().1);
                         break;
                     }
-                    _=>{}
                 }
             }
+            _=>{}
         }
+
         return val;
     }
+
+/*
     pub fn get_lfg(&self, id: u64) -> Option<LFG>{
         use std::ops::Deref;
         let mut lfg_main: Option<LFG> = None;
-        {
-            loop{
-                match self.lfg.try_read(){
-                    Ok(lfg) => {
-                        let lfg = lfg.deref();
-                        for l in lfg{
-                            if l.did == id{
-                                lfg_main = Some(l.clone());
-                                break;
-                            }
-                        }
+
+
+        match self.lfg.read(){
+            Ok(lfg) => {
+                let lfg = lfg.deref();
+                for l in lfg{
+                    if l.did == id{
+                        lfg_main = Some(l.clone());
                         break;
                     }
-                    _=>{}
                 }
             }
+            _=>{}
         }
+
+
         return lfg_main;
     }
+
+
+
     pub fn get_lfg_list(&self) -> Vec<LFG>{
         use std::ops::Deref;
         let mut lfg_main: Vec<LFG> = Vec::new();
@@ -356,6 +365,8 @@ impl Global{
         }
         return lfg_main;
     }
+*/
+
     pub fn send_embed(&self, name: &str, chanel: u64){
         match self.get_embed(name){
             None => {
@@ -368,6 +379,8 @@ impl Global{
         }
 
     }
+
+/*
     pub fn push_lfg(&self, one_more_lfg: LFG){
         use std::ops::DerefMut;
         loop{
@@ -415,6 +428,7 @@ impl Global{
             }
         }
     }
+*/
 
     pub fn new_temp(&self, data: TempData) -> u32{
         extern crate rand;
@@ -426,158 +440,149 @@ impl Global{
                 break;
             }
         }
-        loop{
-            match self.temp.try_write() {
-                Ok(mut temp) => {
-                    let mut temp = temp.deref_mut();
-                    temp.push((rnd, data));
-                    break;
-                }
-                _ => {}
+
+        match self.temp.write() {
+            Ok(mut temp) => {
+                let mut temp = temp.deref_mut();
+                temp.push((rnd, data));
+
             }
+            _ => {}
         }
+
         return rnd;
     }
     pub fn get_temp(&self, id: u32) -> Option<TempData>{
         use std::ops::Deref;
         let mut temp_return: Option<TempData> = None;
-        {
-            loop{
-                match self.temp.try_read(){
-                    Ok(temp) => {
-                        let temp = temp.deref();
-                        for c in temp{
-                            if c.0 == id{
-                                temp_return = Some(c.1.clone());
-                                break;
-                            }
-                        }
+        match self.temp.read(){
+            Ok(temp) => {
+                let temp = temp.deref();
+                for c in temp{
+                    if c.0 == id{
+                        temp_return = Some(c.1.clone());
                         break;
                     }
-                    _=>{}
                 }
             }
+            _=>{}
         }
         return temp_return;
     }
     pub fn set_temp(&self, id: u32, data: TempData){
         use std::ops::DerefMut;
-        loop{
-            match self.temp.try_write() {
-                Ok(mut temp) => {
-                    let mut temp = temp.deref_mut();
-                    let mut some_i = None;
 
-                    for (i,l) in temp.iter().enumerate(){
-                        if l.0 == id{
-                            some_i = Some(i);
-                            break;
-                        }
+        match self.temp.write() {
+            Ok(mut temp) => {
+                let mut temp = temp.deref_mut();
+                let mut some_i = None;
+
+                for (i,l) in temp.iter().enumerate(){
+                    if l.0 == id{
+                        some_i = Some(i);
+                        break;
                     }
-                    if let Some(i) = some_i{
-                        temp.remove(i);
-                    }
-                    temp.push((id,data));
-                    break;
                 }
-                _ => {}
+                if let Some(i) = some_i{
+                    temp.remove(i);
+                }
+                temp.push((id,data));
             }
+            _ => {}
         }
+
     }
     pub fn rem_temp(&self, id: u32){
         use std::ops::DerefMut;
-        loop{
-            match self.temp.try_write() {
-                Ok(mut temp) => {
-                    let mut temp = temp.deref_mut();
-                    let mut some_i = None;
-                    for (i,l) in temp.iter().enumerate(){
-                        if l.0 == id{
-                            some_i = Some(i);
-                            break;
-                        }
+
+        match self.temp.write() {
+            Ok(mut temp) => {
+                let mut temp = temp.deref_mut();
+                let mut some_i = None;
+                for (i,l) in temp.iter().enumerate(){
+                    if l.0 == id{
+                        some_i = Some(i);
+                        break;
                     }
-                    if let Some(i) = some_i{
-                        temp.remove(i);
-                    }
-                    break;
                 }
-                _ => {}
+                if let Some(i) = some_i{
+                    temp.remove(i);
+                }
             }
+            _ => {}
         }
+
     }
 
+    /*
     pub fn set_chat(&self, id: u64, chat_new: Chat){
         use std::ops::DerefMut;
-        loop{
-            match self.chat.try_write() {
-                Ok(mut chat) => {
-                    let mut chat = chat.deref_mut();
-                    let mut some_i = None;
 
-                    for (i,l) in chat.iter().enumerate(){
-                        if l.0 == id{
-                            some_i = Some(i);
-                            break;
-                        }
+        match self.chat.write() {
+            Ok(mut chat) => {
+                let mut chat = chat.deref_mut();
+                let mut some_i = None;
+
+                for (i,l) in chat.iter().enumerate(){
+                    if l.0 == id{
+                        some_i = Some(i);
+                        break;
                     }
-                    if let Some(i) = some_i{
-                        chat.remove(i);
-                    }
-                    chat.push((id, chat_new.clone()));
-                    let json = serde_json::to_string(&chat_new).unwrap();
-                    let mut call = format!("INSERT INTO chat (");
-
-                    call = format!("{} did", call);
-                    call = format!("{}, data", call);
-
-                    call = format!("{}) VALUES (", call);
-
-                    call = format!("{} {}", call, id);
-                    call = format!("{}, '{}'", call, json.clone());
-
-                    call = format!("{}) ON DUPLICATE KEY UPDATE", call);
-                    call = format!("{} data='{}'", call, json);
-                    let mut conn = POOL.get_conn().unwrap();
-                    if let Err(e) = conn.query(call.clone()){
-                        println!("set_chat Error in call [{}]:\n{}", call, e);
-                    }
-                    break;
                 }
-                _ => {}
+                if let Some(i) = some_i{
+                    chat.remove(i);
+                }
+                chat.push((id, chat_new.clone()));
+                let json = serde_json::to_string(&chat_new).unwrap();
+                let mut call = format!("INSERT INTO chat (");
+
+                call = format!("{} did", call);
+                call = format!("{}, data", call);
+
+                call = format!("{}) VALUES (", call);
+
+                call = format!("{} {}", call, id);
+                call = format!("{}, '{}'", call, json.clone());
+
+                call = format!("{}) ON DUPLICATE KEY UPDATE", call);
+                call = format!("{} data='{}'", call, json);
+                let mut conn = POOL.get_conn().unwrap();
+                if let Err(e) = conn.query(call.clone()){
+                    println!("set_chat Error in call [{}]:\n{}", call, e);
+                }
             }
+            _ => {}
         }
+
     }
     pub fn rem_chat(&self, id: u64){
         use std::ops::DerefMut;
-        loop{
-            match self.chat.try_write() {
-                Ok(mut chat) => {
-                    let mut chat = chat.deref_mut();
-                    let mut some_i = None;
+        match self.chat.write() {
+            Ok(mut chat) => {
+                let mut chat = chat.deref_mut();
+                let mut some_i = None;
 
-                    for (i,l) in chat.iter().enumerate(){
-                        if l.0 == id{
-                            some_i = Some(i);
-                            break;
-                        }
+                for (i,l) in chat.iter().enumerate(){
+                    if l.0 == id{
+                        some_i = Some(i);
+                        break;
                     }
-                    if let Some(i) = some_i{
-                        chat.remove(i);
-                    }
-
-                    let mut call = format!("DELETE FROM chat WHERE did={}",id);
-                    let mut conn = POOL.get_conn().unwrap();
-                    if let Err(e) = conn.query(call.clone()){
-                        println!("rem_chat Error in call [{}]:\n{}",call, e);
-                    }
-                    break;
                 }
-                _ => {}
+                if let Some(i) = some_i{
+                    chat.remove(i);
+                }
+
+                let mut call = format!("DELETE FROM chat WHERE did={}",id);
+                let mut conn = POOL.get_conn().unwrap();
+                if let Err(e) = conn.query(call.clone()){
+                    println!("rem_chat Error in call [{}]:\n{}",call, e);
+                }
+
             }
+            _ => {}
         }
     }
-
+    */
 }
 
 #[derive(Clone, Debug)]
@@ -595,11 +600,12 @@ impl TempData{
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Chat{
-    LFG(Stage_LFG),
-}
+//#[derive(Clone, Debug, Serialize, Deserialize)]
+//pub enum Chat{
+//    LFG(Stage_LFG),
+//}
 
+/*
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct LFG{
     pub did: u64,
@@ -664,12 +670,15 @@ impl LFG{
     }
 }
 
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Stage_LFG{
     None,
     ConfirmUpdate(LFG),
     ConfirmRemove,
 }
+
+*/
 
 #[derive(Clone, Debug)]
 pub enum Role{
@@ -680,7 +689,7 @@ pub enum Role{
     Flex,
 }
 
-
+/*
 pub fn lfg(mes: DMessage, stage: Stage_LFG){
     let color: u64 = 37595;
     //let private_c = DIS.create_private_channel(mes.author.id).unwrap().id;
@@ -1032,6 +1041,7 @@ fn lfg_rem(chanel: u64,id: u64){
     }
 
 }
+*/
 
 fn split_mes(mes: String) ->(Vec<String>, String){
     let mut des = String::new();
@@ -1069,6 +1079,7 @@ fn split_mes(mes: String) ->(Vec<String>, String){
     return (mes_data, des);
 }
 
+/*
 fn lfg_add(lfg: LFG){
     let json = serde_json::to_string(&lfg).unwrap();
     let mut call = format!("INSERT INTO lfg (");
@@ -1090,6 +1101,7 @@ fn lfg_add(lfg: LFG){
 
     DB.push_lfg(lfg);
 }
+*/
 
 pub fn event_add(mut data: String){
 //    let mut data = mes.content.clone();

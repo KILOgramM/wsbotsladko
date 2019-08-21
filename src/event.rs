@@ -1,6 +1,9 @@
 use crate::WSSERVER;
 use crate::embed_from_value;
-use crate::{POOL, EVENT, User, load_btag_data, HeroInfoReq, OwData};
+use crate::{POOL, EVENT, User, HeroInfoReq, OwData};
+//use crate::load_btag_data;
+use crate::multirolefix::load_btag_data_multirole;
+use crate::multirolefix::Rating;
 use mysql::from_row;
 use mysql;
 use std::thread;
@@ -107,7 +110,7 @@ pub enum EventType{
         chanel: Option<u64>,
         embed: String,
     },
-    LFGCleaning,
+//    LFGCleaning,
     RatingUpdate,
 }
 
@@ -193,14 +196,14 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
             }
         }
     }
-    let mut lfg_clean_found = false;
+//    let mut lfg_clean_found = false;
     let mut rating_update = false;
 
     for (key , event) in list.iter(){
         match event.event_type {
-            EventType::LFGCleaning =>{
-                lfg_clean_found = true;
-            }
+//            EventType::LFGCleaning =>{
+//                lfg_clean_found = true;
+//            }
             EventType::RatingUpdate =>{
                 rating_update = true;
             }
@@ -208,23 +211,26 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
                 continue;
             }
         }
-        if lfg_clean_found && rating_update{
+        if
+//            lfg_clean_found
+//            &&
+            rating_update{
             break;
         }
     }
 
-    if !lfg_clean_found {
-        let mut req = EventReq::empty();
-        let name = "LFGCleaner".to_string();
-        req.hour = Some(4);
-        req.day_of_week = Some(3);
-        EVENT.send(EventChanel::AddEvent {
-            name,
-            event_type: EventType::LFGCleaning,
-            req: vec![req],
-        });
-
-    }
+//    if !lfg_clean_found {
+//        let mut req = EventReq::empty();
+//        let name = "LFGCleaner".to_string();
+//        req.hour = Some(4);
+//        req.day_of_week = Some(3);
+//        EVENT.send(EventChanel::AddEvent {
+//            name,
+//            event_type: EventType::LFGCleaning,
+//            req: vec![req],
+//        });
+//
+//    }
 
     if !rating_update {
         let mut req = EventReq::empty();
@@ -674,7 +680,7 @@ impl EventData{
 
             for t in time_list.clone(){
                 if time_min.0.sec > t.0.sec{
-                    time_min = t;
+                    time_min = &t;
                     check = true;
                 }
             }
@@ -776,6 +782,7 @@ fn match_func(name: String, event_type: EventType){
 
         }
 
+        /*
         EventType::LFGCleaning => {
             let lfg_list = DB.get_lfg_list();
             for lfg in lfg_list{
@@ -800,6 +807,7 @@ fn match_func(name: String, event_type: EventType){
             }
             println!("LFG Cleaning End");
         }
+        */
 
         EventType::RatingUpdate => {
             rating_updater();
@@ -842,7 +850,7 @@ pub fn rating_updater(){
         let plat: String = row.take("plat").expect("Err in rating_updater on row.take(\"plat\") #5");
 
 
-        match load_btag_data(btag.clone(),"EU".to_string(),plat,hreq.clone()){
+        match load_btag_data_multirole(btag.clone(),"EU".to_string(),plat,hreq.clone()){
             OwData::NotFound => {
                 let call = format!("UPDATE users SET rtg={} WHERE did={}",
                                    0,  did);
@@ -865,12 +873,12 @@ pub fn rating_updater(){
             },
             OwData::Full(BData) => {
                 let call = format!("UPDATE users SET rtg={} WHERE did={}",
-                                   BData.rating,  did);
+                                   BData.rating.higest_rating(),  did);
 
                 let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #6");
                 let _ = conn.query(call);
-                let _ = role_ruler(WSSERVER,did,RoleR::rating(BData.rating));
-                println!("[{}] Rating of {} now {}", extime::now().ctime(),btag,BData.rating);
+                let _ = role_ruler(WSSERVER,did,RoleR::rating(BData.rating.higest_rating()));
+                println!("[{}] Rating of {} now {}", extime::now().ctime(),btag,BData.rating.as_simple_str());
                 counter_ok += 1;
             }
         }
