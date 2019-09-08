@@ -23,36 +23,36 @@ impl Discord{
 //		dbg!(&embed);
 //		dbg!(dpool(&format!("/channels/{}/messages", chanel_id),Some(embed)));
 		if let Err(e)  = dpool(&format!("/channels/{}/messages", chanel_id),Some(embed)){
-			println!("[Embed Send] Error\nError:\n{}",e);
+			info!("[Embed Send] Error\nError:\n{}",e);
 		}
 
 	}
 	pub fn send_typing(chanel_id: u64){
 		if let Err(e)  = dpool(&format!("/channels/{}/typing", chanel_id),None){
-			println!("[Send Typing] Error:\n{}",e);
+			info!("[Send Typing] Error:\n{}",e);
 		}
 	}
 	pub fn set_member_roles(server_id: u64,user_id: u64, role_id: Vec<Value>){
 		if let Err(e)  = dpatch(&format!("/guilds/{}/members/{}", server_id,user_id),json!({ "roles": role_id })){
-			println!("[Set Member Roles] Error\nError:\n{}",e);
+			info!("[Set Member Roles] Error\nError:\n{}",e);
 		}
 	}
 
 	pub fn add_member_role(server_id: u64,user_id: u64, role_id: u64){
 		if let Err(e)  = dput(&format!("/guilds/{}/members/{}/roles/{}", server_id,user_id,role_id)){
-			println!("[Add Member Role] Error\nError:\n{}",e);
+			info!("[Add Member Role] Error\nError:\n{}",e);
 		}
 	}
 
 	pub fn rem_member_role(server_id: u64,user_id: u64, role_id: u64){
 		if let Err(e)  = ddelete(&format!("/guilds/{}/members/{}/roles/{}", server_id,user_id,role_id),None){
-			println!("[Remove Member Role] Error\nError:\n{}",e);
+			info!("[Remove Member Role] Error\nError:\n{}",e);
 		}
 	}
 	pub fn get_server(server_id: u64) -> Option<Value>{
 		match dget(&format!("/guilds/{}", server_id),None){
 			Err(e)  => {
-				println!("[Get Server] Error:\n{}",e);
+				info!("[Get Server] Error:\n{}",e);
 				return None;
 			}
 			Ok(mut k) => {
@@ -63,7 +63,7 @@ impl Discord{
 	pub fn get_servers() -> Option<Value>{
 		match dget(&format!("/users/@me/guilds"),None){
 			Err(e)  => {
-				println!("[Get Servers] Error:\n{}",e);
+				info!("[Get Servers] Error:\n{}",e);
 				return None;
 			}
 			Ok(mut k) => {
@@ -75,7 +75,7 @@ impl Discord{
 
 		match dget(&format!("/channels/{}", chanel_id),None){
 			Err(e)  => {
-				println!("[Get Channel] Error:\n{}",e);
+				info!("[Get Channel] Error:\n{}",e);
 				return None;
 			}
 			Ok(mut k) => {
@@ -88,7 +88,7 @@ impl Discord{
 
 		match dget(&format!("/guilds/{}/channels", server_id),None){
 			Err(e)  => {
-				println!("[Get Channels] Error:\n{}",e);
+				info!("[Get Channels] Error:\n{}",e);
 				return None;
 			}
 			Ok(mut k) => {
@@ -101,7 +101,7 @@ impl Discord{
 
 		match dget(&format!("/guilds/{}/roles", server_id),None){
 			Err(e)  => {
-				println!("[Get Roles] Error:\n{}",e);
+				info!("[Get Roles] Error:\n{}",e);
 				return None;
 			}
 			Ok(mut k) => {
@@ -114,7 +114,7 @@ impl Discord{
 	pub fn get_user(user_id: u64) -> Option<DUser>{
 		match dget(&format!("/users/{}", user_id),None){
 			Err(e)  => {
-				println!("[Get User] Error:\n{}",e);
+				info!("[Get User] Error:\n{}",e);
 				return None;
 			}
 			Ok(mut k) => {
@@ -134,7 +134,7 @@ impl Discord{
 
 		match dget(&format!("/guilds/{}/members/{}", server_id,user_id),None){
 			Err(e)  => {
-				println!("[Get Member] Error:\n{}",e);
+				info!("[Get Member] Error:\n{}",e);
 				return None;
 			}
 			Ok(mut k) => {
@@ -160,7 +160,7 @@ impl Discord{
 		json.insert("tts".into(), json!(&tts));
 
 		if let Err(e)  = dpool(&format!("/channels/{}/messages", chanel_id),Some(json!(&json))){
-			println!("[Message Send] Error\nEmbed:\n{:?}\nError:\n{}",json,e);
+			info!("[Message Send] Error\nEmbed:\n{:?}\nError:\n{}",json,e);
 		}
 	}
 

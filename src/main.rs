@@ -34,6 +34,10 @@ extern crate websocket;
 extern crate net2;
 
 extern crate time as extime;
+
+#[macro_use]
+extern crate log;
+extern crate simplelog;
 //https://discordapp.com/api/oauth2/authorize?client_id=316281967375024138&scope=bot&permissions=0
 
 use regex::Regex;
@@ -94,7 +98,7 @@ use roles::role_ruler_text;
 
 lazy_static! {
 
-    pub static ref POOL: mysql::Pool = mysql::Pool::new(build_opts()).unwrap();
+    pub static ref POOL: mysql::Pool = mysql::Pool::new(build_opts()).expect("MySQL Pool not open in lazy_static");
     pub static ref REG_BTAG: Regex = Regex::new(r"^.{2,16}#[0-9]{2,6}$").expect("Regex btag error");
     static ref REG_TIME: Regex = Regex::new(r"(?P<n>\d){1,4} ?(?i)(?P<ntype>m|min|h|hour)").expect("Regex REG_TIME error");
 
@@ -103,6 +107,10 @@ lazy_static! {
 
     pub static ref D: DiscordMain = DiscordMain::new(load_settings());
 }
+
+
+
+
 pub static WSSERVER: u64 = 351798277756420098; //ws = 351798277756420098 //bs = 316394947513155598
 static SWITCH_NET: AtomicBool = ATOMIC_BOOL_INIT;
 static DEBUG: AtomicBool = ATOMIC_BOOL_INIT;
@@ -538,7 +546,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
 
 
     if mode_debug{
-        println!("Start: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
+        info!("Start: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
     }
 
 
@@ -553,20 +561,20 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
                     Ok(text) =>{
                         result = Some(text);}
                     Err(e) => {
-                        println!("[load_btag_data] Error while take body:\n{}", e);
+                        info!("[load_btag_data] Error while take body:\n{}", e);
 
                     }
                 }
             }
             Err(e) => {
-                println!("[load_btag_data] Error while get responce from url. Probaly wrong url:\n{}", e);
+                info!("[load_btag_data] Error while get responce from url. Probaly wrong url:\n{}", e);
             }
         }
 
 
 
 //    if mode_debug{
-//        println!("Get respornse: {:?}",
+//        info!("Get respornse: {:?}",
 //                 SystemTime::now().duration_since(sys_time_old).unwrap());
 //    }
 
@@ -588,7 +596,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
         }
 
 //        if mode_debug{
-//            println!("Get rating: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
+//            info!("Get rating: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
 //        }
 
         if body.contains("masthead-permission-level-text\">Private Profile<"){
@@ -626,7 +634,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
                             Ok(x) => {x}
 
                             Err(e) => {
-                                println!("Error while parce rating:\n{}\n{}",string ,e);
+                                info!("Error while parce rating:\n{}\n{}",string ,e);
                                 0
                             }
                         };
@@ -851,7 +859,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
             }
 
             if mode_debug {
-                println!("End: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #19"));
+                info!("End: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #19"));
             }
             return Full(b_data);
         }
@@ -859,7 +867,7 @@ pub fn load_btag_data(btag: String, reg: String, plat: String, req:HeroInfoReq) 
     }
     else{
         if mode_debug{
-            println!("End None: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #20"));
+            info!("End None: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #20"));
         }
         return NotFound;
     }
@@ -940,7 +948,7 @@ fn cut_part_of_str(main: &String, wall_1: &str, wall_2: &str) -> String
     unsafe {
 
         if start > end {
-            println!("errr start > end: {} {}",wall_1, wall_2);
+            info!("errr start > end: {} {}",wall_1, wall_2);
             return String::new(); }
         let temp = main.slice_unchecked(start, end).to_owned();
         return temp;
@@ -1132,7 +1140,7 @@ pub fn load_by_id(id: u64) -> Option<User> //Получение профиля �
 pub fn load_settings() -> String //Загрузка DiscordId
 {
     let mut ta = String::new();
-    let mut stmt = POOL.prepare("SELECT distoken FROM bottoken").unwrap();
+    let mut stmt = POOL.prepare("SELECT distoken FROM bottoken").expect("Error while prepare POOL in load_settings()");
     for row in stmt.execute(()).unwrap() {
         ta = from_row::<String>(row.unwrap());
     }
@@ -1264,7 +1272,7 @@ fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог со
                 },
                 OwData::Full(ref BData) => {
                     rating = BData.rating.clone();
-                    //println!("rating: {}", rating);
+                    //info!("rating: {}", rating);
                     thumbnail = BData.avatar_url.clone();
 
                     let server_id = match Discord::get_chanel(chan){
@@ -1592,7 +1600,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
                         },
                         OwData::Full(ref BData) => {
                             rating = BData.rating.clone();
-                            //println!("rating: {}", rating);
+                            //info!("rating: {}", rating);
                             thumbnail = BData.avatar_url.clone();
                             let server_id = match Discord::get_chanel(chan){
                                 None => {0}
@@ -1614,7 +1622,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
 
 /*                    if let Some(an) = answer{
 //                        rating = an.rating;
-//                        //println!("rating: {}", rating);
+//                        //info!("rating: {}", rating);
 //                        thumbnail = an.avatar_url.clone();
 //                        let server_id = match Discord::get_chanel(chan){
 //                            None => {0}
@@ -2190,6 +2198,40 @@ pub fn embed_from_value(chanel: u64, val: Value){
 }
 
 fn main() {
+    {
+        use std::panic;
+        use std::ops::Deref;
+
+        panic::set_hook(Box::new(|panic_info| {
+            let (filename, line) =
+                panic_info.location().map(|loc| (loc.file(), loc.line()))
+                          .unwrap_or(("<unknown>", 0));
+
+            let cause = panic_info.payload().downcast_ref::<String>().map(String::deref);
+
+            let cause = cause.unwrap_or_else(||
+                panic_info.payload().downcast_ref::<&str>().map(|s| *s)
+                          .unwrap_or("<cause unknown>")
+            );
+
+            error!("A panic occurred at {}:{}: {}", filename, line, cause);
+        }));
+    }
+
+    {
+        use simplelog::*;
+        use std::fs::OpenOptions;
+        CombinedLogger::init(
+            vec![
+                TermLogger::new(LevelFilter::Info, ConfigBuilder::new().set_time_format_str("[%F %a] %T").build(), TerminalMode::Mixed).unwrap(),
+                WriteLogger::new(LevelFilter::Info, ConfigBuilder::new().set_time_format_str("[%F %a] %T").build(), OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("wsbot.log")
+                    .expect("Err while open log file to write")),
+            ]
+        ).unwrap();
+    }
     use conf::Config;
     use addon::event_add;
     let dcshell:DCShell = Discord::get_event_reciever();
@@ -2199,8 +2241,8 @@ fn main() {
 //    DB.ini_chat();
     Config::init();
     EVENT.send(EventChanel::Check);
-    println!("[Status] Main loop start");
-    println!("{}", START_TIME.ctime());
+    info!("[Status] Main loop start");
+    info!("{}", START_TIME.ctime());
 
     loop {
 
@@ -2232,27 +2274,27 @@ fn main() {
                             }
 
                             "!wsstats" => {
-                                println!("wsstats");
+                                info!("wsstats");
                                 Discord::send_typing(mes.channel_id);
                                 wsstats(mes_split.clone(), mes.author.id, mes.channel_id);
                             }
 
                             "!wstour" => {
-                                println!("wstour");
+                                info!("wstour");
                                 DB.send_embed("tourneys",mes.channel_id);
                             }
 
                             "!wshelp" => {
-                                println!("wshelp");
+                                info!("wshelp");
                                 DB.send_embed("help",mes.channel_id);
                             }
                             "!wscmd" => {
-                                println!("wscmd");
+                                info!("wscmd");
                                 DB.send_embed("cmd",mes.channel_id);
                             }
                             /*
                             "!wslfg" => {
-                                println!("wslfg");
+                                info!("wslfg");
                                 lfg_none(mes.clone());
                             }
                             */
@@ -2351,7 +2393,7 @@ fn main() {
                                                 for _ in 0..(max_len - name.len()){
                                                     field_text.push(' ');
                                                 }
-                                                //println!("{:?}",tmalt.to_tm());
+                                                //info!("{:?}",tmalt.to_tm());
                                                 field_text = format!("{}: {}\n",field_text,tmalt.to_tm().ctime());
                                             }
                                             field_text = format!("{}```\n",field_text);
@@ -2523,7 +2565,7 @@ fn main() {
                                                 let mut call = format!("DELETE FROM lfg WHERE did={}",lfg.did);
                                                 let mut conn = POOL.get_conn().unwrap();
                                                 if let Err(e) = conn.query(call){
-                                                    println!("lfg_rem Err: {}", e);
+                                                    info!("lfg_rem Err: {}", e);
                                                 }
                                                 DB.remove_lfg(lfg.did);
                                             }
@@ -2544,7 +2586,7 @@ fn main() {
                                                     let mut call = format!("DELETE FROM lfg WHERE did={}",did);
                                                     let mut conn = POOL.get_conn().unwrap();
                                                     if let Err(e) = conn.query(call){
-                                                        println!("lfg_rem Err: {}", e);
+                                                        info!("lfg_rem Err: {}", e);
                                                     }
                                                     DB.remove_lfg(did);
                                                 }
@@ -2681,23 +2723,23 @@ fn main() {
                 });
             }
             Event::Ready(json) => {
-                println!("READY:\n{}", serde_json::to_string_pretty(&json).unwrap_or(String::new()));
+                info!("READY:\n{}", serde_json::to_string_pretty(&json).unwrap_or(String::new()));
             }
             Event::GuildCreate(json) => {
 
-                println!("GuildCreate:\nName: {}", json["name"].as_str().unwrap_or(""));
-                println!("Id: {}", json["id"].as_str().unwrap_or(""));
+                info!("GuildCreate:\nName: {}", json["name"].as_str().unwrap_or(""));
+                info!("Id: {}", json["id"].as_str().unwrap_or(""));
  //               let dservid = json["id"].as_str().unwrap().parse::<u64>().unwrap()("");
 //
   //              if load_by_dsid(dservid) = dservid.as_str().unwrap_or("0").parse::<u64>().unwrap()
    //             {}
    //             else {add_dsid_to_db(dservid)};
 
-                println!("Member Count: {}", json["member_count"].as_u64().unwrap_or(0));
+                info!("Member Count: {}", json["member_count"].as_u64().unwrap_or(0));
                 if let Some(user) = Discord::get_user(json["owner_id"].as_str().unwrap_or("0").parse::<u64>().unwrap()){
-                    println!("Owner Id: {}", user.id);
-                    println!("Owner Username: {}", user.username);
-                    println!("Owner Discriminator: {}", user.discriminator);
+                    info!("Owner Id: {}", user.id);
+                    info!("Owner Username: {}", user.username);
+                    info!("Owner Discriminator: {}", user.discriminator);
                 }
 
 

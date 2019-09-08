@@ -39,7 +39,7 @@ impl Config{
 			let mut raw = String::new();
 			match rating.read_to_string(&mut raw) {
 				Err(e) => {
-					println!("Config>Init>Rating>File>Read Error [{}]: {:?}", RATING_CONF_PATH, e);
+					info!("Config>Init>Rating>File>Read Error [{}]: {:?}", RATING_CONF_PATH, e);
 				}
 				_ => {
 					match serde_json::from_str(raw.as_str()){
@@ -47,14 +47,14 @@ impl Config{
 							map.insert(ConfType::rating,json);
 						}
 						Err(e) => {
-							println!("Config>Init>Rating>Serde Error in [{}]: {:?}", RATING_CONF_PATH, e);
+							info!("Config>Init>Rating>Serde Error in [{}]: {:?}", RATING_CONF_PATH, e);
 						}
 					}
 				}
 			}
 		}
 		else {
-			println!("Config>Init>Rating>File>Open Error [{}]", RATING_CONF_PATH);
+			info!("Config>Init>Rating>File>Open Error [{}]", RATING_CONF_PATH);
 		}
 
 
@@ -70,7 +70,7 @@ impl Config{
 			}
 		}
 
-		println!("[Config] Init done");
+		info!("[Config] Init done");
 	}
 
 	pub fn get(t: ConfType, path: String) -> Option<Value>{
@@ -135,13 +135,13 @@ impl Config{
 
 					match rating.write_all(serde_json::to_string_pretty(&json).unwrap().as_bytes()) {
 						Err(e) => {
-							println!("Config>Set>Rating>File>Write Error [{}]: {:?}", RATING_CONF_PATH, e);
+							info!("Config>Set>Rating>File>Write Error [{}]: {:?}", RATING_CONF_PATH, e);
 						}
 						_ => {}
 					}
 				}
 					else {
-						println!("Config>Set>Rating>File>Open Error [{}]", RATING_CONF_PATH);
+						info!("Config>Set>Rating>File>Open Error [{}]", RATING_CONF_PATH);
 					}
 			}
 		};

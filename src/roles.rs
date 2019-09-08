@@ -224,7 +224,7 @@ pub fn role_ruler_text(server_id: u64, user_id: u64, cmd: RoleR) -> String{
 }
 
 pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
-//	println!("SERV ID [{}]", server_id);
+//	info!("SERV ID [{}]", server_id);
 	let mut answer: Vec<RoleChange> = Vec::new();
 
 	match cmd{
@@ -234,7 +234,7 @@ pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
 
 			for (id_conf_serv, val) in RoleConf::servers_iter(){
 				let id_conf_serv: u64 = id_conf_serv.parse::<u64>().unwrap();
-//				println!("---\n {}\n---\n{}\n---\n",id_conf_serv, serde_json::to_string_pretty(&val).unwrap());
+//				info!("---\n {}\n---\n{}\n---\n",id_conf_serv, serde_json::to_string_pretty(&val).unwrap());
 				let conf = RoleConf{
 					val: val
 				};

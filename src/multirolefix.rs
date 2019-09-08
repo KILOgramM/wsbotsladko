@@ -120,7 +120,7 @@ pub fn load_btag_data_multirole(btag: String, reg: String, plat: String, req:Her
 
 
 	if mode_debug{
-		println!("Start: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
+		info!("Start: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
 	}
 
 
@@ -135,12 +135,12 @@ pub fn load_btag_data_multirole(btag: String, reg: String, plat: String, req:Her
 				Ok(text) =>{
 					result = Some(text);}
 				Err(e) => {
-					println!("[load_btag_data] Error while take body:\n{}", e);
+					info!("[load_btag_data] Error while take body:\n{}", e);
 				}
 			}
 		}
 		Err(e) => {
-			println!("[load_btag_data] Error while get responce from url. Probaly wrong url:\n{}", e);
+			info!("[load_btag_data] Error while get responce from url. Probaly wrong url:\n{}", e);
 		}
 	}
 
@@ -165,7 +165,7 @@ pub fn load_btag_data_multirole(btag: String, reg: String, plat: String, req:Her
 		}
 
 //        if mode_debug{
-//            println!("Get rating: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
+//            info!("Get rating: {:?}", SystemTime::now().duration_since(sys_time_old).unwrap());
 //        }
 
 		if body.contains("masthead-permission-level-text\">Private Profile<"){
@@ -380,7 +380,7 @@ pub fn load_btag_data_multirole(btag: String, reg: String, plat: String, req:Her
 			}
 
 			if mode_debug {
-				println!("End: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #19"));
+				info!("End: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #19"));
 			}
 			return Full(b_data);
 		}
@@ -388,7 +388,7 @@ pub fn load_btag_data_multirole(btag: String, reg: String, plat: String, req:Her
 	}
 	else{
 		if mode_debug{
-			println!("End None: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #20"));
+			info!("End None: {:?}", SystemTime::now().duration_since(sys_time_old).expect("Err #20"));
 		}
 		return NotFound;
 	}

@@ -14,7 +14,7 @@ fn show_role_prce_resulte(){
 	);
 	if let OwData::Full(bdata) = answer{
 		let rating = bdata.rating;
-//		println!("{:#?}",rating);
+//		info!("{:#?}",rating);
 		assert_eq!((None,None,Some(3008u16)),(rating.tank,rating.damage,rating.support))
 	}
 	else {

@@ -46,7 +46,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
     //переменные
 
     let gateway = get_gate();
-    println!("[WebSocket Core] Gate: {}", &gateway);
+    info!("[WebSocket Core] Gate: {}", &gateway);
 
     let mut client = ClientBuilder::new(gateway.as_str())
         .expect("[WebSocket Core] Make Client Builder")
@@ -60,12 +60,12 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
         client.stream_ref().as_tcp().set_keepalive(Some(Duration::from_millis(300))).expect("[WebSocket Core] Set Keepalive");
 	}
 //
-//    println!("[WebSocket Core] read_timeout is: {:?}", client.stream_ref().as_tcp().read_timeout());
-//    println!("[WebSocket Core] keepalive is: {:?}", client.stream_ref().as_tcp().keepalive_ms());
+//    info!("[WebSocket Core] read_timeout is: {:?}", client.stream_ref().as_tcp().read_timeout());
+//    info!("[WebSocket Core] keepalive is: {:?}", client.stream_ref().as_tcp().keepalive_ms());
     let (cha_se, reciv_inner) = channel::<OwnedMessage>();
 
 
-    println!("[WebSocket Core] Connection established");
+    info!("[WebSocket Core] Connection established");
 
     let mut hbeat = HBeat::new();
     let mut state = Core::Ok;
@@ -147,7 +147,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                         if let Core::Reconect = state{
                         }
                         else {
-                            println!("[WebSocket Core] Connection closed ({}): {:?}",extime::now().ctime(), e);
+                            info!("[WebSocket Core] Connection closed ({}): {:?}",extime::now().ctime(), e);
                         }
                     }
 
@@ -172,14 +172,14 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
             let mes = OwnedMessage::Text(serde_json::to_string(&data).expect("[WebSocket Core] Serialize HBeat Message"));
             match client.send_message(&mes) {
                 Ok(()) => {
-//                    println!("[WebSocket Core] Send HBeat");
+//                    info!("[WebSocket Core] Send HBeat");
                     hbeat.refresh();
                 }
                 Err(e) => {
-                    println!("[WebSocket Core] Send Err1 ({}): {:?}",extime::now().ctime(), e);
+                    info!("[WebSocket Core] Send Err1 ({}): {:?}",extime::now().ctime(), e);
                     if let WebSocketError::IoError(err) = e {
                         if let ErrorKind::ConnectionAborted = err.kind(){
-                            println!("[WebSocket Core] Try reconect");
+                            info!("[WebSocket Core] Try reconect");
                             let _ = client.shutdown();
                             client = ClientBuilder::new(gateway.as_str())
                                 .expect("[WebSocket Core] Make Client Builder for Reconect")
@@ -187,7 +187,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                                 .expect("[WebSocket Core] Make Connection for Reconect");
                             last_seq = None;
                             session_id = None;
-                            //println!("[WebSocket Core] Reconection success");
+                            //info!("[WebSocket Core] Reconection success");
                             continue;
                         }
                     }
@@ -216,7 +216,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                 match client.send_message(&mes) {
                     Ok(()) => (),
                     Err(e) => {
-                        println!("[WebSocket Core] Send Loop2: {:?}", e);
+                        info!("[WebSocket Core] Send Loop2: {:?}", e);
                         return;
                     }
                 }
@@ -243,7 +243,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                             continue;
                         }
                         Err(e) => {
-                            println!("[WebSocket Core] Send Err3: {:?}", e);
+                            info!("[WebSocket Core] Send Err3: {:?}", e);
                             return;
                         }
                     }
@@ -260,7 +260,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                         continue;
                     }
                     Err(e) => {
-                        println!("[WebSocket Core] Send Err4: {:?}", e);
+                        info!("[WebSocket Core] Send Err4: {:?}", e);
                         return;
                     }
                 }
@@ -279,7 +279,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                 }
                 last_seq = None;
                 session_id = None;
-                println!("[WebSocket Core] Reconection success ({})", extime::now().ctime());
+                info!("[WebSocket Core] Reconection success ({})", extime::now().ctime());
                 hbeat.start();
                 hbeat.refresh();
                 continue;
@@ -297,7 +297,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                         continue;
                     }
                     Err(e) => {
-                        println!("[WebSocket Core] Send Err4: {:?}", e);
+                        info!("[WebSocket Core] Send Err4: {:?}", e);
                         dc_shell.send(UniChanel::Close);
                         return;
                     }
@@ -351,7 +351,7 @@ pub fn shell(dc_global: DoubleChanel<GlobE>){
 }
 
 fn get_gate() -> String {
-    //println!("Get frome {}", GETGATEWAY);
+    //info!("Get frome {}", GETGATEWAY);
 
     match reqwest::get(GETGATEWAY){
         Ok(mut resp) => {
@@ -440,5 +440,5 @@ fn event_eater(ev: String) {
                 }
             }
         }
-        println!("{}\n\n", mess);
+        info!("{}\n\n", mess);
 }

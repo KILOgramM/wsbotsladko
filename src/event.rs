@@ -50,7 +50,7 @@ impl EventH{
                     let sender = sender.deref();
                     match sender.send(enm){
                         Err(_) => {
-                            println!("Event_Engine>Sender Error while send data");
+                            info!("Event_Engine>Sender Error while send data");
                         }
                         _ => {}
                     }
@@ -177,11 +177,11 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
                         COLLATE=utf8mb4_unicode_ci"#);
                     let mut conn = POOL.get_conn().unwrap();
                     let _ = conn.query(call);
-                    println!("EventEng>try to create Table");
+                    info!("EventEng>try to create Table");
                 }
-                println!("EventEng>pool Error on call[{}]: {:?}", call, my);
+                info!("EventEng>pool Error on call[{}]: {:?}", call, my);
             }
-                else { println!("EventEng>pool Error on call[{}]", call);}
+                else { info!("EventEng>pool Error on call[{}]", call);}
         }
         Ok(mut stmt) => {
             for row in stmt.execute(()).unwrap() {
@@ -190,7 +190,7 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
                 match serde_json::from_str(string.as_str()){
                     Ok(ls) => {let _ = list.insert(name, ls);}
                     Err(e) => {
-                        println!("EventEng>serde Error on [{}]: {:?}", name, e);
+                        info!("EventEng>serde Error on [{}]: {:?}", name, e);
                     }
                 }
             }
@@ -246,7 +246,7 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
 
     }
 
-    //println!("Event start loop");
+    //info!("Event start loop");
     loop{
 
         match reseiv.recv_timeout(sleep_time){
@@ -273,7 +273,7 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
                         call = format!("{} data='{}'", call, json);
                         let mut conn = POOL.get_conn().unwrap();
                         if let Err(e) = conn.query(call){
-                            println!("Event>Add MySQL Err: {}", e);
+                            info!("Event>Add MySQL Err: {}", e);
                         }
                         let _ = list.remove(&name);
                         let _ = list.insert(name.clone(), eventdata);
@@ -283,14 +283,14 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
                         let mut call = format!("DELETE FROM events WHERE name='{}'",name);
                         let mut conn = POOL.get_conn().unwrap();
                         if let Err(e) = conn.query(call){
-                            println!("Event>Rem Err: {}", e);
+                            info!("Event>Rem Err: {}", e);
                         }
                         let _ = list.remove(&name);
-                        println!("Event {} removed", name);
+                        info!("Event {} removed", name);
                     }
 
                     EventChanel::Check =>{
-                        println!("Event>Check done");
+                        info!("Event>Check done");
                     }
 
                     EventChanel::RecalcEventTime(name) =>{
@@ -322,7 +322,7 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
 
                         match sender.send(EventChanelBack::List(l)){
                             Err(_) => {
-                                println!("Event_Engine>Sender Error while send data");
+                                info!("Event_Engine>Sender Error while send data");
                             }
                             _ => {}
                         }
@@ -330,7 +330,7 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
                 }
             }
             Err(RecvTimeoutError::Disconnected) =>{
-                println!("EventEng>chanel disconected, cancel thread");
+                info!("EventEng>chanel disconected, cancel thread");
                 return;
             }
             _ => {}
@@ -358,10 +358,10 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
             let mut call = format!("DELETE FROM events WHERE name='{}'",rem);
             let mut conn = POOL.get_conn().unwrap();
             if let Err(e) = conn.query(call){
-                println!("Event>Rem Err: {}", e);
+                info!("Event>Rem Err: {}", e);
             }
             let _ = list.remove(&rem);
-            println!("Event {} removed", rem);
+            info!("Event {} removed", rem);
         }
 
     }
@@ -389,7 +389,7 @@ impl EventData{
         };
         data.calc_next();
         data.calc_chanel_id();
-        println!("New event: {}", data.name.clone());
+        info!("New event: {}", data.name.clone());
         data
     }
 
@@ -412,7 +412,7 @@ impl EventData{
         if let Some(name) = self.calc_next(){
             output = format!("{}\nInfo: {:?}",output, &self.event_type);
             output = format!("{}\n-----------",output);
-            println!("{}",output);
+            info!("{}",output);
             return Some(name);
         }
         if let Some(ref next) = self.next_activ{
@@ -420,7 +420,7 @@ impl EventData{
         }
         output = format!("{}\nInfo: {:?}",output, &self.event_type);
         output = format!("{}\n-----------",output);
-        println!("{}",output);
+        info!("{}",output);
         return None;
     }
 
@@ -680,7 +680,7 @@ impl EventData{
 
             for t in time_list.clone(){
                 if time_min.0.sec > t.0.sec{
-                    time_min = &t;
+                    time_min = t;
                     check = true;
                 }
             }
@@ -710,7 +710,7 @@ impl EventData{
             call = format!("{} data='{}'", call, json);
             let mut conn = POOL.get_conn().unwrap();
             if let Err(e) = conn.query(call){
-                println!("Event>Add MySQL Err: {}", e);
+                info!("Event>Add MySQL Err: {}", e);
             }
             return None;
         }
@@ -769,7 +769,7 @@ fn match_func(name: String, event_type: EventType){
                                     }
                                 }
                                 else {
-                                    println!("Event>no server data in event: {}", name);
+                                    info!("Event>no server data in event: {}", name);
                                 }
                             }
                         };
@@ -777,7 +777,7 @@ fn match_func(name: String, event_type: EventType){
                     }
             }
                 else {
-                    println!("Event>embed not found: {}", embed);
+                    info!("Event>embed not found: {}", embed);
                 }
 
         }
@@ -799,13 +799,13 @@ fn match_func(name: String, event_type: EventType){
                         let mut call = format!("DELETE FROM lfg WHERE did={}",lfg.did);
                         let mut conn = POOL.get_conn().unwrap();
                         if let Err(e) = conn.query(call){
-                            println!("lfg_rem Err: {}", e);
+                            info!("lfg_rem Err: {}", e);
                         }
                         DB.remove_lfg(lfg.did);
                     }
                 }
             }
-            println!("LFG Cleaning End");
+            info!("LFG Cleaning End");
         }
         */
 
@@ -833,7 +833,7 @@ pub fn rating_updater(){
         obj_kills: false,
     };
 
-    let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #1");
+    let mut conn: mysql::PooledConn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #1");
     let command = format!("SELECT did, btag, plat FROM users");
     let mut stmt = conn.prepare(command).expect("Err in rating_updater on conn.prepare() #2");
 
@@ -857,7 +857,7 @@ pub fn rating_updater(){
                 let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #7");
                 let _ = conn.query(call);
                 let _ = role_ruler(WSSERVER,did,RoleR::rating(0));
-                println!("[{}] Rating of {} now {}", extime::now().ctime(),btag,0);
+                info!("[{}] Rating of {} now {}", extime::now().ctime(),btag,0);
                 counter_bad_btag += 1;
             }
             OwData::ClosedProfile {
@@ -868,7 +868,7 @@ pub fn rating_updater(){
                 let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #7");
                 let _ = conn.query(call);
                 let _ = role_ruler(WSSERVER,did,RoleR::rating(0));
-                println!("[{}] Rating of {} now {} [Closed profile]", extime::now().ctime(),btag,0);
+                info!("[{}] Rating of {} now {} [Closed profile]", extime::now().ctime(),btag,0);
                 counter_close_prof += 1;
             },
             OwData::Full(BData) => {
@@ -878,7 +878,7 @@ pub fn rating_updater(){
                 let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #6");
                 let _ = conn.query(call);
                 let _ = role_ruler(WSSERVER,did,RoleR::rating(BData.rating.higest_rating()));
-                println!("[{}] Rating of {} now {}", extime::now().ctime(),btag,BData.rating.as_simple_str());
+                info!("[{}] Rating of {} now {}", extime::now().ctime(),btag,BData.rating.as_simple_str());
                 counter_ok += 1;
             }
         }
@@ -900,7 +900,7 @@ pub fn rating_updater(){
     output = format!("{}\nWrong BTag: {}",output, counter_bad_btag);
     output = format!("{}\nClosed Profiles: {}",output, counter_close_prof);
     output = format!("{}\n-----------",output);
-    println!("{}",output);
+    info!("{}",output);
 
 }
 
@@ -925,7 +925,7 @@ fn get_chanel_id(server: Option<String>, serverId: Option<u64>, chanel: String) 
                 }
             }
         }
-        println!("{}room not found (by server Id)",err_str);
+        info!("{}room not found (by server Id)",err_str);
     }
 
     if let Some(servername) = server{
@@ -941,10 +941,10 @@ fn get_chanel_id(server: Option<String>, serverId: Option<u64>, chanel: String) 
                             }
                         }
                     }
-                    println!("{}room not found (by server name)",err_str);
+                    info!("{}room not found (by server name)",err_str);
                     return None;
                 }
-                println!("{}server not found",err_str);
+                info!("{}server not found",err_str);
                 return None;
             }
         }

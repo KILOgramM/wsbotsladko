@@ -72,12 +72,12 @@ impl Global{
                         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"#);
                         let mut conn = POOL.get_conn().unwrap();
                         let _ = conn.query(call);
-                        println!("DB>ini>LFG>try to create Table");
+                        info!("DB>ini>LFG>try to create Table");
                         return;
                     }
-                    println!("DB>ini>LFG>pool Error on call[{}]: {:?}", call, my);
+                    info!("DB>ini>LFG>pool Error on call[{}]: {:?}", call, my);
                 }
-                    else { println!("DB>ini>LFG>pool Error on call[{}]", call);}
+                    else { info!("DB>ini>LFG>pool Error on call[{}]", call);}
             }
             Ok(mut stmt) => {
                 for row in stmt.execute(()).unwrap() {
@@ -92,7 +92,7 @@ impl Global{
                                     l.push(ls);
                                 }
                                 Err(e) => {
-                                    println!("DB>ini>LFG>serde Error on [{}]: {:?}", did, e);
+                                    info!("DB>ini>LFG>serde Error on [{}]: {:?}", did, e);
                                 }
                             }
                         }
@@ -122,7 +122,7 @@ impl Global{
                             call = format!("{} data='{}'", call, json);
                             let mut conn = POOL.get_conn().unwrap();
                             if let Err(e) = conn.query(call){
-                                println!("ini_lfg>lfg_edit Err: {}", e);
+                                info!("ini_lfg>lfg_edit Err: {}", e);
                             }
                             l.push(lfg);
                         }
@@ -141,7 +141,7 @@ impl Global{
                 _ => {}
             }
         }
-        println!("\'LFG\' list ini done");
+        info!("\'LFG\' list ini done");
     }
 */
 
@@ -160,12 +160,12 @@ impl Global{
                         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"#);
                         let mut conn = POOL.get_conn().unwrap();
                         let _ = conn.query(call);
-                        println!("DB>ini>Chat>try to create Table");
+                        info!("DB>ini>Chat>try to create Table");
                         return;
                     }
-                    println!("DB>ini>Chat>pool Error on call[{}]: {:?}", call, my);
+                    info!("DB>ini>Chat>pool Error on call[{}]: {:?}", call, my);
                 }
-                else { println!("DB>ini>Chat>pool Error on call[{}]", call);}
+                else { info!("DB>ini>Chat>pool Error on call[{}]", call);}
 
             }
             Ok(mut stmt) => {
@@ -174,7 +174,7 @@ impl Global{
                     match serde_json::from_str(string.as_str()){
                         Ok(c) => {ch.push((did,c));}
                         Err(e) => {
-                            println!("DB>ini>Chat>serde Error on [{}]: {:?}", did, e);
+                            info!("DB>ini>Chat>serde Error on [{}]: {:?}", did, e);
                         }
                     }
                 }
@@ -190,7 +190,7 @@ impl Global{
             _ => {}
         }
 
-        println!("\'Chat\' list ini done");
+        info!("\'Chat\' list ini done");
     }
     */
 
@@ -212,14 +212,14 @@ impl Global{
 
         match path {
             None => {
-                println!("DB>ini>Embed>File>Open Error [embed.ws]");
+                info!("DB>ini>Embed>File>Open Error [embed.ws]");
             }
             Some(mut f) => {
                 let mut raw = String::new();
 
                 match f.read_to_string(&mut raw) {
                     Err(e) => {
-                        println!("DB>ini>Embed>File>Read Error [embed.ws]: {:?}", e);
+                        info!("DB>ini>Embed>File>Read Error [embed.ws]: {:?}", e);
                     }
                     _ => {
 
@@ -237,7 +237,7 @@ impl Global{
                                             value_name = None;
                                         }
                                         Err(e) => {
-                                            println!("DB>ini>Embed>serde Error on [{}]: {:?}", name, e);
+                                            info!("DB>ini>Embed>serde Error on [{}]: {:?}", name, e);
                                             value_txt = String::new();
                                             value_name = None;
                                         }
@@ -256,7 +256,7 @@ impl Global{
                                     emb.push((name,embed));
                                 }
                                 Err(e) => {
-                                    println!("DB>ini>Embed>serde Error on [{}]: {:?}", name, e);
+                                    info!("DB>ini>Embed>serde Error on [{}]: {:?}", name, e);
                                 }
                             }
                         }
@@ -269,7 +269,7 @@ impl Global{
                             _ => {}
                         }
 
-                        println!("\'Embed\' list ini done");
+                        info!("\'Embed\' list ini done");
                     }
                 }
 
@@ -370,7 +370,7 @@ impl Global{
     pub fn send_embed(&self, name: &str, chanel: u64){
         match self.get_embed(name){
             None => {
-                println!("Embed [{}] not found", name);
+                info!("Embed [{}] not found", name);
             }
             Some(embed) => {
                 embed_from_value(chanel,embed);
@@ -548,7 +548,7 @@ impl Global{
                 call = format!("{} data='{}'", call, json);
                 let mut conn = POOL.get_conn().unwrap();
                 if let Err(e) = conn.query(call.clone()){
-                    println!("set_chat Error in call [{}]:\n{}", call, e);
+                    info!("set_chat Error in call [{}]:\n{}", call, e);
                 }
             }
             _ => {}
@@ -575,7 +575,7 @@ impl Global{
                 let mut call = format!("DELETE FROM chat WHERE did={}",id);
                 let mut conn = POOL.get_conn().unwrap();
                 if let Err(e) = conn.query(call.clone()){
-                    println!("rem_chat Error in call [{}]:\n{}",call, e);
+                    info!("rem_chat Error in call [{}]:\n{}",call, e);
                 }
 
             }
@@ -847,7 +847,7 @@ pub fn lfg_none(mes: DMessage){
 
                             if let Err(e) = embed(mes.channel_id,"","Удалить объявление из базы?","(Y/N/Отмена)",String::new(),color,
                                                   (String::new(),""),vec,("","",""),String::new(),String::new()){
-                                println!("Message Error: {:?}", e);
+                                info!("Message Error: {:?}", e);
                             }*/
                             return;
                         }
@@ -938,7 +938,7 @@ pub fn lfg_none(mes: DMessage){
 
             if let Err(e) = embed(mes.channel_id,"","У вас уже размещено объявление","Хотете изменить? (Y/N/Отмена)",String::new(),color,
                                   (String::new(),""),vec,("","",""),String::new(),String::new()){
-                println!("Message Error: {:?}", e);
+                info!("Message Error: {:?}", e);
             }*/
             return;
 
@@ -1030,7 +1030,7 @@ fn lfg_rem(chanel: u64,id: u64){
             let mut call = format!("DELETE FROM lfg WHERE did={}",id);
             let mut conn = POOL.get_conn().unwrap();
             if let Err(e) = conn.query(call){
-                println!("lfg_rem Err: {}", e);
+                info!("lfg_rem Err: {}", e);
             }
             DB.remove_lfg(id);
         }
@@ -1096,7 +1096,7 @@ fn lfg_add(lfg: LFG){
     call = format!("{} data='{}'", call, json);
     let mut conn = POOL.get_conn().unwrap();
     if let Err(e) = conn.query(call){
-        println!("lfg_add Err: {}", e);
+        info!("lfg_add Err: {}", e);
     }
 
     DB.push_lfg(lfg);
@@ -1257,7 +1257,7 @@ pub fn event_add(mut data: String){
                 }
 
                 "room" => {
-                    println!("room - {}",&opt_par);
+                    info!("room - {}",&opt_par);
                     room = opt_par;
                 }
 

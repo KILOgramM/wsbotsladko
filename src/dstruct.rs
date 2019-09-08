@@ -233,7 +233,7 @@ impl Drop for DiscordMain{
                             }
                         }
                     }
-//                    println!("Перезапуск {}", extime::now().ctime());
+//                    info!("Перезапуск {}", extime::now().ctime());
 
 
                 }
