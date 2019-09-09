@@ -30,6 +30,7 @@ use crate::denum::Event;
 
 const GETGATEWAY: &'static str = "https://discordapp.com/api/v6/gateway";
 
+#[derive(PartialEq)]
 enum Core{
     Ok,
     SendIdentify,
@@ -38,6 +39,7 @@ enum Core{
     ResumeProceed,
     ReconectClose,
     Reconect,
+    ReconnectProceed,
     CloseConfirm,
 }
 
@@ -56,7 +58,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
     //
 	{
         use net2::TcpStreamExt;
-        client.stream_ref().as_tcp().set_read_timeout(Some(Duration::from_millis(50))).expect("[WebSocket Core] Set Read Timeout");
+        client.stream_ref().as_tcp().set_read_timeout(Some(Duration::from_millis(150))).expect("[WebSocket Core] Set Read Timeout");
         client.stream_ref().as_tcp().set_keepalive(Some(Duration::from_millis(300))).expect("[WebSocket Core] Set Keepalive");
 	}
 //
@@ -75,7 +77,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
 
 
     //цикл
-    loop {
+    'coreloop: loop{
 
         //recieve
         match client.recv_message() {
@@ -95,39 +97,62 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                                         if let Some(id) = v["d"]["session_id"].as_str(){
                                             session_id = Some(id.to_string());
                                         }
-                                    }
-                                    Some("RESUMED") => {
                                         state = Core::Ok;
                                     }
-                                    Some(_) => {
+                                    Some("RESUMED") => {
+                                        info!("[WebSocket Core] Discord Connection Resumed successfully");
+                                        state = Core::Ok;
                                     }
-                                    None => {}
+                                    _ => {
+                                        state = Core::Ok;
+                                    }
+
                                 }
 	                            if let Some(s) = v["s"].as_u64(){
 		                            last_seq = Some(s);
 	                            }
 
                             }
-                            Some(1) => {}
                             Some(7) => {
-
+                                info!("[WebSocket Core] Discord ask to reconnect");
+                                hbeat.stop();
+                                state = Core::ReconectClose;
                             }
                             Some(9) => {
-	                            match v["t"].as_bool(){
-		                            Some(true) => {
-                                        state = Core::Resume;
-		                            }
-		                            _ => {
-                                        hbeat.stop();
-                                        state = Core::ReconectClose;
+                                info!("[WebSocket Core] Discord Invalid Session Reconnecting in 5 sec");
+                                thread::sleep(Duration::from_secs(5));
+                                if state == Core::Reconect || state == Core::ReconnectProceed {
+                                    session_id = None;
+                                    hbeat.stop();
+                                    state = Core::ReconectClose;
+                                }
+                                else {
+                                    match v["t"].as_bool(){
+                                        Some(true) => {
+                                            hbeat.stop();
+                                            state = Core::ReconectClose;
+                                        }
+                                        _ => {
+                                            session_id = None;
+                                            hbeat.stop();
+                                            state = Core::ReconectClose;
+                                        }
                                     }
-	                            }
+                                }
+
                             }
                             Some(10) => {
+                                info!("[WebSocket Core] Discord Hello Message");
                                 if let Some(hb) = v["d"]["heartbeat_interval"].as_u64() {
                                     hbeat.set(hb);
                                 }
-                                state = Core::SendIdentify;
+
+                                match state {
+                                    Core::ReconnectProceed => {}
+                                    Core::Reconect => {}
+                                    _ => {state = Core::SendIdentify;}
+                                }
+                                continue 'coreloop;
                             }
                             Some(11) => {continue;}
                             _ => {}
@@ -145,9 +170,14 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                             return;
                         }
                         if let Core::Reconect = state{
+
                         }
                         else {
-                            info!("[WebSocket Core] Connection closed ({}): {:?}",extime::now().ctime(), e);
+                            error!("[WebSocket Core] Connection closed: {:?}", e);
+                            info!("[WebSocket Core] WebSocket Retry in 5 sec");
+                            thread::sleep(Duration::from_secs(5));
+                            state = Core::Reconect;
+
                         }
                     }
 
@@ -156,7 +186,39 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                 }
 
             },
-            Err(_) => {
+            Err(e) => {
+                match &e {
+                    WebSocketError::IoError(err) => {
+                        if err.kind() == ErrorKind::TimedOut{
+                        }
+                        else {
+                            match state {
+                                Core::Reconect => {}
+                                Core::ReconectClose => {}
+                                _ => {
+                                    error!("[WebSocket Core] WebSocket Error: {:?}", e);
+                                    info!("[WebSocket Core] WebSocket Retry in 5 sec");
+                                    thread::sleep(Duration::from_secs(5));
+                                    state = Core::Reconect;
+                                    hbeat.stop();
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        match state {
+                            Core::Reconect => {}
+                            Core::ReconectClose => {}
+                            _ => {
+                                error!("[WebSocket Core] WebSocket Error: {:?}", &e);
+                                info!("[WebSocket Core] WebSocket Retry in 5 sec");
+                                thread::sleep(Duration::from_secs(5));
+                                state = Core::Reconect;
+                                hbeat.stop();
+                            }
+                        }
+                    }
+                }
             }
         };
 
@@ -197,7 +259,6 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
         }
 
 
-
         match state{
             Core::SendIdentify => {
                 let data = json!({
@@ -220,35 +281,15 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                         return;
                     }
                 }
-                state = Core::SendIdentifyProceed;
-                continue;
+                state =Core::SendIdentifyProceed;
+                continue 'coreloop;
             }
             Core::Resume => {
                 if let Some(ref id) = session_id{
-                    let mut data = json!({
-                                        "op": 6,
-                                        "d": {
-                                            "token": Discord::token(),
-                                            "session_id": id.as_str(),
-                                            "seq": null
-                                        }
-                                    });
-                    if let Some(n) = last_seq{
-                        *data.get_mut("d").expect("[WebSocket Core] Get data in Resume").get_mut("seq").expect("[WebSocket Core] Get Seq in data in Resume") = json!(n);
-                    }
-                    let mes = OwnedMessage::Text(serde_json::to_string(&data).expect("[WebSocket Core] Serialize Resume Message"));
-                    match client.send_message(&mes) {
-                        Ok(()) => {
-                            state = Core::ResumeProceed;
-                            continue;
-                        }
-                        Err(e) => {
-                            info!("[WebSocket Core] Send Err3: {:?}", e);
-                            return;
-                        }
-                    }
+
                 }
-                panic!("[WebSocket Core] Cannot resume connection");
+                warn!("[WebSocket Core] Cannot resume connection. Reconnecting");
+                state = Core::ReconectClose;
             }
             Core::Ok => {}
             Core::ReconectClose => {
@@ -257,7 +298,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                 match client.send_message(&mes) {
                     Ok(()) => {
                         state = Core::Reconect;
-                        continue;
+                        continue 'coreloop;
                     }
                     Err(e) => {
                         info!("[WebSocket Core] Send Err4: {:?}", e);
@@ -279,10 +320,35 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                 }
                 last_seq = None;
                 session_id = None;
-                info!("[WebSocket Core] Reconection success ({})", extime::now().ctime());
+                info!("[WebSocket Core] Reconection success");
                 hbeat.start();
                 hbeat.refresh();
-                continue;
+                if let Some(ref id) = session_id{
+                    let mut data = json!({
+                                        "op": 6,
+                                        "d": {
+                                            "token": Discord::token(),
+                                            "session_id": id.as_str(),
+                                            "seq": null
+                                        }
+                                    });
+                    if let Some(n) = last_seq{
+                        *data.get_mut("d").expect("[WebSocket Core] Get data in Resume").get_mut("seq").expect("[WebSocket Core] Get Seq in data in Resume") = json!(n);
+                    }
+                    let mes = OwnedMessage::Text(serde_json::to_string(&data).expect("[WebSocket Core] Serialize Resume Message"));
+                    match client.send_message(&mes) {
+                        Ok(()) => {
+                            state = Core::ResumeProceed;
+                            continue 'coreloop;
+                        }
+                        Err(e) => {
+                            info!("[WebSocket Core] Send Err3: {:?}", e);
+                            return;
+                        }
+                    }
+                }
+                state = Core::ReconnectProceed;
+                continue 'coreloop;
             }
             _ => {}
         }
@@ -307,7 +373,6 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
         }
 
     }
-
 }
 
 pub fn shell(dc_global: DoubleChanel<GlobE>){
