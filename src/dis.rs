@@ -97,10 +97,12 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                                         if let Some(id) = v["d"]["session_id"].as_str(){
                                             session_id = Some(id.to_string());
                                         }
+                                        hbeat.start();
                                         state = Core::Ok;
                                     }
                                     Some("RESUMED") => {
                                         info!("[WebSocket Core] Discord Connection Resumed successfully");
+                                        hbeat.start();
                                         state = Core::Ok;
                                     }
                                     _ => {
@@ -145,6 +147,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                                 info!("[WebSocket Core] Discord Hello Message");
                                 if let Some(hb) = v["d"]["heartbeat_interval"].as_u64() {
                                     hbeat.set(hb);
+                                    hbeat.start();
                                 }
 
                                 match state {
