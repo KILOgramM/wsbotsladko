@@ -151,11 +151,11 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                                 }
 
                                 match state {
-                                    Core::ReconnectProceed => {}
-                                    Core::Reconect => {}
+                                    Core::ReconnectProceed => {continue 'coreloop;}
+                                    Core::Reconect => {continue 'coreloop;}
                                     _ => {state = Core::SendIdentify;}
                                 }
-                                continue 'coreloop;
+
                             }
                             Some(11) => {continue;}
                             _ => {}
