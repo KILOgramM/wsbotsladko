@@ -168,19 +168,23 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
 
                     OwnedMessage::Close(e) => {
                         hbeat.stop();
-                        if let Core::CloseConfirm = state{
-                            dc_shell.send(UniChanel::Close);
-                            return;
-                        }
-                        if let Core::Reconect = state{
-
-                        }
-                        else {
-                            error!("[WebSocket Core] Connection closed: {:?}", e);
-                            info!("[WebSocket Core] WebSocket Retry in 5 sec");
-                            thread::sleep(Duration::from_secs(5));
-                            state = Core::Reconect;
-
+                        match state {
+                            Core::CloseConfirm => {
+                                dc_shell.send(UniChanel::Close);
+                                return;
+                            }
+                            Core::Reconect => {}
+                            Core::ReconnectProceed => {
+                                session_id = None;
+                                hbeat.stop();
+                                state = Core::ReconectClose;
+                            }
+                            _ => {
+                                error!("[WebSocket Core] Connection closed: {:?}", e);
+                                info!("[WebSocket Core] WebSocket Retry in 5 sec");
+                                thread::sleep(Duration::from_secs(5));
+                                state = Core::Reconect;
+                            }
                         }
                     }
 
@@ -208,6 +212,7 @@ fn core(dc_shell: DoubleChanel<UniChanel>){
                             }
                         }
                     }
+                    WebSocketError::NoDataAvailable => {}
                     _ => {
                         match state {
                             Core::Reconect => {}
