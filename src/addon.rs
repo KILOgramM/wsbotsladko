@@ -31,12 +31,17 @@ use crate::EmbedStruct;
 use crate::dstruct::DMessage;
 use crate::dstruct::DUser;
 use crate::OwData;
+use crate::dishandler::send_value;
+
+use serenity::model::id::ChannelId;
+use serenity::cache::CacheRwLock;
+use serenity::http::raw::Http;
 
 
 lazy_static!{
     pub static ref DB: Global = Global::new();
 }
-
+//pub static DB: Global = DataB;
 
 pub struct Global{
 //    pub lfg: RwLock<Vec<LFG>>,
@@ -367,14 +372,13 @@ impl Global{
     }
 */
 
-    pub fn send_embed(&self, name: &str, chanel: u64){
+    pub fn send_embed(&self, cache: impl AsRef<Http>, name: &str, chanel: ChannelId){
         match self.get_embed(name){
             None => {
                 info!("Embed [{}] not found", name);
             }
             Some(embed) => {
-                embed_from_value(chanel,embed);
-
+                send_value(cache,embed,chanel);
             }
         }
 
@@ -429,7 +433,7 @@ impl Global{
         }
     }
 */
-
+/*
     pub fn new_temp(&self, data: TempData) -> u32{
         extern crate rand;
         use std::ops::DerefMut;
@@ -513,7 +517,7 @@ impl Global{
         }
 
     }
-
+*/
     /*
     pub fn set_chat(&self, id: u64, chat_new: Chat){
         use std::ops::DerefMut;
@@ -1397,6 +1401,7 @@ pub fn event_add(mut data: String){
 
 }
 
+/*
 fn match_merge(chanel: u64, did: u64) -> String{
 
 //    let user = match DIS.create_private_channel(discord::model::UserId(did)){
@@ -1552,3 +1557,4 @@ if let Ok(chan) = DIS.get_channel(chanel){
         return format!("{}#{}", user.name, user.discriminator);
     }*/
 }
+*/

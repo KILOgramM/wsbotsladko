@@ -29,15 +29,17 @@ extern crate serde_derive;
 
 extern crate indexmap;
 
-extern crate native_tls;
-extern crate websocket;
-extern crate net2;
+//extern crate native_tls;
+//extern crate websocket;
+//extern crate net2;
 
 extern crate time as extime;
 
 #[macro_use]
 extern crate log;
 extern crate simplelog;
+
+extern crate serenity;
 //https://discordapp.com/api/oauth2/authorize?client_id=316281967375024138&scope=bot&permissions=0
 
 use regex::Regex;
@@ -45,6 +47,11 @@ use std::io::Read;
 use std::io::Write;
 use std::ops::Deref;
 use std::ops::Index;
+
+use serenity::client::Client;
+use serenity::http::raw::Http;
+use serenity::model::id::ChannelId;
+use dishandler::DisHandler;
 
 pub mod addon;
 pub mod conf;
@@ -56,8 +63,9 @@ pub mod multirolefix;
 
 pub mod denum;
 pub mod dstruct;
-pub mod dis;
+//pub mod dis;
 pub mod disapi;
+pub mod dishandler;
 
 #[cfg(test)]
 mod tests;
@@ -105,7 +113,7 @@ lazy_static! {
     static ref START_TIME: extime::Tm = extime::now();
     pub static ref EVENT: EventH = EventH::create();
 
-    pub static ref D: DiscordMain = DiscordMain::new(load_settings());
+//    pub static ref D: DiscordMain = DiscordMain::new(load_settings());
 }
 
 
@@ -1187,7 +1195,7 @@ fn reg_check(id: u64) -> bool //Проверка наличия профиля �
     return exist;
 }
 
-fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог создания профиля
+fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: ChannelId, cache: impl AsRef<Http>) //Диалог создания профиля
 {
     let err_color: u64 = 13369344;
     let err_title = ":no_entry: Упс...";
@@ -1275,19 +1283,30 @@ fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог со
                     //info!("rating: {}", rating);
                     thumbnail = BData.avatar_url.clone();
 
-                    let server_id = match Discord::get_chanel(chan){
-                        None => {0}
-                        Some(json) => {
-                            match json.get("guild_id"){
-                                None => {0}
-                                Some(jtext) => {
-                                    jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
-                                }
-                            }
-                        }
-                    };
 
-                    roleruler = role_ruler_text(server_id,
+                    let server_id = if let Ok(channel) = cache.as_ref().get_channel(chan.0){
+                        match channel.guild() {
+                            Some(guild_lock) => {
+                                guild_lock.read().guild_id.0
+                            },
+                            None => { 0u64 }
+                        }
+                    }
+                    else { 0u64 };
+//                    let server_id = match Discord::get_chanel(chan){
+//                        None => {0}
+//                        Some(json) => {
+//                            match json.get("guild_id"){
+//                                None => {0}
+//                                Some(jtext) => {
+//                                    jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
+//                                }
+//                            }
+//                        }
+//                    };
+
+                    roleruler = role_ruler_text(&cache,
+                                                server_id,
                                                 autor.id,
                                                 RoleR::rating(rating.higest_rating()));
                 }
@@ -1467,10 +1486,10 @@ fn reg_user(mut reg_str: Vec<&str>, autor: DUser, chan: u64) //Диалог со
 		.col(color)
 		.footer((String::new(),&roleruler))
 		.fields(fields)
-		.send(chan);
+		.send(cache, chan);
 }
 
-fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на запрос редактирования профиля
+fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: ChannelId, cache: impl AsRef<Http>) //Диалог на запрос редактирования профиля
 {
     let mut battletag: String = String::new();
     let mut region: String = String::new();
@@ -1599,21 +1618,36 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
 //                            rating = 0;
                         },
                         OwData::Full(ref BData) => {
+
                             rating = BData.rating.clone();
                             //info!("rating: {}", rating);
                             thumbnail = BData.avatar_url.clone();
-                            let server_id = match Discord::get_chanel(chan){
-                                None => {0}
-                                Some(json) => {
-                                    match json.get("guild_id"){
-                                        None => {0}
-                                        Some(jtext) => {
-                                            jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
+                            use serenity::model::channel::Channel;
+                            let server_id = match cache.as_ref().get_channel(chan.0){
+                                Ok(channel_enum) => {
+                                    match channel_enum {
+                                        Channel::Guild(c) =>{
+                                            c.read().guild_id.0
                                         }
+                                        _ => {0}
                                     }
                                 }
+                                _ => {0}
                             };
-                            roleruler = role_ruler_text(server_id,
+
+//                            let server_id = match Discord::get_chanel(chan){
+//                                None => {0}
+//                                Some(json) => {
+//                                    match json.get("guild_id"){
+//                                        None => {0}
+//                                        Some(jtext) => {
+//                                            jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
+//                                        }
+//                                    }
+//                                }
+//                            };
+                            roleruler = role_ruler_text(&cache,
+                                                        server_id,
                                                         autor.id,
                                                         RoleR::rating(rating.higest_rating()));
                         }
@@ -1764,7 +1798,7 @@ fn edit_user(mut reg_str: Vec<&str>, autor: DUser,chan: u64) //Диалог на
 		.col(color)
 		.footer((String::new(),&roleruler))
 		.fields(fields)
-		.send(chan);
+		.send(&cache,chan);
 }
 
 
@@ -1815,7 +1849,7 @@ fn get_arg_from_mes(mut reg_str: Vec<&str>) -> User{
     return u;
 }
 
-fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
+fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: ChannelId, cache: impl AsRef<Http>){
 
     let mut err_end = false;
 
@@ -1856,7 +1890,7 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
 		        .title(err_title)
 		        .des(botmess)
 		        .col(err_color)
-		        .send(chanel);
+		        .send(&cache, chanel);
 	        err_end = true;
 
         } else if u.btag == m.btag {
@@ -1872,7 +1906,7 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
 		            .title(err_title)
 		            .des(botmess)
 		            .col(err_color)
-		            .send(chanel);
+		            .send(&cache, chanel);
                 err_end = true;
 
             } else {
@@ -1891,7 +1925,7 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
 		            .title(err_title)
 		            .des(botmess)
 		            .col(err_color)
-		            .send(chanel);
+		            .send(&cache, chanel);
                 err_end = true;
             }
             true => {
@@ -1908,7 +1942,7 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
 		                .title(err_title)
 		                .des(botmess)
 		                .col(err_color)
-		                .send(chanel);
+		                .send(&cache, chanel);
                     err_end = true;
 
                 } else { update = true; }
@@ -1935,18 +1969,32 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
             }
         }
         if update {
-            let server_id = match Discord::get_chanel(chanel){
-                None => {0}
-                Some(json) => {
-                    match json.get("guild_id"){
-                        None => {0}
-                        Some(jtext) => {
-                            jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
+
+            use serenity::model::channel::Channel;
+            let server_id = match cache.as_ref().get_channel(chanel.0){
+                Ok(channel_enum) => {
+                    match channel_enum {
+                        Channel::Guild(c) =>{
+                            c.read().guild_id.0
                         }
+                        _ => {0}
                     }
                 }
+                _ => {0}
             };
-            roleruler = role_ruler_text(server_id,
+
+//            let server_id = match Discord::get_chanel(chanel){
+//                None => {0}
+//                Some(json) => {
+//                    match json.get("guild_id"){
+//                        None => {0}
+//                        Some(jtext) => {
+//                            jtext.as_str().unwrap_or("0").parse::<u64>().unwrap_or(0)
+//                        }
+//                    }
+//                }
+//            };
+            roleruler = role_ruler_text(&cache, server_id,
                        autor_id,
                        RoleR::rating(u.rtg.higest_rating()));
             update_in_db(u.clone());
@@ -1960,7 +2008,7 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
                     .title(err_title)
                     .des(botmess)
                     .col(err_color)
-                    .send(chanel);
+                    .send(&cache, chanel);
             }
             OwData::ClosedProfile {
                 btag, reg, plat, url, avatar_url
@@ -1973,7 +2021,7 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
                     .col(color)
                     .thumbnail(&avatar_url.clone())
                     .footer((String::new(),&roleruler))
-                    .send(chanel);
+                    .send(&cache, chanel);
             },
             OwData::Full(BData) => {
                 if !u.rtg.have_rating() {
@@ -1986,7 +2034,7 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
                         .col(color)
                         .thumbnail(&BData.avatar_url.clone())
                         .footer((String::new(),&roleruler))
-                        .send(chanel);
+                        .send(&cache, chanel);
                 }
                 else {
                     let botmess = format!("{} {} {}", u.btag, u.reg, u.plat);
@@ -2032,7 +2080,7 @@ fn wsstats(mes: Vec<&str>, autor_id: u64, chanel: u64){
                         .col(color)
                         .footer((String::new(),&roleruler))
                         .fields(fields_vec)
-                        .send(chanel);
+                        .send(&cache, chanel);
 
                 }
 
@@ -2118,7 +2166,7 @@ impl<'a> EmbedStruct<'a> {
 		s.image = image.into();
 		s
 	}
-    fn send(self, chanel: u64){
+    fn send(self, cache: impl AsRef<Http>, chanel: ChannelId){
 	    use serde_json::Map;
         let mut json = Map::new();
 	    if !self.text.is_empty(){
@@ -2189,12 +2237,12 @@ impl<'a> EmbedStruct<'a> {
 		    embed.insert("fields".into(), json!(fields));
 	    }
 	    json.insert("embed".into(), json!(embed));
-	    Discord::send_embed(chanel,json!(json));
+	    Discord::send_embed(cache,chanel,json!(json));
     }
 }
 
-pub fn embed_from_value(chanel: u64, val: Value){
-    Discord::send_embed(chanel,val);
+pub fn embed_from_value(cache: impl AsRef<Http>, chanel: ChannelId, val: Value){
+    Discord::send_embed(cache, chanel,val);
 }
 
 fn main() {
@@ -2234,16 +2282,28 @@ fn main() {
     }
     use conf::Config;
     use addon::event_add;
-    let dcshell:DCShell = Discord::get_event_reciever();
+
+//    let dcshell:DCShell = Discord::get_event_reciever();
 
     DB.ini_embeds_s();
 //    DB.ini_lfg();
 //    DB.ini_chat();
     Config::init();
-    EVENT.send(EventChanel::Check);
+
+
+
+    let mut client = Client::new(load_settings(),DisHandler)
+        .expect("Error creating client");
+    EVENT.send(EventChanel::Start(client.cache_and_http.http.clone()));
+
     info!("[Status] Main loop start");
     info!("{}", START_TIME.ctime());
+    if let Err(why) = client.start() {
+        error!("An error occurred while running the client: {:?}", why);
+    }
 
+
+/*
     loop {
 
 
@@ -2856,6 +2916,7 @@ fn main() {
             //END OF MAIN THREAD
         }
     }
+    */
 }
 
 

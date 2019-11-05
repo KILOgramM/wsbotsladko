@@ -1,27 +1,29 @@
 [package]
 name = "WSBot"
-version = "0.7.7"
+version = "0.8.0"
 authors = ["Sladko"]
 edition = "2018"
 
 [dependencies]
-regex = "0.2"
-reqwest = "0.9"
-lazy_static = "1.0"
-mysql = "15.0"
-serde = "1.0"
-serde_json = "1.0"
-serde_derive = "1.0"
-time = "0.1"
-rand = "0.3"
-log = "0.4"
-simplelog = "0.7"
+regex = "0.2" #Поиск
+reqwest = "0.9" #Http Запросы
+lazy_static = "1.0" #Статичные глобальные переменные
+mysql = "15.0" #Работа с БД
+serde = "1.0" #Парсинг
+serde_json = "1.0" #Парсинг в\из JSON
+serde_derive = "1.0" #Прикручивание парсинга для структур и проч.
+time = "0.1" #Упрощённая работа со всеменем (стоит заменить на chono?)
+#rand = "0.3"
+log = "0.4" #Логирование - Ядро
+simplelog = "0.7" #Логироание - Надстройка
 
-indexmap = "1.0"
+indexmap = "1.0" #Структура Vec<Ключ, Данные>
 
-native-tls = "0.1"
-websocket = "0.20"
+#native-tls = "0.1"
+#websocket = "0.20"
 
-net2 = "0.2"
+#net2 = "0.2"
 
-twox-hash = "1.1.2"
+twox-hash = "1.1.2" #Быстрые хеши
+
+serenity = "0.7.2" #Работа с Discord

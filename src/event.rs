@@ -22,6 +22,12 @@ use std::ops::Add;
 use indexmap::map::IndexMap;
 use serde_json;
 use crate::disapi::Discord;
+use std::sync::Arc;
+use serenity::http::raw::Http;
+use serenity::model::id::{ChannelId, GuildId};
+use serenity::http::request::RequestBuilder;
+use serenity::http::routing::RouteInfo;
+use serenity::model::guild::GuildInfo;
 
 pub struct EventH{
     sender: Mutex<Sender<EventChanel>>,
@@ -97,8 +103,8 @@ pub enum EventChanel {
     RecalcEventTime(String),
     RecalcEventChanel(String),
     RemEvent(String),
-    Check,
     GetList,
+    Start(Arc<Http>)
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -154,15 +160,15 @@ impl EventReq{
 }
 
 
-fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
+fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack> ){
     use std::collections::hash_map::RandomState;
     use std::time::Duration;
     use std::sync::mpsc::RecvTimeoutError;
 
     let sleep_time = Duration::from_secs(1);
 
-    let s = RandomState::new();
-    let mut list:IndexMap<String,EventData,RandomState> = IndexMap::with_hasher(s);
+//    let s = RandomState::new();
+    let mut list: IndexMap<String, EventData> = IndexMap::new();
 
     let mut call = format!("SELECT * FROM events");
 
@@ -187,7 +193,7 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
             for row in stmt.execute(()).unwrap() {
                 use serde_json;
                 let (name, string) = from_row::<(String, String)>(row.unwrap());
-                match serde_json::from_str(string.as_str()){
+                match serde_json::from_str::<EventData>(string.as_str()){
                     Ok(ls) => {let _ = list.insert(name, ls);}
                     Err(e) => {
                         info!("EventEng>serde Error on [{}]: {:?}", name, e);
@@ -247,6 +253,22 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
     }
 
     //info!("Event start loop");
+    let http_dis = match reseiv.recv(){
+        Ok(data) => {
+            match data{
+                EventChanel::Start(http) => {
+                    info!("Event>Start successful");
+                    http
+                }
+                _ => {
+                    panic!("Didn't get http ref before start");
+                }
+            }
+        }
+        Err(e) => {
+            panic!("Event error on recive data {} ", e);
+        }
+    };
     loop{
 
         match reseiv.recv_timeout(sleep_time){
@@ -257,7 +279,7 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
                         event_type,
                         req} => {
 
-                        let eventdata = EventData::create(name.clone(),event_type,req);
+                        let eventdata = EventData::create(name.clone(),event_type,req, &http_dis);
                         let json = serde_json::to_string(&eventdata).unwrap();
                         let mut call = format!("INSERT INTO events (");
 
@@ -289,10 +311,6 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
                         info!("Event {} removed", name);
                     }
 
-                    EventChanel::Check =>{
-                        info!("Event>Check done");
-                    }
-
                     EventChanel::RecalcEventTime(name) =>{
                         if let Some(ref mut event) = list.get_mut(&name){
                             event.calc_next();
@@ -301,7 +319,7 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
 
                     EventChanel::RecalcEventChanel(name) =>{
                         if let Some(ref mut event) = list.get_mut(&name){
-                            event.calc_chanel_id();
+                            event.calc_chanel_id(&http_dis);
                         }
                     }
 
@@ -327,6 +345,7 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
                             _ => {}
                         }
                     }
+                    EventChanel::Start(_) => {continue;}
                 }
             }
             Err(RecvTimeoutError::Disconnected) =>{
@@ -343,7 +362,7 @@ fn event_engine(reseiv: Receiver<EventChanel>, sender: Sender<EventChanelBack>){
         for (key, event) in list.iter_mut(){
             if let Some(next) = event.next_activ.clone(){
                 if next.to_timespec().sec <= cur_time.sec{
-                    if let Some(name) = event.start(){
+                    if let Some(name) = event.start(http_dis.clone()){
                         remove_list.push(name);
                     }
                 }
@@ -378,7 +397,7 @@ struct EventData{
 }
 impl EventData{
 
-    fn create(name: String,event_type: EventType, req: Vec<EventReq>) ->EventData{
+    fn create(name: String,event_type: EventType, req: Vec<EventReq>, cache: impl AsRef<Http>) ->EventData{
 
         let mut data = EventData{
             name,
@@ -388,12 +407,12 @@ impl EventData{
             req
         };
         data.calc_next();
-        data.calc_chanel_id();
+        data.calc_chanel_id(cache);
         info!("New event: {}", data.name.clone());
         data
     }
 
-    fn start(&mut self) -> Option<String>{
+    fn start(&mut self, cache: Arc<Http>) -> Option<String>{
 
         let mut output = format!("-----------");
         output = format!("{}\nStart Event: {}",output, self.name);
@@ -406,7 +425,7 @@ impl EventData{
 
         let event_type = self.event_type.clone();
         let name = self.name.clone();
-        let _ = thread::spawn(move || match_func(name, event_type));
+        let _ = thread::spawn(move || match_func(cache, name, event_type));
 
 
         if let Some(name) = self.calc_next(){
@@ -424,7 +443,7 @@ impl EventData{
         return None;
     }
 
-    fn calc_chanel_id(&mut self){
+    fn calc_chanel_id(&mut self, cache: impl AsRef<Http>){
         match self.event_type {
             EventType::CustomEmbed {
                 ref server,
@@ -433,7 +452,7 @@ impl EventData{
                 ref mut chanel,
                 ..
             } => {
-                *chanel = get_chanel_id(server.clone(),server_id.clone(),room.clone());
+                *chanel = get_chanel_id(&cache,server.clone(),server_id.clone(),room.clone());
             }
             _ =>{}
         }
@@ -720,7 +739,7 @@ impl EventData{
     }
 }
 
-fn match_func(name: String, event_type: EventType){
+fn match_func(cache: impl AsRef<Http>, name: String, event_type: EventType){
     match event_type {
         EventType::CustomEmbed {
             server: server,
@@ -732,41 +751,69 @@ fn match_func(name: String, event_type: EventType){
             if let Some(v) = DB.get_embed(embed.as_str()){
 
                 if let Some(c) = chanel{
-                    embed_from_value(c,v.clone());
+                    embed_from_value(cache, ChannelId(c),v.clone());
                 }
                     else {
-                        let room_name = json!(room);
+//                        let room_name = json!(room);
 
                         match server_id{
                             Some(id) =>{
-                                if let Some(ch) = Discord::get_server_channels(id){
-                                    for c in ch.as_array().unwrap(){
-                                        if c["name"].eq(&room_name){
-                                            embed_from_value(c["id"].as_str().unwrap().parse::<u64>().unwrap(),v.clone());
+                                if let Ok(chanels) = GuildId(id).channels(&cache){
+                                    for (_, ch) in chanels.iter(){
+                                        if ch.name.eq(&room){
+                                            embed_from_value(cache,ch.id,v.clone());
                                             return;
                                         }
                                     }
                                 }
+
+
+//                                if let Some(ch) = Discord::get_server_channels(id){
+//                                    for c in ch.as_array().unwrap(){
+//                                        if c["name"].eq(&room_name){
+//                                            embed_from_value(cache,ChannelId(c["id"].as_str().unwrap().parse::<u64>().unwrap()),v.clone());
+//                                            return;
+//                                        }
+//                                    }
+//                                }
                             }
                             None => {
                                 if let Some(servern) = server{
-                                    let server_name = json!(servern);
-
-                                    if let Some(list) = Discord::get_servers(){
-                                        for server_val in list.as_array().unwrap(){
-                                            if server_name.eq(&server_val["name"]){
-                                                if let Some(ch) = Discord::get_server_channels(server_val["id"].as_str().unwrap().parse::<u64>().unwrap()){
-                                                    for c in ch.as_array().unwrap(){
-                                                        if c["name"].eq(&room_name){
-                                                            embed_from_value(c["id"].as_str().unwrap().parse::<u64>().unwrap(),v.clone());
+                                    if let Ok(list) = cache.as_ref().fire::<Vec<GuildInfo>>(RequestBuilder::new(
+                                        RouteInfo::GetGuilds{after:None, before:None,limit:100}).build()){
+                                        for guild in list{
+                                            if servern.eq(&guild.name){
+                                                if let Ok(chanels) = guild.id.channels(&cache){
+                                                    for (_, ch) in chanels.iter(){
+                                                        if ch.name.eq(&room){
+                                                            embed_from_value(cache,ch.id,v.clone());
                                                             return;
                                                         }
                                                     }
                                                 }
                                             }
-
                                         }
                                     }
+
+
+
+//                                    let server_name = json!(servern);
+//
+//                                    if let Some(list) = Discord::get_servers(){
+//                                        for server_val in list.as_array().unwrap(){
+//                                            if server_name.eq(&server_val["name"]){
+//                                                if let Some(ch) = Discord::get_server_channels(server_val["id"].as_str().unwrap().parse::<u64>().unwrap()){
+//                                                    for c in ch.as_array().unwrap(){
+//                                                        if c["name"].eq(&room_name){
+//                                                            embed_from_value(&cache,ChannelId(c["id"].as_str().unwrap().parse::<u64>().unwrap()),v.clone());
+//                                                            return;
+//                                                        }
+//                                                    }
+//                                                }
+//                                            }
+//
+//                                        }
+//                                    }
                                 }
                                 else {
                                     info!("Event>no server data in event: {}", name);
@@ -810,12 +857,12 @@ fn match_func(name: String, event_type: EventType){
         */
 
         EventType::RatingUpdate => {
-            rating_updater();
+            rating_updater(&cache);
         }
     }
 }
 
-pub fn rating_updater(){
+pub fn rating_updater(cache: impl AsRef<Http>){
     use crate::roles::role_ruler;
     use crate::RoleR;
 
@@ -856,7 +903,7 @@ pub fn rating_updater(){
                                    0,  did);
                 let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #7");
                 let _ = conn.query(call);
-                let _ = role_ruler(WSSERVER,did,RoleR::rating(0));
+                let _ = role_ruler(&cache,WSSERVER,did,RoleR::rating(0));
                 info!("[{}] Rating of {} now {}", extime::now().ctime(),btag,0);
                 counter_bad_btag += 1;
             }
@@ -867,7 +914,7 @@ pub fn rating_updater(){
                                    0,  did);
                 let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #7");
                 let _ = conn.query(call);
-                let _ = role_ruler(WSSERVER,did,RoleR::rating(0));
+                let _ = role_ruler(&cache, WSSERVER,did,RoleR::rating(0));
                 info!("[{}] Rating of {} now {} [Closed profile]", extime::now().ctime(),btag,0);
                 counter_close_prof += 1;
             },
@@ -877,7 +924,7 @@ pub fn rating_updater(){
 
                 let mut conn = POOL.get_conn().expect("Err in rating_updater on POOL.get_conn() #6");
                 let _ = conn.query(call);
-                let _ = role_ruler(WSSERVER,did,RoleR::rating(BData.rating.higest_rating()));
+                let _ = role_ruler(&cache, WSSERVER,did,RoleR::rating(BData.rating.higest_rating()));
                 info!("[{}] Rating of {} now {}", extime::now().ctime(),btag,BData.rating.as_simple_str());
                 counter_ok += 1;
             }
@@ -906,7 +953,7 @@ pub fn rating_updater(){
 
 
 
-fn get_chanel_id(server: Option<String>, serverId: Option<u64>, chanel: String) -> Option<u64>{
+fn get_chanel_id(cache: impl AsRef<Http>, server: Option<String>, serverId: Option<u64>, chanel: String) -> Option<u64>{
     let mut err_str = format!("get_chanel_id[\n");
     if let Some(serv) = server.clone(){
         err_str = format!("{}   Srever Name: {}\n",err_str,serv);
@@ -915,39 +962,71 @@ fn get_chanel_id(server: Option<String>, serverId: Option<u64>, chanel: String) 
         err_str = format!("{}   Srever Id: {}\n",err_str,servid);
     }
     err_str = format!("{}   Room: {}]\n> ",err_str,chanel);
-    let chanel_name = json!(chanel);
+//    let chanel_name = json!(chanel);
 
     if let Some(servid) = serverId{
-        if let Some(ch) = Discord::get_server_channels(servid){
-            for c in ch.as_array().unwrap(){
-                if c["name"].eq(&chanel_name){
-                    return Some(c["id"].as_str().unwrap().parse::<u64>().unwrap());
+
+
+        if let Ok(chanels) = GuildId(servid).channels(&cache){
+            for (_, ch) in chanels.iter(){
+                if ch.name.eq(&chanel){
+                    return Some(ch.id.0);
                 }
             }
         }
+
+
+//
+//        if let Some(ch) = Discord::get_server_channels(servid){
+//            for c in ch.as_array().unwrap(){
+//                if c["name"].eq(&chanel_name){
+//                    return Some(c["id"].as_str().unwrap().parse::<u64>().unwrap());
+//                }
+//            }
+//        }
         info!("{}room not found (by server Id)",err_str);
     }
 
     if let Some(servername) = server{
-        let server_name = json!(servername);
 
-        if let Some(list) = Discord::get_servers(){
-            for server_val in list.as_array().unwrap(){
-                if server_name.eq(&server_val["name"]){
-                    if let Some(ch) = Discord::get_server_channels(server_val["id"].as_str().unwrap().parse::<u64>().unwrap()){
-                        for c in ch.as_array().unwrap(){
-                            if c["name"].eq(&chanel_name){
-                                return Some(c["id"].as_str().unwrap().parse::<u64>().unwrap());
+        if let Ok(list) = cache.as_ref().fire::<Vec<GuildInfo>>(RequestBuilder::new(
+            RouteInfo::GetGuilds{after:None, before:None,limit:100}).build()){
+            for guild in list{
+                if servername.eq(&guild.name){
+                    if let Ok(chanels) = guild.id.channels(&cache){
+                        for (_, ch) in chanels.iter(){
+                            if ch.name.eq(&chanel){
+                                return Some(ch.id.0);
                             }
                         }
                     }
-                    info!("{}room not found (by server name)",err_str);
-                    return None;
                 }
-                info!("{}server not found",err_str);
-                return None;
             }
         }
+
+
+
+
+
+//        let server_name = json!(servername);
+//
+//        if let Some(list) = Discord::get_servers(){
+//            for server_val in list.as_array().unwrap(){
+//                if server_name.eq(&server_val["name"]){
+//                    if let Some(ch) = Discord::get_server_channels(server_val["id"].as_str().unwrap().parse::<u64>().unwrap()){
+//                        for c in ch.as_array().unwrap(){
+//                            if c["name"].eq(&chanel_name){
+//                                return Some(c["id"].as_str().unwrap().parse::<u64>().unwrap());
+//                            }
+//                        }
+//                    }
+//                    info!("{}room not found (by server name)",err_str);
+//                    return None;
+//                }
+//                info!("{}server not found",err_str);
+//                return None;
+//            }
+//        }
     }
     return None;
 }

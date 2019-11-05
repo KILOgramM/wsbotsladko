@@ -1,11 +1,15 @@
 use reqwest;
 use reqwest::{Response,Request,Result};
-use crate::D;
+//use crate::D;
 use serde_json::{Value, Map};
 use crate::dstruct::DUser;
 use crate::dstruct::DCShell;
 use crate::dstruct::DServerBig;
 use crate::EmbedStruct;
+use crate::dishandler::send_value;
+
+use serenity::http::raw::Http;
+use serenity::model::id::ChannelId;
 
 pub const DAPI: &'static str = "https://discordapp.com/api/v6";
 pub const UAGENT: &'static str = "DiscordBot (https://github.com/KILOgramM/wsbotsladko, 0.5.0)";
@@ -13,20 +17,23 @@ pub const UAGENT: &'static str = "DiscordBot (https://github.com/KILOgramM/wsbot
 pub struct Discord{
 }
 impl Discord{
-	pub fn token() -> &'static String{
-		D.get_token()
-	}
-	pub fn get_event_reciever() -> DCShell{
-		DCShell::from_dc(D.get_chanel())
-	}
-	pub fn send_embed(chanel_id: u64, embed: Value){
+//	pub fn token() -> &'static String{
+//		D.get_token()
+//	}
+//	pub fn get_event_reciever() -> DCShell{
+//		DCShell::from_dc(D.get_chanel())
+//	}
+	pub fn send_embed(cache: impl AsRef<Http>, chanel_id: ChannelId, embed: Value){
+
+		send_value(cache,embed,chanel_id);
 //		dbg!(&embed);
 //		dbg!(dpool(&format!("/channels/{}/messages", chanel_id),Some(embed)));
-		if let Err(e)  = dpool(&format!("/channels/{}/messages", chanel_id),Some(embed)){
-			info!("[Embed Send] Error\nError:\n{}",e);
-		}
+//		if let Err(e)  = dpool(&format!("/channels/{}/messages", chanel_id),Some(embed)){
+//			info!("[Embed Send] Error\nError:\n{}",e);
+//		}
 
 	}
+/*
 	pub fn send_typing(chanel_id: u64){
 		if let Err(e)  = dpool(&format!("/channels/{}/typing", chanel_id),None){
 			info!("[Send Typing] Error:\n{}",e);
@@ -44,7 +51,7 @@ impl Discord{
 		}
 	}
 
-	pub fn rem_member_role(server_id: u64,user_id: u64, role_id: u64){
+	pub fn rem_member_role(server_id: u64, user_id: u64, role_id: u64){
 		if let Err(e)  = ddelete(&format!("/guilds/{}/members/{}/roles/{}", server_id,user_id,role_id),None){
 			info!("[Remove Member Role] Error\nError:\n{}",e);
 		}
@@ -163,10 +170,11 @@ impl Discord{
 			info!("[Message Send] Error\nEmbed:\n{:?}\nError:\n{}",json,e);
 		}
 	}
+	*/
 
 }
 
-
+/*
 fn dpatch(cmd: &str, json:Value) -> Result<Response>{
 	let url = format!("{}{}",DAPI,cmd);
 	reqwest::Client::new()
@@ -231,3 +239,5 @@ fn ddelete(cmd: &str, json:Option<Value>) -> Result<Response>{
 
 	req.send()
 }
+
+*/

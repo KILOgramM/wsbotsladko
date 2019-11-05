@@ -3,7 +3,7 @@ use serde_json::Value;
 use crate::conf::Config;
 use crate::conf::ConfType;
 use serde_json::map::Map;
-
+use serenity::model::guild::Role;
 
 struct RoleConf{
 	val: Value,
@@ -16,7 +16,7 @@ impl RoleConf{
 
 			Some(v) => {v}
 		};
-		return val.as_object().unwrap().clone();
+		return val.as_object().expect("RoleConfig list error").clone();
 	}
 
 	fn by_serv(id: u64) -> RoleConf{
@@ -87,6 +87,32 @@ impl RoleConf{
 		}
 		return true;
 	}
+
+	fn merge(&self, other: Vec<Role>) -> Vec<(Option<String>, Option<u64>)>{
+		if self.val.is_null(){
+			return Vec::new();
+		}
+		let mut vec = self.get_list();
+		'outer: for (i, vec_roleid) in vec.clone().iter().enumerate(){
+			if vec_roleid.1.is_some(){continue;}
+			'inner: for role in other.iter(){
+				if let Some(ref name) = vec_roleid.0{
+					if role.name.eq(name){
+						vec[i] = (vec_roleid.0.clone(), Some(role.id.0));
+						break 'inner;
+					}
+				}
+				else {
+					warn!("Role #{} don't have name for search\n {:#?}",i,self.val);
+					continue 'outer;
+				}
+			}
+		}
+
+		return vec;
+	}
+
+	/* old merge
 	fn merge(&self, other: Value) -> Vec<(Option<String>, Option<u64>)>{
 		if self.val.is_null(){
 			return Vec::new();
@@ -109,6 +135,7 @@ impl RoleConf{
 
 		return vec;
 	}
+	*/
 }
 
 pub enum RoleR{
@@ -120,11 +147,13 @@ pub enum RoleChange{
 	rem(String)
 }
 
-pub fn role_ruler_text(server_id: u64, user_id: u64, cmd: RoleR) -> String{
+use serenity::http::raw::Http;
+
+pub fn role_ruler_text(cache: impl AsRef<Http>, server_id: u64, user_id: u64, cmd: RoleR) -> String{
 	let mut answer = String::new();
 	let mut removed = Vec::new();
 	let mut added = Vec::new();
-	for role in role_ruler(server_id, user_id, cmd){
+	for role in role_ruler(cache, server_id, user_id, cmd){
 		match role {
 			RoleChange::add(s) =>{
 				added.push(s);
@@ -223,7 +252,7 @@ pub fn role_ruler_text(server_id: u64, user_id: u64, cmd: RoleR) -> String{
 	return answer;
 }
 
-pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
+pub fn role_ruler(cache: impl AsRef<Http>, server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
 //	info!("SERV ID [{}]", server_id);
 	let mut answer: Vec<RoleChange> = Vec::new();
 
@@ -241,16 +270,18 @@ pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
 
 
 
-//				if conf.val.is_null(){return answer;}
+				if conf.val.is_null(){return answer;}
 
-				if let Some(member) = Discord::get_member(id_conf_serv,user_id) {
-					if !member["roles"].is_array() {
-						continue; //Отбрасывает тех кого нет на сервере
-					}
+				if let Ok(member) = cache.as_ref().get_member(id_conf_serv,user_id) {
+
+//					if !member["roles"].is_array() {
+//						continue; //Отбрасывает тех кого нет на сервере
+//					}
+
 					let roles_list = match conf.all_have_id(){
 						true => {conf.get_list()}
 						false => {
-							conf.merge(Discord::get_roles_list(id_conf_serv).expect("Err RolRul#1"))
+							conf.merge(cache.as_ref().get_guild_roles(id_conf_serv).expect("Getting guild roles list"))
 						}
 					};
 
@@ -296,25 +327,30 @@ pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
 					let mut already_have_role = false;
 
 					for role in roles_list{
-						'inner1: for member_role in member["roles"].as_array().expect("Err RolRul#2"){
-							let member_role_id = member_role.as_str().expect("Err RolRul#3").parse::<u64>().expect("Err RolRul#4: parse error");
+						'inner1: for member_role in member.roles.iter(){
+							let member_role_id = member_role.0;
 							if member_role_id == role.1.expect("Err RolRul#5"){
 								if let Some((_, role_id)) = have_role{
 									if role_id == member_role_id{
 										already_have_role = true;
 									}
 										else {
-											Discord::rem_member_role(id_conf_serv,user_id,member_role_id);
+											if let Err(e) = cache.as_ref().remove_member_role(id_conf_serv,user_id,member_role_id){
+												warn!("Error #1 while removing member role: {}",e);
+											}
+//											Discord::rem_member_role(id_conf_serv,user_id,member_role_id);
 											if let Some(role_name) = role.0{
 												if id_conf_serv == server_id{
 													answer.push(RoleChange::rem(role_name));
 												}
-
 											}
 										}
 								}
 									else {
-										Discord::rem_member_role(id_conf_serv,user_id,member_role_id);
+										if let Err(e) = cache.as_ref().remove_member_role(id_conf_serv,user_id,member_role_id){
+											warn!("Error #2 while removing member role: {}",e);
+										}
+//										Discord::rem_member_role(id_conf_serv,user_id,member_role_id);
 										if let Some(role_name) = role.0{
 											if id_conf_serv == server_id{
 												answer.push(RoleChange::rem(role_name));
@@ -331,7 +367,10 @@ pub fn role_ruler(server_id: u64, user_id: u64, cmd: RoleR) -> Vec<RoleChange>{
 					}
 					if !already_have_role{
 						if let Some((name, role_id)) = have_role{
-							Discord::add_member_role(id_conf_serv,user_id,role_id);
+							if let Err(e) = cache.as_ref().add_member_role(id_conf_serv, user_id, role_id){
+								warn!("Error while adding member role: {}",e);
+							}
+//							Discord::add_member_role(id_conf_serv,user_id,role_id);
 							if id_conf_serv == server_id{
 								answer.push(RoleChange::add(name));
 							}

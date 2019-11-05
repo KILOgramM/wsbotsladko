@@ -1,6 +1,7 @@
 use std::sync::mpsc::{Receiver,Sender,channel};
 use std::time::{Instant, Duration};
 use std::ops::Deref;
+use std::convert::From;
 use extime;
 use std::sync::{Mutex,
                 mpsc::{
@@ -13,10 +14,10 @@ use std::sync::{Mutex,
 use serde_json::Value;
 
 
-use crate::dis::shell;
+//use crate::dis::shell;
 use crate::denum::{OutLink,UniChanel,GlobE};
 
-use websocket::{Message, OwnedMessage};
+//use websocket::{Message, OwnedMessage};
 
 pub struct DoubleChanel<T: Default>{
     pub sender: Sender<T>,
@@ -111,6 +112,8 @@ impl DMessage{
     }
 }
 
+use serenity::model::user::User;
+
 #[derive(Clone, Debug)]
 pub struct DUser{
     pub id: u64,
@@ -154,6 +157,18 @@ impl DUser{
     }
 }
 
+impl From<User> for DUser{
+    fn from(item: User) -> Self {
+        DUser {
+            id: item.id.0,
+            username: item.name.clone(),
+            discriminator: format!("{}",item.discriminator),
+            avatar: item.avatar_url().unwrap_or_default(),
+        }
+    }
+}
+
+
 pub struct DServerBig{
 	pub id: u64,
 	pub name: String,
@@ -164,6 +179,8 @@ pub struct DiscordMain{
     dc: Mutex<DoubleChanel<GlobE>>,
 	token: String,
 }
+
+/*
 
 impl DiscordMain{
     pub fn new(token: String) -> DiscordMain{
@@ -241,6 +258,8 @@ impl Drop for DiscordMain{
             }
     }
 }
+*/
+
 
 pub struct DCShellConf{
     pub send_events: bool,
