@@ -27,6 +27,8 @@ use crate::conf::Config;
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 
 use crate::addon::DB;
+use serenity::model::guild::{GuildInfo, PartialGuild};
+use serenity::CacheAndHttp;
 //use websocket::futures::future::err;
 
 
@@ -89,6 +91,10 @@ impl EventHandler for DisHandler {
 
 				if _new_message.author.id.0 == 193759349531869184 || _new_message.author.id.0 == 222781446971064320{
 					match mes_split[0].to_lowercase().as_str() {
+						"!servers" => {
+							show_list_of_guilds(_ctx, channel);
+						}
+
 						"!rup" => {
 							rating_updater(&_ctx);
 							channel.say(&_ctx,"Рейтинг обновлён");
@@ -400,5 +406,124 @@ pub fn send_value(cache: impl AsRef<Http>, embed: Value, chanel: ChannelId){
 	if let Err(e) = cache.as_ref().send_message(chanel.0, &embed){
 		error!("Trying send embed: {}",e);
 	}
+}
+
+fn show_list_of_guilds(ctx: Context, channel: ChannelId){
+	use serenity::{http::GuildPagination, model::id::GuildId};
+	let http: &Http = ctx.as_ref();
+	match http.get_guilds(&GuildPagination::After(GuildId(0)), 100){
+		Ok(list_of_guilds) => {
+			info!("Get list of guilds. Total: {}", list_of_guilds.len());
+			channel.say(&ctx, format!("Получаю список серверов. Всего: {}", list_of_guilds.len()));
+			for guild_short in list_of_guilds{
+				let guild: PartialGuild = http.get_guild(guild_short.id.0).expect("Getting one Guild");
+
+				let (thum, title, des) = match http.get_guild(guild_short.id.0){
+					Ok(guild) => {
+						let thum = match guild.icon_url(){
+							None => { String::new()}
+							Some(s) => {s.to_string()}
+						};
+						let title = guild.name.to_string();
+
+						let mut des: String = format!("Id: {:?}\n",&guild.id.0);
+						des = format!("{}Owner: <@{}>\n",des,&guild.owner_id.0);
+						des = format!("{}Region: {}\n",des,&guild.region);
+
+						des = match guild_short.id.to_guild_cached(&ctx){
+							Some(g) =>{
+								des = format!("{}Members Count: {}\n",des,g.read().member_count);
+								format!("{}Joined At: {}",des, g.read().joined_at.to_rfc2822())
+							}
+							None => {
+								warn!("No cached guild {}", guild_short.id.0);
+								des = format!("{}Members Count: Unknown\n",des);
+								format!("{}Joined At: Unknown",des)
+							}
+						};
+						(thum,title,des)
+					}
+					Err(e) => {
+						warn!("Error while getting guild by guild ID from Discord. Trying use cache.");
+						match guild.id.to_guild_cached(&ctx){
+							Some(g) =>{
+								let guild = g.read().clone();
+								let thum = match guild.icon_url(){
+									None => { String::new()}
+									Some(s) => {s}
+								};
+								let title = guild.name.clone();
+
+								let mut des = format!("Id: {:?}\n",&guild.id.0);
+								des = format!("{}Owner: <@{}>\n",des,&guild.owner_id.0);
+								des = format!("{}Region: {}\n",des,&guild.region);
+								des = format!("{}Members Count: {}\n",des,&guild.member_count);
+								des = format!("{}Joined At: {}",des, &guild.joined_at.to_rfc2822());
+
+								(thum,title,des)
+							}
+							None => {
+								warn!("No cached guild at all: {}", guild_short.id.0);
+								continue;
+							}
+						}
+
+					}
+				};
+
+				info!("{}\n{}",&title,&des);
+				EmbedStruct::empty()
+					.title(&title)
+					.des(&des)
+					.thumbnail(&thum)
+					.send(&ctx,channel);
+
+
+			}
+		}
+		Err(e) => {
+			warn!("Error while getting list of Guilds, trying cache: {}", e);
+			let cache_lock: &CacheRwLock = ctx.as_ref();
+			let guilds_id: Vec<GuildId> = cache_lock.read().all_guilds().iter().map(|&g| g.clone()).collect();
+			info!("Get cached list of guilds. Total: {}", guilds_id.len());
+			channel.say(&ctx, format!("Получаю кешированый список серверов. Всего: {}", guilds_id.len()));
+			for guild_id in guilds_id{
+				match guild_id.to_guild_cached(&ctx){
+					Some(g) =>{
+						let guild = g.read().clone();
+						let thum = match guild.icon_url(){
+							None => { String::new()}
+							Some(s) => {s}
+						};
+						let title = guild.name.clone();
+
+						let mut des = format!("Id: {:?}\n",&guild.id.0);
+						des = format!("{}Owner: <@{}>\n",des,&guild.owner_id.0);
+						des = format!("{}Region: {}\n",des,&guild.region);
+						des = format!("{}Members Count: {}\n",des,&guild.member_count);
+						des = format!("{}Joined At: {}",des, &guild.joined_at.to_rfc2822());
+
+
+						info!("{}\n{}",&title,&des);
+						EmbedStruct::empty()
+							.title(&title)
+							.des(&des)
+							.thumbnail(&thum)
+							.send(&ctx,channel);
+					}
+					None => {
+						warn!("No cached guild at all: {}", guild_id.0);
+						continue;
+					}
+				};
+			}
+
+
+		}
+	}
+
+	info!("End of the guilds list");
+	channel.say(&ctx, "Вывод списка закончен.");
+
 }
 
