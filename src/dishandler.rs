@@ -1,7 +1,7 @@
 use serenity::prelude::EventHandler;
 use serenity::prelude::Context;
 use serenity::model::channel::Message;
-use serenity::model::id::ChannelId;
+use serenity::model::id::{ChannelId, GuildId};
 use serenity::cache::CacheRwLock;
 use serenity::http::raw::Http;
 use serde_json::Value;
@@ -29,10 +29,16 @@ use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 use crate::addon::DB;
 use serenity::model::guild::{GuildInfo, PartialGuild};
 use serenity::CacheAndHttp;
+use crate::roles::RoleConf;
 //use websocket::futures::future::err;
 
 
 impl EventHandler for DisHandler {
+
+	fn cache_ready(&self, _ctx: Context, _guilds: Vec<GuildId>){
+		update_roles(&_ctx);
+	}
+
 	fn message(&self, _ctx: Context, _new_message: Message){
 		use std::thread;
 		thread::spawn(move || {
@@ -41,6 +47,7 @@ impl EventHandler for DisHandler {
 			if _new_message.content.starts_with('!') {
 				let content = _new_message.content.clone();
 				let channel =_new_message.channel_id.clone();
+				let server = _new_message.guild_id.clone();
 				let mes_split: Vec<&str> = content.as_str().split_whitespace().collect();
 				match mes_split[0].to_lowercase().as_str() {
 					"!wsreg" => {
@@ -215,6 +222,13 @@ impl EventHandler for DisHandler {
 							}
 
 						}
+
+						"!test3" => {
+							use crate::roles::role_ruler;
+							use crate::roles::RoleR;
+							let _ = role_ruler(&_ctx, server.unwrap_or_default().0, _new_message.author.id.0, RoleR::rating(2900));
+						}
+
 						"!ini" =>{
 							if mes_split.len() > 1{
 								match mes_split[1].to_lowercase().as_str(){
@@ -233,6 +247,10 @@ impl EventHandler for DisHandler {
 									"config" => {
 										Config::init();
 										channel.say(&_ctx, "Config инициализирован");
+									}
+									"roles" =>{
+										update_roles(&_ctx);
+										channel.say(&_ctx, "Роли обновлены");
 									}
 									_ => {
 										channel.say(&_ctx, "Опция не определена");
@@ -526,4 +544,13 @@ fn show_list_of_guilds(ctx: Context, channel: ChannelId){
 	channel.say(&ctx, "Вывод списка закончен.");
 
 }
-
+fn update_roles(ctx: &Context){
+	for (id_conf_serv, val) in RoleConf::servers_iter(){
+		let id_conf_serv: u64 = id_conf_serv.parse::<u64>().unwrap();
+		let conf = RoleConf{
+			val: val
+		};
+		let http: &Http = ctx.as_ref();
+		let _ = conf.merge(http.get_guild_roles(id_conf_serv).expect("Getting guild roles list"),id_conf_serv);
+	}
+}

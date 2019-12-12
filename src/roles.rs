@@ -5,12 +5,12 @@ use crate::conf::ConfType;
 use serde_json::map::Map;
 use serenity::model::guild::Role;
 
-struct RoleConf{
-	val: Value,
+pub struct RoleConf{
+	pub val: Value,
 }
 impl RoleConf{
 
-	fn servers_iter() -> Map<String, Value>{
+	pub fn servers_iter() -> Map<String, Value>{
 		let val = match Config::get_root(ConfType::rating) {
 			None => {return Map::new();}
 
@@ -88,7 +88,7 @@ impl RoleConf{
 		return true;
 	}
 
-	fn merge(&self, other: Vec<Role>, srver: u64) -> Vec<(Option<String>, Option<u64>)>{
+	pub fn merge(&self, other: Vec<Role>, srver: u64) -> Vec<(Option<String>, Option<u64>)>{
 		if self.val.is_null(){
 			return Vec::new();
 		}
