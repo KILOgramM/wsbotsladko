@@ -551,6 +551,13 @@ fn update_roles(ctx: &Context){
 			val: val
 		};
 		let http: &Http = ctx.as_ref();
-		let _ = conf.merge(http.get_guild_roles(id_conf_serv).expect("Getting guild roles list"),id_conf_serv);
+		let roles = match http.get_guild_roles(id_conf_serv){
+			Ok(r) => r,
+			Err(e) => {
+				warn!("Error while getting roles from server [{}] from rating_conf.json list:\n{}",id_conf_serv,e);
+				continue;
+			}
+		};
+		let _ = conf.merge(roles,id_conf_serv);
 	}
 }
