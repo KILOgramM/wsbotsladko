@@ -1,6 +1,6 @@
 [package]
 name = "WSBot"
-version = "0.8.1"
+version = "0.8.2"
 authors = ["Sladko"]
 edition = "2018"
 
@@ -26,4 +26,4 @@ indexmap = "1.0" #Структура Vec<Ключ, Данные>
 
 twox-hash = "1.1.2" #Быстрые хеши
 
-serenity = "0.7.2" #Работа с Discord
+serenity = "0.7.3" #Работа с Discord

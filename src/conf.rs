@@ -4,6 +4,7 @@ use serde_json;
 use serde_json::Value;
 use std::sync::RwLock;
 use std::sync::RwLockWriteGuard;
+use std::ops::{Deref, DerefMut};
 
 const RATING_CONF_PATH: &'static str = "rating_conf.json";
 
@@ -101,7 +102,7 @@ impl Config{
 
 	pub fn get_root(t: ConfType) -> Option<Value>{
 		use std::ops::Deref;
-		loop{
+
 			match CONF.map.read() {
 				Ok(conf) => {
 					let conf = conf.deref();
@@ -114,9 +115,20 @@ impl Config{
 					};
 
 				}
-				_ => {}
+				_ => {return None;}
 			}
-		}
+
+	}
+
+	pub fn set_root(t: ConfType, json: Value){
+		use std::ops::DerefMut;
+
+
+
+		CONF.map.write().as_mut().unwrap().deref_mut().insert(t,json);
+
+
+
 	}
 
 	pub fn set_in_file(t: ConfType, json: Value){

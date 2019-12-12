@@ -1,5 +1,5 @@
 use crate::disapi::Discord;
-use serde_json::Value;
+use serde_json::{Value, Number};
 use crate::conf::Config;
 use crate::conf::ConfType;
 use serde_json::map::Map;
@@ -88,10 +88,12 @@ impl RoleConf{
 		return true;
 	}
 
-	fn merge(&self, other: Vec<Role>) -> Vec<(Option<String>, Option<u64>)>{
+	fn merge(&self, other: Vec<Role>, srver: u64) -> Vec<(Option<String>, Option<u64>)>{
 		if self.val.is_null(){
 			return Vec::new();
 		}
+		let server = format!("{}",srver);
+		let mut list = RoleConf::servers_iter();
 		let mut vec = self.get_list();
 		'outer: for (i, vec_roleid) in vec.clone().iter().enumerate(){
 			if vec_roleid.1.is_some(){continue;}
@@ -99,6 +101,38 @@ impl RoleConf{
 				if let Some(ref name) = vec_roleid.0{
 					if role.name.eq(name){
 						vec[i] = (vec_roleid.0.clone(), Some(role.id.0));
+						if let Some(s) = list.get_mut(&server){
+							let len = s.as_array().unwrap().len();
+							for n in 0..len{
+								if let Some(a) = s.get_mut(n){
+									if let Some(o) = a.as_object_mut(){
+										if let Some(m) = o.get("id"){
+											if let Some(id) = m.as_u64(){
+												if id == role.id.0{
+
+													if let Some(new_name) = &vec_roleid.0 {
+														o.insert("name".to_string(),json!(new_name.clone()));
+
+													}
+
+												}
+											}
+										}
+										else {
+											if let Some(m) = o.get("name"){
+												if let Some(cur_name) = m.as_str(){
+													if let Some(inner_name) = &vec_roleid.0 {
+														if cur_name.eq(inner_name.as_str()){
+															o.insert("id".to_string(),json!(role.id.0));
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
 						break 'inner;
 					}
 				}
@@ -109,8 +143,12 @@ impl RoleConf{
 			}
 		}
 
+		Config::set_in_file(ConfType::rating,Value::Object(list.clone()));
+		Config::set_root(ConfType::rating,Value::Object(list));
 		return vec;
 	}
+
+
 
 	/* old merge
 	fn merge(&self, other: Value) -> Vec<(Option<String>, Option<u64>)>{
@@ -148,6 +186,7 @@ pub enum RoleChange{
 }
 
 use serenity::http::raw::Http;
+use serenity::model::id::GuildId;
 
 pub fn role_ruler_text(cache: impl AsRef<Http>, server_id: u64, user_id: u64, cmd: RoleR) -> String{
 	let mut answer = String::new();
@@ -281,7 +320,8 @@ pub fn role_ruler(cache: impl AsRef<Http>, server_id: u64, user_id: u64, cmd: Ro
 					let roles_list = match conf.all_have_id(){
 						true => {conf.get_list()}
 						false => {
-							conf.merge(cache.as_ref().get_guild_roles(id_conf_serv).expect("Getting guild roles list"))
+							conf.merge(cache.as_ref().get_guild_roles(id_conf_serv).expect("Getting guild roles list"),id_conf_serv)
+
 						}
 					};
 
